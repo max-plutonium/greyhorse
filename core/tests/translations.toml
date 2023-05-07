@@ -1,0 +1,14 @@
+# This is a TOML translations document.
+default = "en"
+title.en = "Title"
+title.ru = "Заголовок"  # Comment
+
+[owner]  # Owner
+name.en = "Name"
+name.ru = "Имя"
+
+[[data]]
+title1 = 'Data'
+
+[[data]]
+title2.ru = 'Данные'

@@ -1,0 +1,35 @@
+version: "3.4"
+
+services:
+  postgres-db:
+    image: postgres:15-alpine
+    restart: always
+    container_name: postgres-db
+    environment:
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_DB: postgres
+        POSTGRES_INITDB_ARGS: "--data-checksums"
+        PGTZ: "Europe/Moscow"
+    ports:
+      - "5432:5432/tcp"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+
+  mysql-db:
+    image: mariadb:latest
+    environment:
+        MYSQL_DATABASE: mysql
+        MYSQL_USER: mysql
+        MYSQL_PASSWORD: mysql
+        MYSQL_ROOT_PASSWORD: mysql
+    ports:
+      - "3306:3306/tcp"
+    volumes:
+      - my-data:/var/lib/mysql
+
+volumes:
+  pg-data:
+    driver: local
+  my-data:
+    driver: local

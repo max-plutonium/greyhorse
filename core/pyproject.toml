@@ -1,0 +1,43 @@
+[tool.poetry]
+name = "greyhorse-core"
+version = "0.1"
+description = "Greyhorse Core library"
+license = "MIT"
+repository = "https://gitlab.com/max-plutonium/greyhorse"
+authors = ["Max Plutonium <plutonium.max@gmail.com>"]
+maintainers = ["Max Plutonium <plutonium.max@gmail.com>"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+]
+
+packages = [
+    { include = "greyhorse_core" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+dependency-injector = {version = "^4.41", extras = ["pydantic"]}
+pydantic = {version = "^1.10", extras = ["dotenv", "email"]}
+pytz = "^2022.7"
+timeparse-plus = "^1.2"
+tomlkit = "^0.11"
+orjson = "^3.8"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.2"
+pytest-asyncio = "^0.21"
+pytest-cov = "^4.0"
+pytest-mock = "^3.10"
+pytest-faker = "^2.0"
+autoflake = "^2.0"
+black = "^23.1"
+flake8 = "^6.0"
+isort = "^5.12"
+mypy = "^1.1"
+pre-commit = "^3.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

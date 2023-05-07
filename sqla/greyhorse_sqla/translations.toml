@@ -1,0 +1,6 @@
+default = "en"
+
+[engines.sql]
+engine.created = "Sql engine '{name}' created: {db_type} [{async_}]"
+engine.started = "Sql engine '{name}' started: {db_type} [{async_}]"
+engine.stopped = "Sql engine '{name}' stopped: {db_type} [{async_}]"
