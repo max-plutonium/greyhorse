@@ -1,31 +1,30 @@
 import asyncio
-from abc import ABC, abstractmethod
-from typing import Any, Mapping, Optional, Sequence, Set, TYPE_CHECKING, Tuple, TypeVar, Union, Self
+from abc import ABC
+from typing import Any, Mapping, Sequence, TYPE_CHECKING, Tuple, TypeVar, Self
 
 from pydantic.main import BaseModel as PydanticModel
 
 from .base import AbstractModel, IdType
 from .fields import ModelFieldsMixin
-from ..repositories.base import Repository
-from ...utils.invoke import is_awaitable
+
+if TYPE_CHECKING:
+    from ..repositories.base import ModelRepository
+
 
 CreateSchemaType = TypeVar('CreateSchemaType', bound=PydanticModel)
 UpdateSchemaType = TypeVar('UpdateSchemaType', bound=PydanticModel)
 
 
 class Model(AbstractModel[IdType], ModelFieldsMixin, ABC):
-    _repo: Repository[IdType, Self]
+    _repo: 'ModelRepository[IdType, Self]'
 
     @classmethod
-    def bind(cls, repository: Repository[IdType, Self]):
+    def bind(cls, repository: 'ModelRepository[IdType, Self]'):
         cls._repo = repository
 
     @classmethod
     async def construct(cls, data: Mapping[str, Any], **kwargs) -> Self:
-        result = cls._repo.model_factory(**data)
-        if is_awaitable(result):
-            return await result
-        return result
+        return await cls._repo.construct(data, **kwargs)
 
     @classmethod
     async def construct_all(cls, objects: Sequence[Mapping[str, Any] | None], **kwargs) -> Sequence[Self | None]:

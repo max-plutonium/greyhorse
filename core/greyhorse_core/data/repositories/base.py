@@ -1,33 +1,41 @@
 from abc import ABC, abstractmethod
-from typing import Any, Awaitable, Callable, Generic, Mapping, Optional, Sequence, Tuple, Type, TypeVar, Union, \
-    cast
+from typing import Any, Callable, Generic, Mapping, Sequence, Tuple, Type, TypeVar
 
+from ..models.model import Model
+from ...utils.invoke import is_awaitable
 
 IdType = TypeVar('IdType')
-ModelType = TypeVar('ModelType')
+EntityType = TypeVar('EntityType')
+ModelType = TypeVar('ModelType', bound=Model, covariant=True)
+EntityFactory = Callable[..., EntityType]
 ModelFactory = Callable[..., ModelType]
 
 
-class Repository(Generic[IdType, ModelType], ABC):
-    def __init__(self, model_class: Type[ModelType], model_factory: ModelFactory | None = None):
-        self._model_class = model_class
-        self._model_factory = model_factory or model_class
-        model_class.bind(self)
+class Repository(Generic[IdType, EntityType], ABC):
+    def __init__(self, class_: Type[EntityType], factory: EntityFactory | None = None):
+        self._class = class_
+        self._factory = factory or class_
 
     @property
-    def model_class(self):
-        return self._model_class
+    def entity_class(self):
+        return self._class
 
     @property
-    def model_factory(self):
-        return self._model_factory
+    def entity_factory(self):
+        return self._factory
+
+    async def construct(self, data: Mapping[str, Any], **kwargs) -> EntityType:
+        result = self.entity_factory(**data)
+        if is_awaitable(result):
+            return await result
+        return result
 
     @abstractmethod
-    async def get(self, id_value: IdType, **kwargs) -> ModelType | None:
+    async def get(self, id_value: IdType, **kwargs) -> EntityType | None:
         ...
 
     @abstractmethod
-    async def get_any(self, indices: Sequence[IdType], **kwargs) -> Sequence[ModelType | None]:
+    async def get_any(self, indices: Sequence[IdType], **kwargs) -> Sequence[EntityType | None]:
         ...
 
     @abstractmethod
@@ -35,16 +43,16 @@ class Repository(Generic[IdType, ModelType], ABC):
         ...
 
     @abstractmethod
-    async def load(self, instance: ModelType, only: Sequence[str] | None = None) -> bool:
+    async def load(self, instance: EntityType, only: Sequence[str] | None = None) -> bool:
         ...
 
     @abstractmethod
-    async def create(self, data: Mapping[str, Any], **kwargs) -> ModelType | None:
+    async def create(self, data: Mapping[str, Any], **kwargs) -> EntityType | None:
         ...
 
     async def get_or_create(
         self, id_value: IdType, data: Mapping[str, Any], **kwargs,
-    ) -> Tuple[ModelType | None, bool]:
+    ) -> Tuple[EntityType | None, bool]:
         if instance := await self.get(id_value, **kwargs):
             return instance, False
         else:
@@ -55,15 +63,15 @@ class Repository(Generic[IdType, ModelType], ABC):
         ...
 
     @abstractmethod
-    async def save(self, instance: ModelType, **kwargs) -> bool:
+    async def save(self, instance: EntityType, **kwargs) -> bool:
         ...
 
     @abstractmethod
-    async def save_all(self, objects: Sequence[ModelType], **kwargs) -> bool:
+    async def save_all(self, objects: Sequence[EntityType], **kwargs) -> bool:
         ...
 
     @abstractmethod
-    async def delete(self, instance: ModelType) -> bool:
+    async def delete(self, instance: EntityType) -> bool:
         ...
 
     @abstractmethod
@@ -73,3 +81,12 @@ class Repository(Generic[IdType, ModelType], ABC):
     @abstractmethod
     async def delete_by_id(self, id_value: IdType) -> bool:
         ...
+
+
+class ModelRepository(Repository[IdType, ModelType], ABC):
+    def __init__(
+        self, model_class: Type[ModelType],
+        model_factory: ModelFactory | None = None,
+    ):
+        super().__init__(model_class, model_factory)
+        model_class.bind(self)

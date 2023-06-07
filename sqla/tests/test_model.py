@@ -1,17 +1,12 @@
-from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime
+from datetime import datetime
 from unittest import mock
 
 import pytest
-import pytest_asyncio
-from sqlalchemy import DateTime, func, MetaData, String, text
-from sqlalchemy.orm import Mapped, mapped_column as C, DeclarativeBase
+from sqlalchemy import DateTime, func, String
+from sqlalchemy.orm import Mapped, mapped_column as C
 
-from greyhorse_sqla.config import EngineConfig, SqlEngineType
-from greyhorse_sqla.factory import SqlaAsyncEngineFactory
 from greyhorse_sqla.model import SqlaModel
-
-from conf import MYSQL_URI, POSTGRES_URI, SQLITE_URI
 from greyhorse_sqla.query import SqlaFiltersQuery as Q
 from greyhorse_sqla.repository import SqlaModelRepository
 
@@ -160,6 +155,7 @@ async def test_update():
     TestModel.bind(repo_mock)
 
     instance = TestModel(id=1, data='123')
+    instance.get_id_value = lambda: 1
 
     repo_mock.update_by_id.return_value = True
     assert await instance.update({'data': '456'})

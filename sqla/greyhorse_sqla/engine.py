@@ -4,10 +4,8 @@ import threading
 from abc import ABC, abstractmethod
 from contextlib import contextmanager, AbstractContextManager, asynccontextmanager, AbstractAsyncContextManager
 from datetime import timedelta
-from typing import Callable
 
-from sqlalchemy import create_engine as create_sync_engine
-from sqlalchemy.ext.asyncio import AsyncSession as SqlaAsyncSession, async_scoped_session, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession as SqlaAsyncSession, async_scoped_session, async_sessionmaker
 from sqlalchemy.orm import Session as SqlaSyncSession, scoped_session, sessionmaker
 
 from greyhorse_core.context import get_context
@@ -55,7 +53,9 @@ class SqlaSyncEngine(SyncEngine[SqlaSyncSession], SqlaEngine):
 
         self._counter = 0
         self._lock = threading.Lock()
-        self._session_factory = sessionmaker(bind=engine, autoflush=False)
+        self._session_factory = sessionmaker(
+            bind=engine, autoflush=False, expire_on_commit=False,
+        )
         self._scoped_session = scoped_session(
             self._session_factory, scopefunc=lambda: get_context().session_id
         )

@@ -1,33 +1,23 @@
 from abc import abstractmethod
-from typing import Generic, Self, Mapping, Any, Sequence
+from typing import Generic, Self, Mapping, Any, Sequence, TYPE_CHECKING, TypeVar
 
 from .base import IdType
 from .model import Model, UpdateSchemaType
-from ..repositories.filterable import FilterableRepository, FilterType, SortingType
+
+if TYPE_CHECKING:
+    from ..repositories.filterable import FilterableRepository
+
+
+FilterType = TypeVar('FilterType')
+SortingType = TypeVar('SortingType')
 
 
 class FilterableModel(Model[IdType], Generic[IdType, FilterType, SortingType]):
-    _repo: FilterableRepository[IdType, Self, FilterType, SortingType]
+    _repo: 'FilterableRepository[IdType, Self, FilterType, SortingType]'
 
     @classmethod
-    def bind(cls, repository: FilterableRepository[IdType, Self, FilterType, SortingType]):
+    def bind(cls, repository: 'FilterableRepository[IdType, Self, FilterType, SortingType]'):
         cls._repo = repository
-
-    @classmethod
-    @abstractmethod
-    def query_for_select(cls, include_rela: set[str] | None = None,
-                         exclude_rela: set[str] | None = None, **kwargs):
-        ...
-
-    @classmethod
-    @abstractmethod
-    def query_for_update(cls, **kwargs):
-        ...
-
-    @classmethod
-    @abstractmethod
-    def query_for_delete(cls, **kwargs):
-        ...
 
     @classmethod
     @abstractmethod
@@ -37,11 +27,6 @@ class FilterableModel(Model[IdType], Generic[IdType, FilterType, SortingType]):
     @classmethod
     @abstractmethod
     def get_relationships(cls) -> Mapping[str, Any]:
-        ...
-
-    @classmethod
-    @abstractmethod
-    def query_options(cls, include: set[str] | None = None, exclude: set[str] | None = None):
         ...
 
     #
@@ -85,51 +70,3 @@ class FilterableModel(Model[IdType], Generic[IdType, FilterType, SortingType]):
     @classmethod
     async def delete_by(cls, filters: FilterType, **kwargs) -> int:
         return await cls._repo.delete_by(filters, **kwargs)
-
-    #
-    # Query operations
-    #
-
-    @classmethod
-    @abstractmethod
-    def query_get(cls, id_value: IdType, query=None, **kwargs):
-        ...
-
-    @classmethod
-    @abstractmethod
-    def query_any(cls, indices: Sequence[IdType], query=None, **kwargs):
-        ...
-
-    @classmethod
-    @abstractmethod
-    def query_list(
-        cls, filters: FilterType | None = None,
-        sorting: SortingType | None = None,
-        skip: int = 0, limit: int = 0, **kwargs,
-    ):
-        ...
-
-    @classmethod
-    @abstractmethod
-    def query_count(cls, filters: FilterType | None = None, **kwargs):
-        ...
-
-    @classmethod
-    @abstractmethod
-    def query_exists(cls, id_value: IdType, **kwargs):
-        ...
-
-    @classmethod
-    @abstractmethod
-    def query_exists_by(cls, filters: FilterType, **kwargs):
-        ...
-
-    @classmethod
-    @abstractmethod
-    def query_update(cls, filters: FilterType, **kwargs):
-        ...
-
-    @classmethod
-    @abstractmethod
-    def query_delete(cls, filters: FilterType, **kwargs):
-        ...
