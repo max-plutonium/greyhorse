@@ -1,6 +1,6 @@
-from typing import Mapping, Any, Tuple, Self, TYPE_CHECKING
+from typing import Any, Mapping, Self, TYPE_CHECKING, Tuple
 
-from sqlalchemy import ColumnCollection, Column
+from sqlalchemy import Column, ColumnCollection
 from sqlalchemy.orm import DeclarativeBase, joinedload, selectinload
 from sqlalchemy.orm.decl_api import DeclarativeAttributeIntercept
 from sqlalchemy.sql.base import ReadOnlyColumnCollection
@@ -54,7 +54,7 @@ class SqlaModel(
 
     def get_id_value(self) -> IdType:
         # noinspection PyProtectedMember
-        return self._get_column_values(self._repo._get_id_columns())
+        return self._get_column_values(self.__table__.primary_key.columns)
 
     @classmethod
     def get_columns(cls) -> ReadOnlyColumnCollection:
