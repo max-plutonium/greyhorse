@@ -89,16 +89,15 @@ class Application(module.Module, base.Application, base.HasContainer, ABC):
 
 class SyncApplication(Application):
     def initialize(self, *args, **kwargs):
-        bind_visitor = BindVisitor()
-        invoke_sync(self.accept(bind_visitor))
+        invoke_sync(self.accept(BindVisitor()))
+        visitor = StartVisitor(self)
 
-        for visitor in (bind_visitor, StartVisitor(self)):
-            for r in self.resources:
-                invoke_sync(r.accept(visitor))
-            for s in self.services:
-                invoke_sync(s.accept(visitor))
-            for m in self.modules:
-                invoke_sync(m.accept(visitor))
+        for r in self.resources:
+            invoke_sync(r.accept(visitor))
+        for s in self.services:
+            invoke_sync(s.accept(visitor))
+        for m in self.modules:
+            invoke_sync(m.accept(visitor))
 
     def finalize(self, *args, **kwargs):
         visitor = StopVisitor(self)
@@ -149,16 +148,15 @@ class SyncApplication(Application):
 
 class AsyncApplication(Application):
     async def initialize(self, *args, **kwargs):
-        bind_visitor = BindVisitor()
-        await invoke_async(self.accept(bind_visitor))
+        await invoke_async(self.accept(BindVisitor()))
+        visitor = StartVisitor(self)
 
-        for visitor in (bind_visitor, StartVisitor(self)):
-            for r in self.resources:
-                await invoke_async(r.accept(visitor))
-            for s in self.services:
-                await invoke_async(s.accept(visitor))
-            for m in self.modules:
-                await invoke_async(m.accept(visitor))
+        for r in self.resources:
+            await invoke_async(r.accept(visitor))
+        for s in self.services:
+            await invoke_async(s.accept(visitor))
+        for m in self.modules:
+            await invoke_async(m.accept(visitor))
 
     async def finalize(self, *args, **kwargs):
         visitor = StopVisitor(self)

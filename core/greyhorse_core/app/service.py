@@ -6,7 +6,7 @@ from . import base
 
 class Service(base.Service, ABC):
     def __init__(self, resources: Mapping[str, base.ResourceFactory] | None = None):
-        super(Service, self).__init__()
+        super().__init__()
         self._resources: dict[str, base.Resource] = dict()
         self._resource_factories = resources or dict()
 
