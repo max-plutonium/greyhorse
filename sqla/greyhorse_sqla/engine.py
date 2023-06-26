@@ -8,7 +8,7 @@ from datetime import timedelta
 from sqlalchemy.ext.asyncio import AsyncSession as SqlaAsyncSession, async_scoped_session, async_sessionmaker
 from sqlalchemy.orm import Session as SqlaSyncSession, scoped_session, sessionmaker
 
-from greyhorse_core.context import get_context
+from greyhorse_core.app.context import get_context
 from greyhorse_core.engines.base import SyncEngine, AsyncEngine
 from greyhorse_core.i18n import tr
 from greyhorse_core.logging import logger

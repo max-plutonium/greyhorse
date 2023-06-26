@@ -1,98 +1,177 @@
-from greyhorse_core.app.base import ContainerResource, SessionResource
+from typing import Mapping
+
+from dependency_injector.containers import Container
+
+from greyhorse_core.app import base
+from greyhorse_core.app.context import get_context
+from greyhorse_sqla.contexts import SqlaSyncContextFactory, SqlaSyncContext, SqlaAsyncContextFactory, SqlaAsyncContext
+from greyhorse_sqla.engine import SqlaSyncEngine, SqlaAsyncEngine
 from greyhorse_sqla.factory import SqlaSyncEngineFactory, SqlaAsyncEngineFactory
 
 
-class SqlaSyncResource(SessionResource):
-    def __init__(self, factory: SqlaSyncEngineFactory):
-        super().__init__()
-        self._factory = factory
-        self._sessions = list()
+class SqlaSyncResource(base.Resource, base.HasContainer):
+    def __init__(
+        self, container: Container,
+        engine_factory: SqlaSyncEngineFactory,
+        context_factory: SqlaSyncContextFactory,
+        force_rollback: bool = False,
+        engine_names: list[str] | None = None,
+    ):
+        base.Resource.__init__(self)
+        base.HasContainer.__init__(self, container)
 
-    def sync_startup(self, *args, **kwargs):
-        if self.initialized:
-            return
+        self._engine_factory = engine_factory
+        self._context_factory = context_factory
+        self._force_rollback = force_rollback
+        self._engine_names = engine_names or list()
 
-        for engine in self._factory.get_engines().values():
+    @property
+    def engines(self) -> Mapping[str, SqlaSyncEngine]:
+        return self._engine_factory.get_engines()
+
+    def create(
+        self, application: base.Application,
+        module: base.Module | None = None,
+        service: base.Service | None = None,
+    ):
+        for name in self._engine_names:
+            self.container.create_engine(name)
+        else:
+            self.container.create_engine()
+
+        for engine in self.engines.values():
             engine.start()
 
-        self._initialized = True
-
-    def sync_shutdown(self, *args, **kwargs):
-        if not self.initialized:
-            return
-
-        for engine in reversed(self._factory.get_engines().values()):
+    def destroy(
+        self, application: base.Application,
+        module: base.Module | None = None,
+        service: base.Service | None = None,
+    ):
+        for engine in reversed(self.engines.values()):
             engine.stop()
 
-        self._initialized = False
+    def acquire(
+        self, application: base.Application,
+        module: base.Module | None = None,
+        service: base.Service | None = None,
+    ):
+        ctx_storage = get_context()
 
-    def sync_session_begin(self, *args, **kwargs):
-        if not self.initialized:
-            return
+        for name, engine in self.engines.items():
+            ctx = self._context_factory(engine, self._force_rollback)
 
-        for engine in self._factory.get_engines().values():
-            session = engine.session()
-            session.__enter__()
-            self._sessions.append(session)
+            if 'sqla' not in ctx_storage:
+                ctx_storage.sqla = ctx
+            elif isinstance(ctx_storage.sqla, SqlaSyncContext):
+                prev_ctx = ctx_storage.sqla
+                ctx_storage.sqla = {prev_ctx.name: prev_ctx, name: ctx}
+            else:
+                ctx_storage.sqla[name] = ctx
 
-    def sync_session_finish(self, *args, **kwargs):
-        if not self.initialized:
-            return
+            ctx.__enter__()
 
-        for session in reversed(self._sessions):
-            session.__exit__(None, None, None)
-        self._sessions.clear()
+    def release(
+        self, application: base.Application,
+        module: base.Module | None = None,
+        service: base.Service | None = None,
+    ):
+        ctx_storage = get_context()
 
-        for engine in reversed(self._factory.get_engines().values()):
-            engine.teardown_session()
+        for name, engine in self.engines.items():
+            if 'sqla' not in ctx_storage:
+                break
+            elif isinstance(ctx_storage.sqla, SqlaSyncContext):
+                ctx = ctx_storage.sqla
+                del ctx_storage.sqla
+            else:
+                ctx = ctx_storage.sqla.pop(name, None)
 
-    def get_engine(self, name: str):
-        return self._factory.get_engine(name)
+            if ctx:
+                ctx.__exit__(None, None, None)
+
+    def get_engine(self, name: str) -> SqlaSyncEngine | None:
+        return self._engine_factory.get_engine(name)
 
 
-class SqlaAsyncResource(SessionResource):
-    def __init__(self, factory: SqlaAsyncEngineFactory):
-        super().__init__()
-        self._factory = factory
-        self._sessions = list()
+class SqlaAsyncResource(base.Resource, base.HasContainer):
+    def __init__(
+        self, container: Container,
+        engine_factory: SqlaAsyncEngineFactory,
+        context_factory: SqlaAsyncContextFactory,
+        force_rollback: bool = False,
+        engine_names: list[str] | None = None,
+    ):
+        base.Resource.__init__(self)
+        base.HasContainer.__init__(self, container)
 
-    async def startup(self, *args, **kwargs):
-        if self.initialized:
-            return
+        self._engine_factory = engine_factory
+        self._context_factory = context_factory
+        self._force_rollback = force_rollback
+        self._engine_names = engine_names or list()
 
-        for engine in self._factory.get_engines().values():
+    @property
+    def engines(self) -> Mapping[str, SqlaAsyncEngine]:
+        return self._engine_factory.get_engines()
+
+    async def create(
+        self, application: base.Application,
+        module: base.Module | None = None,
+        service: base.Service | None = None,
+    ):
+        for name in self._engine_names:
+            self.container.create_engine(name)
+        else:
+            self.container.create_engine()
+
+        for engine in self.engines.values():
             await engine.start()
 
-        self._initialized = True
-
-    async def shutdown(self, *args, **kwargs):
-        if not self.initialized:
-            return
-
-        for engine in reversed(self._factory.get_engines().values()):
+    async def destroy(
+        self, application: base.Application,
+        module: base.Module | None = None,
+        service: base.Service | None = None,
+    ):
+        for engine in reversed(self.engines.values()):
             await engine.stop()
 
-        self._initialized = False
+    async def acquire(
+        self, application: base.Application,
+        module: base.Module | None = None,
+        service: base.Service | None = None,
+    ):
+        ctx_storage = get_context()
 
-    async def session_begin(self, *args, **kwargs):
-        if not self.initialized:
-            return
+        for name, engine in self.engines.items():
+            ctx = self._context_factory(engine, self._force_rollback)
 
-        for engine in self._factory.get_engines().values():
-            session = engine.session()
-            await session.__aenter__()
-            self._sessions.append(session)
+            if 'sqla' not in ctx_storage:
+                ctx_storage.sqla = ctx
+            elif isinstance(ctx_storage.sqla, SqlaAsyncContext):
+                prev_ctx = ctx_storage.sqla
+                ctx_storage.sqla = {prev_ctx.name: prev_ctx, name: ctx}
+            else:
+                ctx_storage.sqla[name] = ctx
 
-    async def session_finish(self, *args, **kwargs):
-        if not self.initialized:
-            return
+            await ctx.__aenter__()
 
-        for session in reversed(self._sessions):
-            await session.__aexit__(None, None, None)
-        self._sessions.clear()
+    async def release(
+        self, application: base.Application,
+        module: base.Module | None = None,
+        service: base.Service | None = None,
+    ):
+        ctx_storage = get_context()
 
-        for engine in reversed(self._factory.get_engines().values()):
-            await engine.teardown_session()
+        for name, engine in self.engines.items():
+            if 'sqla' not in ctx_storage:
+                break
+            elif isinstance(ctx_storage.sqla, SqlaAsyncContext):
+                ctx = ctx_storage.sqla
+                del ctx_storage.sqla
+            else:
+                ctx = ctx_storage.sqla.pop(name, None)
 
-    def get_engine(self, name: str):
-        return self._factory.get_engine(name)
+            if ctx:
+                await ctx.__aexit__(None, None, None)
+
+    def get_engine(self, name: str) -> SqlaAsyncEngine | None:
+        return self._engine_factory.get_engine(name)

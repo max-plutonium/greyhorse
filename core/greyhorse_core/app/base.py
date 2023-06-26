@@ -1,56 +1,60 @@
 from abc import ABC, abstractmethod
+from contextlib import AbstractContextManager, AbstractAsyncContextManager
 from pathlib import Path
-from typing import Callable, List, Optional, Protocol, runtime_checkable, Self
+from typing import Callable, Optional, Self
 
 from dependency_injector.containers import Container
 
 
-@runtime_checkable
-class BaseResource(Protocol):
-    pass
+class Resource(ABC):
+    def __init__(self):
+        self._active: bool = False
 
-
-class Resource(BaseResource):
-    def __init__(self, *args, **kwargs):
-        self._initialized: bool = False
+    def accept(self, visitor: 'Visitor'):
+        return visitor.visit_resource(self)
 
     @property
-    def initialized(self) -> bool:
-        return self._initialized
+    def active(self) -> bool:
+        return self._active
 
-    def sync_startup(self, application, module, service, *args, **kwargs):
+    @abstractmethod
+    def create(
+        self, application: 'Application',
+        module: Optional['Module'] = None,
+        service: Optional['Service'] = None,
+    ):
         pass
 
-    def sync_shutdown(self, application, module, service, *args, **kwargs):
+    @abstractmethod
+    def destroy(
+        self, application: 'Application',
+        module: Optional['Module'] = None,
+        service: Optional['Service'] = None,
+    ):
         pass
 
-    async def startup(self, application, module, service, *args, **kwargs):
+    @abstractmethod
+    def acquire(
+        self, application: 'Application',
+        module: Optional['Module'] = None,
+        service: Optional['Service'] = None,
+    ):
         pass
 
-    async def shutdown(self, application, module, service, *args, **kwargs):
-        pass
-
-
-class SessionResource(Resource):
-    def sync_session_begin(self, application, module, service, *args, **kwargs):
-        pass
-
-    def sync_session_finish(self, application, module, service, *args, **kwargs):
-        pass
-
-    async def session_begin(self, application, module, service, *args, **kwargs):
-        pass
-
-    async def session_finish(self, application, module, service, *args, **kwargs):
+    @abstractmethod
+    def release(
+        self, application: 'Application',
+        module: Optional['Module'] = None,
+        service: Optional['Service'] = None,
+    ):
         pass
 
 
 ResourceFactory = Callable[[], Resource]
 
 
-class ContainerResource(Resource):
-    def __init__(self, container: Container, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class HasContainer:
+    def __init__(self, container: Container):
         self._container = container
 
     @property
@@ -58,22 +62,49 @@ class ContainerResource(Resource):
         return self._container
 
 
-class Service(Resource, ABC):
-    name: str
+class Service(ABC):
     resources: list[Resource]
+
+    def __init__(self):
+        self._active: bool = False
+
+    def accept(self, visitor: 'Visitor'):
+        return visitor.visit_service(self)
+
+    @property
+    def active(self) -> bool:
+        return self._active
 
     @abstractmethod
     def get_resource(self, name) -> Resource | None:
+        ...
+
+    @abstractmethod
+    def start(self, application: 'Application', module: Optional['Module'] = None):
+        ...
+
+    @abstractmethod
+    def stop(self, application: 'Application', module: Optional['Module'] = None):
         ...
 
 
 ServiceFactory = Callable[[], Service]
 
 
-class Module(Resource, ABC):
+class Module(ABC):
     resources: list[Resource]
     services: list[Service]
     modules: list['Module']
+
+    def __init__(self, name: str):
+        self._name = name
+
+    def accept(self, visitor: 'Visitor'):
+        return visitor.visit_module(self)
+
+    @property
+    def name(self) -> str:
+        return self._name
 
     @abstractmethod
     def get_resource(self, name) -> Resource | None:
@@ -87,13 +118,19 @@ class Module(Resource, ABC):
     def get_module(self, name) -> Self | None:
         ...
 
+    @abstractmethod
+    def initialize(self, application: 'Application', module: Optional['Module'] = None):
+        ...
+
+    @abstractmethod
+    def finalize(self, application: 'Application', module: Optional['Module'] = None):
+        ...
+
 
 ModuleFactory = Callable[[], Module]
 
 
 class Application(Module, ABC):
-    name: str
-
     @property
     @abstractmethod
     def version(self) -> str:
@@ -109,9 +146,28 @@ class Application(Module, ABC):
         ...
 
     @abstractmethod
-    def sync_load_packages(self, *args, **kwargs):
+    def initialize(self, *args, **kwargs):
         ...
 
     @abstractmethod
-    async def load_packages(self, *args, **kwargs):
+    def finalize(self, *args, **kwargs):
         ...
+
+    @abstractmethod
+    def session(self) -> AbstractContextManager | AbstractAsyncContextManager:
+        ...
+
+    @abstractmethod
+    def load_packages(self, *args, **kwargs):
+        ...
+
+
+class Visitor:
+    def visit_resource(self, instance: Resource):
+        pass
+
+    def visit_service(self, instance: Service):
+        pass
+
+    def visit_module(self, instance: Module):
+        pass

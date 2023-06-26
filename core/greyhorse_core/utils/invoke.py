@@ -1,5 +1,5 @@
 import inspect
-from asyncio import get_running_loop, iscoroutinefunction, run as run_main
+from asyncio import get_running_loop, iscoroutinefunction, run as run_main, iscoroutine, Future
 from functools import partial
 
 
@@ -20,14 +20,22 @@ def invoke_sync(func, *args, **kwargs):
             return loop.create_task(func(*args, **kwargs))
         else:
             return run_main(func(*args, **kwargs))
-    else:
+    elif callable(func):
         return func(*args, **kwargs)
+    else:
+        return func
 
 
 async def invoke_async(func, *args, **kwargs):
     if is_awaitable(func):
+        if iscoroutine(func):
+            return await func
         return await func(*args, **kwargs)
-    else:
+    elif callable(func):
         loop = get_running_loop()
         func = partial(func, *args, **kwargs)
         return await loop.run_in_executor(None, func)
+    else:
+        future = Future()
+        future.set_result(func)
+        return future

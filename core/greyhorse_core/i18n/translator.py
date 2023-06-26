@@ -1,9 +1,9 @@
-from importlib.resources import Package, read_text as pkg_read_text, files, as_file
+from importlib.resources import Package, files, as_file
 from pathlib import Path
 
 import tomlkit
 
-from greyhorse_core.context import get_context
+from greyhorse_core.app.context import get_context
 from greyhorse_core.utils.dicts import build_dotted_keys_from_dict
 
 

@@ -1,26 +1,30 @@
 import contextlib
+from abc import ABC
 from pathlib import Path
-from typing import Mapping, Optional
+from typing import Mapping
 
 from dependency_injector import providers
 from dependency_injector.containers import Container
 from dependency_injector.wiring import Provide, inject
 
 from . import base, module
-from ..context import with_context
+from .visitors import StartVisitor, StopVisitor, BindVisitor, AcquireVisitor, ReleaseVisitor
 from ..logging import logger
 from ..utils.imports import import_path
 from ..utils.invoke import invoke_sync, invoke_async
 
 
-class Application(base.Application, module.SessionModule, base.ContainerResource):
-    def __init__(self, container: Container, name: str, debug: bool = False, version: str = '',
-                 resources: Mapping[str, base.ResourceFactory] | None = None,
-                 services: Mapping[str, base.ServiceFactory] | None = None,
-                 modules: Mapping[str, base.ModuleFactory] | None = None):
-        super().__init__(container=container, resources=resources, services=services, modules=modules)
+class Application(module.Module, base.Application, base.HasContainer, ABC):
+    def __init__(
+        self, container: Container, name: str, debug: bool = False, version: str = '',
+        resources: Mapping[str, base.ResourceFactory] | None = None,
+        services: Mapping[str, base.ServiceFactory] | None = None,
+        modules: Mapping[str, base.ModuleFactory] | None = None,
+    ):
+        module.Module.__init__(self, name, resources, services, modules)
+        base.Application.__init__(self, name)
+        base.HasContainer.__init__(self, container)
 
-        self._name = name
         self._version = version
         self._debug = debug
         self._path = self._inspect_cwd()
@@ -30,21 +34,18 @@ class Application(base.Application, module.SessionModule, base.ContainerResource
         container.instance = providers.Object(self)
         container.wire(modules=[__name__])
 
-    @property
-    def name(self) -> str:
-        return self._name
-
     @staticmethod
     def _inspect_cwd():
         import inspect
-        path = Path(inspect.stack()[3].filename).absolute()
-        result = None
-        while path.parent != path and result is None:
-            path = path.parent
-            pyproject_toml_path = path / 'pyproject.toml'
-            if pyproject_toml_path.exists():
-                result = path
-        return result
+
+        for frame in reversed(inspect.stack()):
+            path = Path(frame.filename).absolute()
+
+            while path.parent != path:
+                path = path.parent
+                pyproject_toml_path = path / 'pyproject.toml'
+                if pyproject_toml_path.exists():
+                    return path
 
     @property
     def version(self) -> str:
@@ -56,30 +57,6 @@ class Application(base.Application, module.SessionModule, base.ContainerResource
 
     def get_cwd(self) -> Path:
         return self._path.absolute()
-
-    def sync_startup(self, *args, **kwargs):
-        super().sync_startup(application=self, *args, **kwargs)
-
-    def sync_shutdown(self, *args, **kwargs):
-        super().sync_shutdown(application=self, *args, **kwargs)
-
-    async def startup(self, *args, **kwargs):
-        await super().startup(application=self, *args, **kwargs)
-
-    async def shutdown(self, *args, **kwargs):
-        await super().shutdown(application=self, *args, **kwargs)
-
-    def sync_session_begin(self, *args, **kwargs):
-        super().sync_session_begin(application=self, *args, **kwargs)
-
-    def sync_session_finish(self, *args, **kwargs):
-        super().sync_session_finish(application=self, *args, **kwargs)
-
-    async def session_begin(self, *args, **kwargs):
-        await super().session_begin(application=self, *args, **kwargs)
-
-    async def session_finish(self, *args, **kwargs):
-        await super().session_finish(application=self, *args, **kwargs)
 
     def _import_packages(self, key: str | None = None):
         from tomlkit import parse
@@ -109,63 +86,125 @@ class Application(base.Application, module.SessionModule, base.ContainerResource
 
         return result
 
-    def sync_load_packages(self, key, *args, **kwargs):
+
+class SyncApplication(Application):
+    def initialize(self, *args, **kwargs):
+        bind_visitor = BindVisitor()
+        invoke_sync(self.accept(bind_visitor))
+
+        for visitor in (bind_visitor, StartVisitor(self)):
+            for r in self.resources:
+                invoke_sync(r.accept(visitor))
+            for s in self.services:
+                invoke_sync(s.accept(visitor))
+            for m in self.modules:
+                invoke_sync(m.accept(visitor))
+
+    def finalize(self, *args, **kwargs):
+        visitor = StopVisitor(self)
+
+        for m in self.modules:
+            invoke_sync(m.accept(visitor))
+        for s in self.services:
+            invoke_sync(s.accept(visitor))
+        for r in self.resources:
+            invoke_sync(r.accept(visitor))
+
+    def _begin(self):
+        visitor = AcquireVisitor(self)
+
+        for r in self.resources:
+            invoke_sync(r.accept(visitor))
+        for s in self.services:
+            invoke_sync(s.accept(visitor))
+        for m in self.modules:
+            invoke_sync(m.accept(visitor))
+
+    def _end(self):
+        visitor = ReleaseVisitor(self)
+
+        for m in self.modules:
+            invoke_sync(m.accept(visitor))
+        for s in self.services:
+            invoke_sync(s.accept(visitor))
+        for r in self.resources:
+            invoke_sync(r.accept(visitor))
+
+    @contextlib.contextmanager
+    def session(self) -> contextlib.AbstractContextManager:
+        with contextlib.ExitStack() as stack:
+            self._begin()
+            stack.callback(self._end)
+            yield
+
+    def load_packages(self, key, *args, **kwargs):
         if not self._imported_packages:
             self._imported_packages = self._import_packages(key)
 
-        with self.sync_with_app_sessions():
+        with self.session():
             for name, entrypoint in self._imported_packages.items():
                 logger.info(f'Application "{self.name}": load package "{name}"')
                 invoke_sync(entrypoint, self, self.container, *args, **kwargs)
+
+
+class AsyncApplication(Application):
+    async def initialize(self, *args, **kwargs):
+        bind_visitor = BindVisitor()
+        await invoke_async(self.accept(bind_visitor))
+
+        for visitor in (bind_visitor, StartVisitor(self)):
+            for r in self.resources:
+                await invoke_async(r.accept(visitor))
+            for s in self.services:
+                await invoke_async(s.accept(visitor))
+            for m in self.modules:
+                await invoke_async(m.accept(visitor))
+
+    async def finalize(self, *args, **kwargs):
+        visitor = StopVisitor(self)
+
+        for m in self.modules:
+            await invoke_async(m.accept(visitor))
+        for s in self.services:
+            await invoke_async(s.accept(visitor))
+        for r in self.resources:
+            await invoke_async(r.accept(visitor))
+
+    async def _begin(self):
+        visitor = AcquireVisitor(self)
+
+        for r in self.resources:
+            await invoke_async(r.accept(visitor))
+        for s in self.services:
+            await invoke_async(s.accept(visitor))
+        for m in self.modules:
+            await invoke_async(m.accept(visitor))
+
+    async def _end(self):
+        visitor = ReleaseVisitor(self)
+
+        for m in self.modules:
+            await invoke_async(m.accept(visitor))
+        for s in self.services:
+            await invoke_async(s.accept(visitor))
+        for r in self.resources:
+            await invoke_async(r.accept(visitor))
+
+    @contextlib.asynccontextmanager
+    async def session(self) -> contextlib.AbstractAsyncContextManager:
+        async with contextlib.AsyncExitStack() as stack:
+            await self._begin()
+            stack.push_async_callback(self._end)
+            yield
 
     async def load_packages(self, key, *args, **kwargs):
         if not self._imported_packages:
             self._imported_packages = self._import_packages(key)
 
-        async with self.with_app_sessions():
+        async with self.session():
             for name, entrypoint in self._imported_packages.items():
                 logger.info(f'Application "{self.name}": load package "{name}"')
                 await invoke_async(entrypoint, self, self.container, *args, **kwargs)
-
-    @contextlib.contextmanager
-    def sync_with_app_resources(self):
-        with with_context(True):
-            with contextlib.ExitStack() as stack:
-                invoke_sync(self.startup)
-                self.sync_startup()
-                stack.callback(self.sync_shutdown)
-                stack.callback(invoke_sync, self.shutdown)
-                yield
-
-    @contextlib.asynccontextmanager
-    async def with_app_resources(self):
-        with with_context(True):
-            async with contextlib.AsyncExitStack() as stack:
-                await self.startup()
-                await invoke_async(self.sync_startup)
-                stack.push_async_callback(invoke_async, self.sync_shutdown)
-                stack.push_async_callback(self.shutdown)
-                yield
-
-    @contextlib.contextmanager
-    def sync_with_app_sessions(self):
-        with with_context(False):
-            with contextlib.ExitStack() as stack:
-                invoke_sync(self.session_begin)
-                self.sync_session_begin()
-                stack.callback(self.sync_session_finish)
-                stack.callback(invoke_sync, self.session_finish)
-                yield
-
-    @contextlib.asynccontextmanager
-    async def with_app_sessions(self):
-        with with_context(False):
-            async with contextlib.AsyncExitStack() as stack:
-                await self.session_begin()
-                await invoke_async(self.sync_session_begin)
-                stack.push_async_callback(invoke_async, self.sync_session_finish)
-                stack.push_async_callback(self.session_finish)
-                yield
 
 
 @inject

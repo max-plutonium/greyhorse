@@ -1,4 +1,3 @@
-from contextlib import AbstractContextManager, AbstractAsyncContextManager
 from functools import partial
 from typing import Callable, Type, Mapping, Any, Sequence, TypeVar, cast, Generic
 
@@ -11,12 +10,14 @@ from sqlalchemy.orm.base import instance_state
 
 from greyhorse_core.data.repositories.base import IdType, ModelType, ModelFactory, EntityType, EntityFactory
 from greyhorse_core.data.repositories.filterable import FilterableRepository
+from greyhorse_core.engines.base import SyncSessionFactory as BaseSyncSessionFactory, \
+    AsyncSessionFactory as BaseAsyncSessionFactory
 from greyhorse_core.utils.invoke import is_awaitable
 from greyhorse_sqla.model import SqlaModel
 from greyhorse_sqla.query import SqlaFiltersQuery, SqlaSortingQuery
 
-SyncSessionFactory = Callable[[], AbstractContextManager[SqlaSyncSession]]
-AsyncSessionFactory = Callable[[], AbstractAsyncContextManager[SqlaAsyncSession]]
+SyncSessionFactory = BaseSyncSessionFactory[SqlaSyncSession]
+AsyncSessionFactory = BaseAsyncSessionFactory[SqlaAsyncSession]
 
 SqlaModelType = TypeVar('SqlaModelType', bound=SqlaModel, covariant=True)
 SqlaModelTypeFactory = Callable[..., SqlaModelType]

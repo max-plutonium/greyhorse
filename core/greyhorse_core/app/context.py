@@ -25,11 +25,6 @@ class ContextData(object):
     def __contains__(self, item):
         return item in self.__dict__
 
-    # @property
-    # def data(self):
-    #     # noinspection PyUnresolvedReferences
-    #     return self._data
-
     @property
     def raw_id(self):
         return self._id

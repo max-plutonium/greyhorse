@@ -2,6 +2,7 @@ from dependency_injector import containers, providers
 
 from greyhorse_core.utils.confs import default_value
 from greyhorse_sqla.config import EngineConfig, SqlEngineType
+from greyhorse_sqla.contexts import SqlaSyncContext, SqlaAsyncContext
 from greyhorse_sqla.factory import SqlaSyncEngineFactory, SqlaAsyncEngineFactory
 from greyhorse_sqla.resources import SqlaSyncResource, SqlaAsyncResource
 
@@ -46,23 +47,33 @@ def _prepare_multiple_engine_config(name: str, config, factory):
 class SqlaSyncContainer(containers.DeclarativeContainer):
     __self__ = providers.Self()
     engine_factory = providers.Singleton(SqlaSyncEngineFactory)
+    context_factory = providers.Dependency(default=SqlaSyncContext)
+    force_rollback = providers.Object(False)
 
     def _create_engine(self, name: str, config: EngineConfig, db_type: SqlEngineType, *args, **kwargs):
         return self.engine_factory()(name, config, db_type, *args, **kwargs)
 
     create_engine = providers.Factory(_create_engine, __self__)
-    instance = providers.Singleton(SqlaSyncResource, engine_factory)
+    instance = providers.Singleton(
+        SqlaSyncResource, engine_factory=engine_factory,
+        context_factory=context_factory, force_rollback=force_rollback,
+    )
 
 
 class SqlaAsyncContainer(containers.DeclarativeContainer):
     __self__ = providers.Self()
     engine_factory = providers.Singleton(SqlaAsyncEngineFactory)
+    context_factory = providers.Dependency(default=SqlaAsyncContext)
+    force_rollback = providers.Object(False)
 
     def _create_engine(self, name: str, config: EngineConfig, db_type: SqlEngineType, *args, **kwargs):
         return self.engine_factory()(name, config, db_type, *args, **kwargs)
 
     create_engine = providers.Factory(_create_engine, __self__)
-    instance = providers.Singleton(SqlaAsyncResource, engine_factory)
+    instance = providers.Singleton(
+        SqlaAsyncResource, engine_factory=engine_factory,
+        context_factory=context_factory, force_rollback=force_rollback,
+    )
 
 
 class SingleSqlaSyncContainer(SqlaSyncContainer):

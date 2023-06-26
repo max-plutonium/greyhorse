@@ -52,9 +52,11 @@ class MigrationOperator:
                     lines.append(
                         '            if \'postgresql\' == connectable.dialect.name and target_metadata.schema:\n')
                     lines.append(
-                        '                connection.execute(f\'CREATE SCHEMA IF NOT EXISTS "{target_metadata.schema}" AUTHORIZATION CURRENT_USER\')\n')
+                        '                connection.execute(f\'CREATE SCHEMA IF NOT EXISTS "{target_metadata.schema}" '
+                        'AUTHORIZATION CURRENT_USER\')\n')
                     lines.append(
-                        '                connection.execute(f\'set search_path to "{target_metadata.schema}", public\')\n')
+                        '                connection.execute(f\'set search_path to "{target_metadata.schema}", '
+                        'public\')\n')
                 else:
                     lines.append(line)
 
