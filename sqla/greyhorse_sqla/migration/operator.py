@@ -33,6 +33,7 @@ class MigrationOperator:
             for line in f.readlines():
                 if line == 'from alembic import context\n':
                     lines.append(line)
+                    lines.append('from greyhorse_sqla.migration import utils')
                     if metadata_name != 'metadata':
                         metadata_name += ' as metadata'
                     lines.append(f'from {metadata_package} import {metadata_name}\n')
@@ -42,11 +43,12 @@ class MigrationOperator:
                     lines.append('        literal_binds=False,\n')
                 elif line == '        dialect_opts={"paramstyle": "named"},\n':
                     lines.append('        include_schemas=True,\n')
-                    lines.append(line)
+                    lines.append(line.replace('"', '\''))
                 elif line == '            connection=connection, target_metadata=target_metadata\n':
                     lines.append('            connection=connection, target_metadata=target_metadata,\n')
                     lines.append('            version_table_schema=target_metadata.schema,\n')
                     lines.append('            include_schemas=True,\n')
+                    lines.append('            render_item=utils.render_item,\n')
                 elif line == '        with context.begin_transaction():\n':
                     lines.append(line)
                     lines.append(
