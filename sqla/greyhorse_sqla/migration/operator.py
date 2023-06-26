@@ -12,21 +12,21 @@ class MigrationOperator:
         r'sa.ForeignKeyConstraint|sa.UniqueConstraint|sa.CheckConstraint).+'
     )
 
-    def __init__(self, dsn: str, directory: Path):
-        self._directory = directory
+    def __init__(self, dsn: str, alembic_path: Path):
+        self._alembic_path = alembic_path
         self._db_dsn = dsn
 
     def init(self, metadata_package: str, metadata_name: str = 'metadata'):
         """
         Initialize migration directory
         """
-        config = alembic.config.Config(self._directory / 'alembic.ini')
-        config.set_main_option('script_location', str(self._directory))
+        config = alembic.config.Config(self._alembic_path / 'alembic.ini')
+        config.set_main_option('script_location', str(self._alembic_path))
         config.set_main_option('sqlalchemy.url', self._db_dsn)
 
-        alembic.command.init(config, str(self._directory), package=True)
+        alembic.command.init(config, str(self._alembic_path), package=True)
 
-        env_path = self._directory / 'env.py'
+        env_path = self._alembic_path / 'env.py'
         lines = list()
 
         with env_path.open('r') as f:
@@ -69,12 +69,12 @@ class MigrationOperator:
         """
         Generate new revision file
         """
-        versions_dir = self._directory / 'versions'
+        versions_dir = self._alembic_path / 'versions'
         files_count = len(list(versions_dir.glob('*.py')))
         revision = f'{files_count:03d}'
 
-        config = alembic.config.Config(self._directory / 'alembic.ini')
-        config.set_main_option('script_location', str(self._directory))
+        config = alembic.config.Config(self._alembic_path / 'alembic.ini')
+        config.set_main_option('script_location', str(self._alembic_path))
         config.set_main_option('sqlalchemy.url', self._db_dsn)
 
         scripts = alembic.command.revision(config, message=name, autogenerate=True, rev_id=revision)
@@ -99,7 +99,7 @@ class MigrationOperator:
         Upgrade database to head
         """
         config = alembic.config.Config()
-        config.set_main_option('script_location', str(self._directory))
+        config.set_main_option('script_location', str(self._alembic_path))
         config.set_main_option('sqlalchemy.url', self._db_dsn)
 
         alembic.command.upgrade(config, revision='head', sql=offline)
@@ -109,7 +109,7 @@ class MigrationOperator:
         Downgrade database for one step
         """
         config = alembic.config.Config()
-        config.set_main_option('script_location', str(self._directory))
+        config.set_main_option('script_location', str(self._alembic_path))
         config.set_main_option('sqlalchemy.url', self._db_dsn)
         revision = 'head:-1' if offline else '-1'
 
