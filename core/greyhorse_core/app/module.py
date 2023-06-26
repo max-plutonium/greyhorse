@@ -1,7 +1,8 @@
 from abc import ABC
-from typing import Dict, Mapping
+from typing import Dict, Mapping, Callable
 
 from . import base, service
+from ..utils.invoke import invoke_async
 
 
 class Module(base.Module, ABC):
@@ -9,7 +10,7 @@ class Module(base.Module, ABC):
         self, name: str,
         resources: Mapping[str, base.ResourceFactory] | None = None,
         services: Mapping[str, base.ServiceFactory] | None = None,
-        modules: Mapping[str, base.ModuleFactory] | None = None, *args, **kwargs,
+        modules: Mapping[str, base.ModuleFactory] | None = None,
     ):
         super().__init__(name)
 
@@ -40,3 +41,25 @@ class Module(base.Module, ABC):
 
     def get_module(self, name) -> base.Module | None:
         return self._modules.get(name)
+
+
+PackageInitializer = Callable[[base.Application, base.Module | None], None]
+
+
+class PackageModule(Module):
+    def __init__(
+        self, name: str, initializer: PackageInitializer,
+        finalizer: PackageInitializer,
+        resources: Mapping[str, base.ResourceFactory] | None = None,
+        services: Mapping[str, base.ServiceFactory] | None = None,
+        modules: Mapping[str, base.ModuleFactory] | None = None,
+    ):
+        super().__init__(name, resources, services, modules)
+        self._initializer = initializer
+        self._finalizer = finalizer
+
+    async def initialize(self, application: base.Application, module: base.Module | None = None):
+        await invoke_async(self._initializer, application, module)
+
+    async def finalize(self, application: base.Application, module: base.Module | None = None):
+        await invoke_async(self._finalizer, application, module)

@@ -2,8 +2,6 @@ from pathlib import Path
 from typing import Callable, Mapping, Any
 
 from greyhorse_core.app import base
-from greyhorse_core.app.application import Application
-from greyhorse_core.app.module import Module
 from greyhorse_core.app.service import Service
 from .operator import MigrationOperator
 
@@ -55,10 +53,10 @@ class MigrationService(Service):
     def name(self) -> str:
         return self._name
 
-    def start(self, application: Application, module: Module | None = None):
+    def start(self, *args, **kwargs):
         pass
 
-    def stop(self, application: Application, module: Module | None = None):
+    def stop(self, *args, **kwargs):
         pass
 
     def init(self, metadata_package: str, metadata_name: str = 'metadata'):
