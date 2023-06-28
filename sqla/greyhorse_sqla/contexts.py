@@ -1,40 +1,45 @@
 import asyncio
 import threading
-from contextlib import contextmanager, asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 from typing import Callable
 
 from sqlalchemy import exc
+from sqlalchemy.ext.asyncio import AsyncSession as SqlaAsyncSession
+from sqlalchemy.orm import Session as SqlaSyncSession
 
-from greyhorse_sqla.engine import SqlaSyncEngine, SqlaAsyncEngine
+from greyhorse_sqla.engine import SqlaAsyncEngine, SqlaSyncEngine
 
 
 class SqlaSyncContext:
-    def __init__(
-        self, sqla_engine: SqlaSyncEngine, force_rollback: bool = True,
-    ):
-        self._sqla_engine = sqla_engine
+    def __init__(self, engine: SqlaSyncEngine, force_rollback: bool = True):
+        self._engine = engine
         self._force_rollback = force_rollback
         self._counter = 0
         self._lock = threading.Lock()
+        self._session: SqlaSyncSession | None = None
 
     @property
     def name(self) -> str:
-        return self._sqla_engine.name
+        return self._engine.name
+
+    @property
+    def engine(self) -> SqlaSyncEngine:
+        return self._engine
 
     @contextmanager
     def session_factory(self):
-        yield self.session
+        yield self._session
 
     def commit(self):
-        self.session.commit()
+        self._session.commit()
 
     def rollback(self):
-        self.session.rollback()
+        self._session.rollback()
 
-    def setup(self):
+    def _setup(self):
         pass
 
-    def teardown(self):
+    def _teardown(self):
         pass
 
     def __enter__(self):
@@ -43,56 +48,59 @@ class SqlaSyncContext:
             if 1 != self._counter:
                 return self
 
-            self._cm = self._sqla_engine.session(force_rollback=self._force_rollback)
-            self.session = self._cm.__enter__()
-            self.setup()
+            self._cm = self._engine.session(force_rollback=self._force_rollback)
+            self._session = self._cm.__enter__()
+            self._setup()
             return self
 
     def __exit__(self, *args):
         with self._lock:
             self._counter = max(self._counter - 1, 0)
             if 0 != self._counter:
-                self.session.flush()
+                self._session.flush()
                 return
 
-            self.teardown()
+            self._teardown()
 
             try:
                 self._cm.__exit__(*args)
             except exc.ResourceClosedError:
                 pass
 
-            self._cm = self.session = None
-            self._sqla_engine.teardown_session()
+            self._cm = self._session = None
+            self._engine.teardown_session()
 
 
 class SqlaAsyncContext:
-    def __init__(
-        self, sqla_engine: SqlaAsyncEngine, force_rollback: bool = True,
-    ):
-        self._sqla_engine = sqla_engine
+    def __init__(self, engine: SqlaAsyncEngine, force_rollback: bool = True):
+        self._engine = engine
         self._force_rollback = force_rollback
         self._counter = 0
         self._lock = asyncio.Lock()
+        self._session: SqlaAsyncSession | None = None
 
     @property
     def name(self) -> str:
-        return self._sqla_engine.name
+        return self._engine.name
+
+    @property
+    def engine(self) -> SqlaAsyncEngine:
+        return self._engine
 
     @asynccontextmanager
     async def session_factory(self):
-        yield self.session
+        yield self._session
 
     async def commit(self):
-        await self.session.commit()
+        await self._session.commit()
 
     async def rollback(self):
-        await self.session.rollback()
+        await self._session.rollback()
 
-    async def setup(self):
+    async def _setup(self):
         pass
 
-    async def teardown(self):
+    async def _teardown(self):
         pass
 
     async def __aenter__(self):
@@ -101,27 +109,27 @@ class SqlaAsyncContext:
             if 1 != self._counter:
                 return self
 
-            self._cm = self._sqla_engine.session(force_rollback=self._force_rollback)
-            self.session = await self._cm.__aenter__()
-            await self.setup()
+            self._cm = self._engine.session(force_rollback=self._force_rollback)
+            self._session = await self._cm.__aenter__()
+            await self._setup()
             return self
 
     async def __aexit__(self, *args):
         async with self._lock:
             self._counter = max(self._counter - 1, 0)
             if 0 != self._counter:
-                await self.session.flush()
+                await self._session.flush()
                 return
 
-            await self.teardown()
+            await self._teardown()
 
             try:
                 await self._cm.__aexit__(*args)
             except exc.ResourceClosedError:
                 pass
 
-            self._cm = self.session = None
-            await self._sqla_engine.teardown_session()
+            self._cm = self._session = None
+            await self._engine.teardown_session()
 
 
 SqlaSyncContextFactory = Callable[[SqlaSyncEngine, bool], SqlaSyncContext]

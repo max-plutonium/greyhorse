@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "greyhorse-sqla"
-version = "0.3"
+version = "0.3.1"
 description = "Greyhorse SqlAlchemy library"
 license = "MIT"
 repository = "https://gitlab.com/max-plutonium/greyhorse"

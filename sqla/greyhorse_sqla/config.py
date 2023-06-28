@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from pydantic import validator, BaseSettings, PostgresDsn
+from pydantic import BaseSettings, PostgresDsn, validator
 
 
 @dataclass
@@ -54,7 +54,7 @@ class PgSettings(BaseSettings):
     DATABASE_URI: PostgresDsn | None = None
 
     @validator('DATABASE_URI', pre=True)
-    def assemble_db_connection(cls, v: str | None, values: dict[str, Any]) -> str:
+    def assemble_dsn(cls, v: str | None, values: dict[str, Any]) -> str:
         if isinstance(v, str):
             return v
 
@@ -89,7 +89,7 @@ class MySqlSettings(BaseSettings):
     DATABASE_URI: str | None = None
 
     @validator('DATABASE_URI', pre=True)
-    def assemble_db_connection(cls, v: str | None, values: dict[str, Any]) -> str:
+    def assemble_dsn(cls, v: str | None, values: dict[str, Any]) -> str:
         if isinstance(v, str):
             return v
 

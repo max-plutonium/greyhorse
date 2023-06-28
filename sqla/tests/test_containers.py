@@ -1,9 +1,9 @@
 from conf import SQLITE_URI
 from greyhorse_sqla.config import EngineConfig, SqlEngineType
-from greyhorse_sqla.containers import SqlaSyncContainer, SqlaAsyncContainer, SingleSqlaSyncContainer, \
-    SingleSqlaAsyncContainer, MultipleSqlaSyncContainer, MultipleSqlaAsyncContainer
-from greyhorse_sqla.engine import SqlaSyncEngine, SqlaAsyncEngine
-from greyhorse_sqla.resources import SqlaSyncResource, SqlaAsyncResource
+from greyhorse_sqla.containers import MultipleSqlaAsyncContainer, MultipleSqlaSyncContainer, SingleSqlaAsyncContainer, \
+    SingleSqlaSyncContainer, SqlaAsyncContainer, SqlaSyncContainer
+from greyhorse_sqla.engine import SqlaAsyncEngine, SqlaSyncEngine
+from greyhorse_sqla.resources import SqlaAsyncResource, SqlaSyncResource
 
 
 def test_base_sync_container():
@@ -19,7 +19,7 @@ def test_base_sync_container():
     assert isinstance(engine, SqlaSyncEngine)
     assert engine.name == 'test'
 
-    resource = container.instance()
+    resource = container.instance(container=container)
     assert isinstance(resource, SqlaSyncResource)
 
     container.unwire()
@@ -38,7 +38,7 @@ def test_base_async_container():
     assert isinstance(engine, SqlaAsyncEngine)
     assert engine.name == 'test'
 
-    resource = container.instance()
+    resource = container.instance(container=container)
     assert isinstance(resource, SqlaAsyncResource)
 
     container.unwire()
@@ -59,7 +59,7 @@ def test_single_sync_container():
     assert engine.name == 'test_single_sync'
     assert engine is container.create_engine()
 
-    resource = container.instance()
+    resource = container.instance(container=container)
     assert isinstance(resource, SqlaSyncResource)
 
     container.unwire()
@@ -80,7 +80,7 @@ def test_single_async_container():
     assert engine.name == 'test_single_async'
     assert engine is container.create_engine()
 
-    resource = container.instance()
+    resource = container.instance(container=container)
     assert isinstance(resource, SqlaAsyncResource)
 
     container.unwire()
@@ -110,7 +110,7 @@ def test_multiple_sync_container():
     assert engine1.name == 'one'
     assert engine2.name == 'two'
 
-    resource = container.instance()
+    resource = container.instance(container=container)
     assert isinstance(resource, SqlaSyncResource)
 
     container.unwire()
@@ -140,7 +140,7 @@ def test_multiple_async_container():
     assert engine1.name == 'one'
     assert engine2.name == 'two'
 
-    resource = container.instance()
+    resource = container.instance(container=container)
     assert isinstance(resource, SqlaAsyncResource)
 
     container.unwire()

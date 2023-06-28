@@ -2,9 +2,9 @@ from dependency_injector import containers, providers
 
 from greyhorse_core.utils.confs import default_value
 from greyhorse_sqla.config import EngineConfig, SqlEngineType
-from greyhorse_sqla.contexts import SqlaSyncContext, SqlaAsyncContext
-from greyhorse_sqla.factory import SqlaSyncEngineFactory, SqlaAsyncEngineFactory
-from greyhorse_sqla.resources import SqlaSyncResource, SqlaAsyncResource
+from greyhorse_sqla.contexts import SqlaAsyncContext, SqlaSyncContext
+from greyhorse_sqla.factory import SqlaAsyncEngineFactory, SqlaSyncEngineFactory
+from greyhorse_sqla.resources import SqlaAsyncResource, SqlaSyncResource
 
 
 def _prepare_single_engine_config(config, factory):
@@ -21,7 +21,7 @@ def _prepare_single_engine_config(config, factory):
             pool_expire_seconds=config.engine_config.
                 pool_expire_seconds.as_(default_value(int))(default=60),
             pool_timeout_seconds=config.engine_config.
-                pool_timeout_seconds.as_(default_value(int))(default=15)
+                pool_timeout_seconds.as_(default_value(int))(default=15),
         )
     return factory(name=config.name(), config=engine_config, db_type=config.db_type())
 
@@ -37,7 +37,7 @@ def _prepare_multiple_engine_config(name: str, config, factory):
                 pool_min_size=int(conf['engine_config'].get('pool_min_size', 1)),
                 pool_max_size=int(conf['engine_config'].get('pool_max_size', 8)),
                 pool_expire_seconds=int(conf['engine_config'].get('pool_expire_seconds', 60)),
-                pool_timeout_seconds=int(conf['engine_config'].get('pool_timeout_seconds', 15))
+                pool_timeout_seconds=int(conf['engine_config'].get('pool_timeout_seconds', 15)),
             )
         return factory(name=name, config=engine_config, db_type=conf['db_type'])
 
