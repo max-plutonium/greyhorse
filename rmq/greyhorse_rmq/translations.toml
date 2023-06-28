@@ -1,0 +1,10 @@
+default = "en"
+
+[engines.rmq]
+engine.created = "RabbitMQ engine created: '{name}'"
+engine.started = "RabbitMQ engine started: '{name}'"
+engine.stopped = "RabbitMQ engine stopped: '{name}'"
+rpc.bad-message = "RabbitMQ RPC receive message without correlation_id: {message!r}"
+rpc.correlation-not-found = "RabbitMQ RPC did not find such correlation_id: '{id}'"
+rpc.received = "RabbitMQ RPC received message: {info}"
+rpc.exception = "RabbitMQ RPC faced with exception: {exc}"
