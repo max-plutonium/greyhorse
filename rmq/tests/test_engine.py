@@ -1,10 +1,10 @@
 import aio_pika
 import pytest
 
-from conf import RMQ_URI
 from greyhorse_rmq.config import EngineConfig
 from greyhorse_rmq.engine import RmqAsyncEngine
 from greyhorse_rmq.factory import RmqAsyncEngineFactory
+from .conf import RMQ_URI
 
 
 def test_async_factory():

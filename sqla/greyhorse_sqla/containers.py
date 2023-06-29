@@ -49,6 +49,7 @@ class SqlaSyncContainer(containers.DeclarativeContainer):
     engine_factory = providers.Singleton(SqlaSyncEngineFactory)
     context_factory = providers.Dependency(default=SqlaSyncContext)
     force_rollback = providers.Object(False)
+    engine_names = providers.List()
 
     def _create_engine(self, name: str, config: EngineConfig, db_type: SqlEngineType, *args, **kwargs):
         return self.engine_factory()(name, config, db_type, *args, **kwargs)
@@ -57,6 +58,7 @@ class SqlaSyncContainer(containers.DeclarativeContainer):
     instance = providers.Singleton(
         SqlaSyncResource, engine_factory=engine_factory,
         context_factory=context_factory, force_rollback=force_rollback,
+        engine_names=engine_names,
     )
 
 
@@ -65,6 +67,7 @@ class SqlaAsyncContainer(containers.DeclarativeContainer):
     engine_factory = providers.Singleton(SqlaAsyncEngineFactory)
     context_factory = providers.Dependency(default=SqlaAsyncContext)
     force_rollback = providers.Object(False)
+    engine_names = providers.List()
 
     def _create_engine(self, name: str, config: EngineConfig, db_type: SqlEngineType, *args, **kwargs):
         return self.engine_factory()(name, config, db_type, *args, **kwargs)
@@ -73,6 +76,7 @@ class SqlaAsyncContainer(containers.DeclarativeContainer):
     instance = providers.Singleton(
         SqlaAsyncResource, engine_factory=engine_factory,
         context_factory=context_factory, force_rollback=force_rollback,
+        engine_names=engine_names,
     )
 
 

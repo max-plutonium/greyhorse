@@ -3,16 +3,15 @@ from datetime import datetime, timedelta
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import DateTime, func, MetaData, String, text
-from sqlalchemy.orm import Mapped, mapped_column as C, DeclarativeBase
+from sqlalchemy import DateTime, String, func, text
+from sqlalchemy.orm import Mapped, mapped_column as C
 
 from greyhorse_sqla.config import EngineConfig, SqlEngineType
 from greyhorse_sqla.factory import SqlaAsyncEngineFactory
 from greyhorse_sqla.model import SqlaModel
-
-from conf import MYSQL_URI, POSTGRES_URI, SQLITE_URI
 from greyhorse_sqla.query import SqlaFiltersQuery as Q
 from greyhorse_sqla.repository import SqlaModelRepository
+from .conf import MYSQL_URI, POSTGRES_URI, SQLITE_URI
 
 
 class TestModel(SqlaModel[int]):

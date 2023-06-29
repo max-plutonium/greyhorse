@@ -2,10 +2,9 @@ import pytest
 from sqlalchemy import text
 
 from greyhorse_sqla.config import EngineConfig, SqlEngineType
-from greyhorse_sqla.engine import SqlaSyncEngine, SqlaAsyncEngine
-from greyhorse_sqla.factory import SqlaSyncEngineFactory, SqlaAsyncEngineFactory
-
-from conf import MYSQL_URI, POSTGRES_URI, SQLITE_URI
+from greyhorse_sqla.engine import SqlaAsyncEngine, SqlaSyncEngine
+from greyhorse_sqla.factory import SqlaAsyncEngineFactory, SqlaSyncEngineFactory
+from .conf import MYSQL_URI, POSTGRES_URI, SQLITE_URI
 
 
 def test_sync_factory():

@@ -4,11 +4,11 @@ from typing import Any, Mapping
 import pytest
 import pytest_asyncio
 
-from conf import RMQ_URI
 from greyhorse_rmq.config import EngineConfig
 from greyhorse_rmq.factory import RmqAsyncEngineFactory
 from greyhorse_rmq.rpc.client import AsyncRmqClient
 from greyhorse_rmq.rpc.server import AsyncRmqServer
+from .conf import RMQ_URI
 
 
 class TestRmqServer(AsyncRmqServer):

@@ -1,9 +1,8 @@
-from conf import RMQ_URI
-
 from greyhorse_rmq.config import EngineConfig
 from greyhorse_rmq.containers import MultipleRmqAsyncContainer, RmqAsyncContainer, SingleRmqAsyncContainer
 from greyhorse_rmq.engine import RmqAsyncEngine
 from greyhorse_rmq.resources import RmqAsyncResource
+from .conf import RMQ_URI
 
 
 def test_base_async_container():

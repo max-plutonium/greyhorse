@@ -1,9 +1,9 @@
-from conf import SQLITE_URI
 from greyhorse_sqla.config import EngineConfig, SqlEngineType
 from greyhorse_sqla.containers import MultipleSqlaAsyncContainer, MultipleSqlaSyncContainer, SingleSqlaAsyncContainer, \
     SingleSqlaSyncContainer, SqlaAsyncContainer, SqlaSyncContainer
 from greyhorse_sqla.engine import SqlaAsyncEngine, SqlaSyncEngine
 from greyhorse_sqla.resources import SqlaAsyncResource, SqlaSyncResource
+from .conf import SQLITE_URI
 
 
 def test_base_sync_container():

@@ -47,6 +47,7 @@ class RmqAsyncContainer(containers.DeclarativeContainer):
     __self__ = providers.Self()
     engine_factory = providers.Singleton(RmqAsyncEngineFactory)
     context_factory = providers.Dependency(default=RmqAsyncContext)
+    engine_names = providers.List()
 
     def _create_engine(self, name: str, config: EngineConfig):
         return self.engine_factory()(name, config)
@@ -56,6 +57,7 @@ class RmqAsyncContainer(containers.DeclarativeContainer):
         RmqAsyncResource,
         engine_factory=engine_factory,
         context_factory=context_factory,
+        engine_names=engine_names,
     )
 
 
