@@ -1,0 +1,6 @@
+default = "en"
+
+[engines.es]
+engine.created = "ElasticSearch engine created: '{name}'"
+engine.started = "ElasticSearch engine started: '{name}'"
+engine.stopped = "ElasticSearch engine stopped: '{name}'"
