@@ -1,0 +1,6 @@
+default = "en"
+
+[engines.ch]
+engine.created = "ClickHouse engine created: '{name}'"
+engine.started = "ClickHouse engine started: '{name}'"
+engine.stopped = "ClickHouse engine stopped: '{name}'"

@@ -1,0 +1,22 @@
+version: "3.4"
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.5-alpine
+    restart: always
+    user: "101:101"
+    container_name: clickhouse
+    hostname: clickhouse
+    environment:
+      TZ: "Europe/Moscow"
+    ulimits:
+      nofile: 262144
+    volumes:
+      - ch-data:/var/lib/clickhouse
+    ports:
+      - "8123:8123/tcp"
+      - "9000:9000/tcp"
+
+volumes:
+  ch-data:
+    driver: local

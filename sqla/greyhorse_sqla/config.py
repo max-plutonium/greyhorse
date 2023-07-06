@@ -70,7 +70,7 @@ class PgSettings(BaseSettings):
             password=values.get('POSTGRES_PASSWORD'),
             host=values.get('POSTGRES_HOST'),
             port=str(values.get('POSTGRES_PORT')),
-            path=f'/{values.get("POSTGRES_DB") or ""}',
+            path=f'/{values.get("POSTGRES_DB", "")}',
         )
 
     class Config:
@@ -100,7 +100,7 @@ class MySqlSettings(BaseSettings):
                     values['MYSQL_PASSWORD'] = f.read().strip()
 
         return f'mysql://{values.get("MYSQL_USER")}:{values.get("MYSQL_PASSWORD")}' \
-               f'@{values.get("MYSQL_HOST")}:{values.get("MYSQL_PORT")}/{values.get("MYSQL_DB")}'
+               f'@{values.get("MYSQL_HOST")}:{values.get("MYSQL_PORT")}/{values.get("MYSQL_DB", "")}'
 
     class Config:
         case_sensitive = False

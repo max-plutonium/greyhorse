@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "greyhorse-rmq"
-version = "0.2"
-description = "Greyhorse RabbitMQ library"
+name = "greyhorse-clickhouse"
+version = "0.1"
+description = "Greyhorse ClickHouse library"
 license = "MIT"
 repository = "https://gitlab.com/max-plutonium/greyhorse"
 authors = ["Max Plutonium <plutonium.max@gmail.com>"]
@@ -13,17 +13,17 @@ classifiers = [
 ]
 
 packages = [
-    { include = "greyhorse_rmq" },
+    { include = "greyhorse_clickhouse" },
 ]
 
 [tool.poetry.dependencies]
 python = "^3.11"
 greyhorse_core = { path = "../core/", develop = true }
 
-aio-pika = {version = "^9.1", optional = true}
+asynch = { version = "^0.2.2", optional = true }
 
 [tool.poetry.extras]
-async = ["aio-pika"]
+async = ["asynch"]
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.2"
