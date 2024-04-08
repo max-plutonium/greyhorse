@@ -4,8 +4,8 @@ from unittest.mock import call
 
 import pytest
 
-from greyhorse_core.data.cache.base import ModelCacheOperator, CacheData
-from greyhorse_core.data.cache.method import MethodCache
+from greyhorse.data.cache.base import CacheData, ModelCacheOperator
+from greyhorse.data.cache.method import MethodCache
 
 
 @pytest.mark.asyncio

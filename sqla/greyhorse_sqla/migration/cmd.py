@@ -1,8 +1,8 @@
 import click
+from greyhorse.app.visitors import BindVisitor
 
-from greyhorse_core.app.visitors import BindVisitor
-from greyhorse_core.utils.imports import import_path
-from greyhorse_core.utils.invoke import invoke_sync
+from greyhorse.utils.imports import import_path
+from greyhorse.utils.invoke import invoke_sync
 from .app import MigrationVisitor
 
 

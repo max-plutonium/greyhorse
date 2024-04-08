@@ -1,6 +1,6 @@
 from dependency_injector import containers, providers
 
-from greyhorse_core.utils.confs import default_value
+from greyhorse.utils.confs import default_value
 from greyhorse_rmq.config import EngineConfig
 from greyhorse_rmq.contexts import RmqAsyncContext
 from greyhorse_rmq.factory import RmqAsyncEngineFactory

@@ -4,9 +4,9 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 import aio_pika
 from aio_pika.pool import Pool
 
-from greyhorse_core.engines.base import AsyncEngine
-from greyhorse_core.i18n import tr
-from greyhorse_core.logging import logger
+from greyhorse.engines.base import AsyncEngine
+from greyhorse.i18n import tr
+from greyhorse.logging import logger
 from greyhorse_rmq.config import EngineConfig
 
 AsyncChannel = aio_pika.RobustChannel

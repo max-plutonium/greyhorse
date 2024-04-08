@@ -2,8 +2,8 @@ from typing import Mapping
 
 from dependency_injector.containers import Container
 
-from greyhorse_core.app import base
-from greyhorse_core.app.context import get_context
+from greyhorse.app import base
+from greyhorse.app.context import get_context
 from greyhorse_es.contexts import ESAsyncContext, ESAsyncContextFactory
 from greyhorse_es.engine import ESAsyncEngine
 from greyhorse_es.factory import ESAsyncEngineFactory

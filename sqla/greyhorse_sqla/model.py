@@ -5,8 +5,8 @@ from sqlalchemy.orm import DeclarativeBase, joinedload, selectinload
 from sqlalchemy.orm.decl_api import DeclarativeAttributeIntercept
 from sqlalchemy.sql.base import ReadOnlyColumnCollection
 
-from greyhorse_core.data.models.base import IdType
-from greyhorse_core.data.models.filterable import FilterableModel
+from greyhorse.data.models.base import IdType
+from greyhorse.data.models.filterable import FilterableModel
 from greyhorse_sqla.query import SqlaFiltersQuery, SqlaSortingQuery
 
 if TYPE_CHECKING:

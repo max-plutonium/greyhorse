@@ -2,11 +2,11 @@ from typing import Mapping
 
 from dependency_injector.containers import Container
 
+from greyhorse.app import base
+from greyhorse.app.context import get_context
 from greyhorse_clickhouse.contexts import CHAsyncContext, CHAsyncContextFactory
 from greyhorse_clickhouse.engine import CHAsyncEngine
 from greyhorse_clickhouse.factory import CHAsyncEngineFactory
-from greyhorse_core.app import base
-from greyhorse_core.app.context import get_context
 
 
 class CHAsyncResource(base.Resource, base.HasContainer):

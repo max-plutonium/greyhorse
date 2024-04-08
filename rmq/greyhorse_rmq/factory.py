@@ -1,8 +1,8 @@
 from typing import Mapping
 
-from greyhorse_core.engines.factory import AsyncEngineFactory
-from greyhorse_core.i18n import tr
-from greyhorse_core.logging import logger
+from greyhorse.engines.factory import AsyncEngineFactory
+from greyhorse.i18n import tr
+from greyhorse.logging import logger
 from greyhorse_rmq.config import EngineConfig
 from greyhorse_rmq.engine import RmqAsyncEngine
 

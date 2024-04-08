@@ -2,8 +2,8 @@ from typing import Mapping
 
 from dependency_injector.containers import Container
 
-from greyhorse_core.app import base
-from greyhorse_core.app.context import get_context
+from greyhorse.app import base
+from greyhorse.app.context import get_context
 from greyhorse_rmq.contexts import RmqAsyncContext, RmqAsyncContextFactory
 from greyhorse_rmq.engine import RmqAsyncEngine
 from greyhorse_rmq.factory import RmqAsyncEngineFactory

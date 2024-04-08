@@ -2,11 +2,11 @@ from typing import Mapping
 
 from dependency_injector.containers import Container
 
-from greyhorse_core.app import base
-from greyhorse_core.app.context import get_context
-from greyhorse_sqla.contexts import SqlaSyncContextFactory, SqlaSyncContext, SqlaAsyncContextFactory, SqlaAsyncContext
-from greyhorse_sqla.engine import SqlaSyncEngine, SqlaAsyncEngine
-from greyhorse_sqla.factory import SqlaSyncEngineFactory, SqlaAsyncEngineFactory
+from greyhorse.app import base
+from greyhorse.app.context import get_context
+from greyhorse_sqla.contexts import SqlaAsyncContext, SqlaAsyncContextFactory, SqlaSyncContext, SqlaSyncContextFactory
+from greyhorse_sqla.engine import SqlaAsyncEngine, SqlaSyncEngine
+from greyhorse_sqla.factory import SqlaAsyncEngineFactory, SqlaSyncEngineFactory
 
 
 class SqlaSyncResource(base.Resource, base.HasContainer):

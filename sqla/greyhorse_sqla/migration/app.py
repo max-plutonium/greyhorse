@@ -1,8 +1,9 @@
 from pathlib import Path
-from typing import Callable, Mapping, Any
+from typing import Any, Callable, Mapping
 
-from greyhorse_core.app import base
-from greyhorse_core.app.service import Service
+from greyhorse.app.service import Service
+
+from greyhorse.app import base
 from .operator import MigrationOperator
 
 MigratorFactory = Callable[..., MigrationOperator]

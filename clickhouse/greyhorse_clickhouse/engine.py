@@ -5,10 +5,10 @@ import asynch
 from asynch.cursors import DictCursor
 from asynch.pool import Pool
 
+from greyhorse.engines.base import AsyncEngine
+from greyhorse.i18n import tr
+from greyhorse.logging import logger
 from greyhorse_clickhouse.config import EngineConfig
-from greyhorse_core.engines.base import AsyncEngine
-from greyhorse_core.i18n import tr
-from greyhorse_core.logging import logger
 
 AsyncChannel = asynch.connection.Cursor
 

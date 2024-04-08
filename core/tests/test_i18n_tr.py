@@ -1,4 +1,4 @@
-from greyhorse_core.i18n import StaticTranslator
+from greyhorse.i18n import StaticTranslator
 
 
 def test_load_file_unload_file():

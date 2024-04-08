@@ -1,6 +1,6 @@
 from dependency_injector import containers, providers
 
-from greyhorse_core.utils.confs import default_value
+from greyhorse.utils.confs import default_value
 from greyhorse_sqla.config import EngineConfig, SqlEngineType
 from greyhorse_sqla.contexts import SqlaAsyncContext, SqlaSyncContext
 from greyhorse_sqla.factory import SqlaAsyncEngineFactory, SqlaSyncEngineFactory

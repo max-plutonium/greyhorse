@@ -4,8 +4,8 @@ from typing import MutableMapping
 
 import aio_pika
 
-from greyhorse_core.i18n import tr
-from greyhorse_core.logging import logger
+from greyhorse.i18n import tr
+from greyhorse.logging import logger
 from greyhorse_rmq.engine import AsyncChannel
 
 

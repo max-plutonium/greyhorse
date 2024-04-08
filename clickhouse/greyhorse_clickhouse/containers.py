@@ -1,10 +1,10 @@
 from dependency_injector import containers, providers
 
+from greyhorse.utils.confs import default_value
 from greyhorse_clickhouse.config import EngineConfig
 from greyhorse_clickhouse.contexts import CHAsyncContext
 from greyhorse_clickhouse.factory import CHAsyncEngineFactory
 from greyhorse_clickhouse.resources import CHAsyncResource
-from greyhorse_core.utils.confs import default_value
 
 
 def _prepare_single_engine_config(config, factory):

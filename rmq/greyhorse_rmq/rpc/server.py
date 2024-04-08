@@ -3,8 +3,8 @@ from typing import Any, Mapping
 
 import aio_pika
 
-from greyhorse_core.i18n import tr
-from greyhorse_core.logging import logger
+from greyhorse.i18n import tr
+from greyhorse.logging import logger
 
 
 class AsyncRmqServer(ABC):

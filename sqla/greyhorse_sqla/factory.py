@@ -1,6 +1,6 @@
 import re
 from collections import defaultdict
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from datetime import timedelta
 from typing import Mapping
 
@@ -8,11 +8,11 @@ from orjson import orjson
 from sqlalchemy import create_engine as create_sync_engine
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from greyhorse_core.engines.factory import SyncEngineFactory, AsyncEngineFactory
-from greyhorse_core.i18n import tr
-from greyhorse_core.logging import logger
-from greyhorse_sqla.config import SqlEngineType, EngineConfig
-from greyhorse_sqla.engine import SqlaSyncEngine, SqlaAsyncEngine
+from greyhorse.engines.factory import AsyncEngineFactory, SyncEngineFactory
+from greyhorse.i18n import tr
+from greyhorse.logging import logger
+from greyhorse_sqla.config import EngineConfig, SqlEngineType
+from greyhorse_sqla.engine import SqlaAsyncEngine, SqlaSyncEngine
 
 
 def _prepare_params(db_type: SqlEngineType, config: EngineConfig) -> dict:
