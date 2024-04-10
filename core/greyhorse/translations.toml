@@ -3,8 +3,8 @@ default = "en"
 [app.builder]
 try-load = "ModuleBuilder: try to load module '{module_init_path}'"
 try-unload = "ModuleBuilder: try to unload module '{module_init_path}'"
-load-error = "ModuleBuilder: module initializer error: {exc]"
-unload-error = "ModuleBuilder: module finalizer error: {exc]"
+load-error = "ModuleBuilder: module initializer error: {exc}"
+unload-error = "ModuleBuilder: module finalizer error: {exc}"
 validation-error = "ModuleBuilder: validation error occurred during module loading: '{detail]'"
 invalid-module-conf = "ModuleBuilder: returned invalid module conf for '{path}'"
 load-success = "ModuleBuilder: load module success '{module_init_path}'"
@@ -46,6 +46,7 @@ provider-policy-violation = "No policy found in {type} '{name}' configuration fo
 provider-pattern-violation = "No provider found in {type} '{name}' for policy '{key}' with name pattern '{pattern}'"
 provider-unused-policy = "Unused policy found in {type} '{name}' for provider '{key}' with name pattern '{pattern}'"
 prov-claim-policy-violation = "No policy found in {type} '{name}' configuration for provider claim '{claim_name}'"
+dep-failure = "Dependency creation failure in {type} '{name}': {dep_name}"
 
 [app.entities.module]
 create-start = "Module '{name}' create"

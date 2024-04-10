@@ -63,3 +63,7 @@ class NoProvFoundForPattern(GreyhorseError):
 
 class ProvClaimPolicyViolation(GreyhorseError):
     type = 'app.entities.prov-claim-policy-violation'
+
+
+class DependencyCreationFailure(GreyhorseError):
+    type = 'app.entities.dep-failure'
