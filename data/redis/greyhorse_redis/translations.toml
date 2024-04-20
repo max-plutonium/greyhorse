@@ -1,0 +1,6 @@
+default = "en"
+
+[engines.redis]
+engine.created = "Redis engine created: '{name}'"
+engine.started = "Redis engine started: '{name}'"
+engine.stopped = "Redis engine stopped: '{name}'"
