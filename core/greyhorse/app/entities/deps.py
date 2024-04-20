@@ -32,3 +32,9 @@ class DepsOperator(ABC):
         self, key: Any, instance: Any, name: str | None = None,
     ) -> bool:
         ...
+
+    @abstractmethod
+    def reset_resource(
+        self, key: Any, name: str | None = None,
+    ) -> bool:
+        ...

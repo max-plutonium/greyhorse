@@ -105,6 +105,18 @@ class ModuleDepsOperator(DepsOperator):
             return self._deps_registry.set(key, instance, name)
         return False
 
+    @override
+    def reset_resource(
+        self, key: Any, name: str | None = None,
+    ) -> bool:
+        if key in self._resources_write:
+            name_pattern = self._resources_write[key]
+            if name_pattern is not None:
+                if name is None or not name_pattern.match(name):
+                    return False
+            return self._deps_registry.reset(key, name)
+        return False
+
 
 class Module:
     def __init__(self, name: str, conf: 'ModuleConf'):

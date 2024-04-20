@@ -72,6 +72,11 @@ class Controller(ABC):
             return False
         return self._deps_operator.set_resource(key, instance, name=name)
 
+    def reset_resource(self, key: type, name: str | None = None) -> bool:
+        if not self._deps_operator:
+            return False
+        return self._deps_operator.reset_resource(key, name=name)
+
     @property
     def operator_factories(self) -> OperatorFactoryRegistry:
         return self._op_factories
