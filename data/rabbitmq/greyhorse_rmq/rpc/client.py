@@ -6,7 +6,7 @@ import aio_pika
 
 from greyhorse.i18n import tr
 from greyhorse.logging import logger
-from greyhorse_rmq.engine import AsyncChannel
+from ..engine import AsyncChannel
 
 
 class AsyncRmqClient:

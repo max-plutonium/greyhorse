@@ -1,10 +1,13 @@
+import asyncio
 from abc import ABC, abstractmethod
+from asyncio import Task
 from typing import Any, Mapping
 
 import aio_pika
 
 from greyhorse.i18n import tr
 from greyhorse.logging import logger
+from greyhorse.utils.invoke import get_asyncio_loop
 
 
 class AsyncRmqServer(ABC):
@@ -15,15 +18,18 @@ class AsyncRmqServer(ABC):
         self._exchange = exchange
         self._queue = queue
         self._app_id = app_id
-        self._iter: aio_pika.abc.AbstractQueueIterator | None = None
+        self._task: Task | None = None
+
+    @property
+    def active(self) -> bool:
+        return self._task is not None
 
     @abstractmethod
     async def __call__(self, body: bytes, info: Mapping[str, Any]) -> bytes | None:
         ...
 
-    async def run(self):
+    async def _run(self):
         async with self._queue.iterator() as queue_iter:
-            self._iter = queue_iter
             message: aio_pika.abc.AbstractIncomingMessage
 
             async for message in queue_iter:
@@ -42,6 +48,21 @@ class AsyncRmqServer(ABC):
                 except Exception as e:
                     logger.exception(tr('greyhorse.engines.rmq.rpc.exception').format(exc=e))
 
+    async def start(self):
+        if self._task is not None:
+            return
+
+        self._task = get_asyncio_loop().create_task(self._run())
+
     async def stop(self):
-        if self._iter:
-            await self._iter.close()
+        if self._task is None:
+            return
+
+        self._task.cancel()
+
+        try:
+            await self._task
+        except asyncio.CancelledError:
+            pass
+
+        self._task = None

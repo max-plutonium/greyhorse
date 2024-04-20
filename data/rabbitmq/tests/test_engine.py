@@ -1,14 +1,16 @@
 import aio_pika
 import pytest
 
-from greyhorse_rmq.config import EngineConfig
+from greyhorse.app.context import AsyncContext
+from greyhorse_rmq.config import EngineConf
+from greyhorse_rmq.contexts import RmqAsyncContext
 from greyhorse_rmq.engine import RmqAsyncEngine
 from greyhorse_rmq.factory import RmqAsyncEngineFactory
 from .conf import RMQ_URI
 
 
 def test_async_factory():
-    config = EngineConfig(dsn=RMQ_URI)
+    config = EngineConf(dsn=RMQ_URI)
 
     factory = RmqAsyncEngineFactory()
 
@@ -16,9 +18,10 @@ def test_async_factory():
     assert factory.get_engine('test') is None
     assert {} == factory.get_engines()
 
-    engine = factory('test', config)
+    engine = factory.create_engine('test', config)
 
     assert engine
+    assert engine.name == 'test'
     assert isinstance(engine, RmqAsyncEngine)
     assert ['test'] == factory.get_engine_names()
     assert factory.get_engine('test') is engine
@@ -27,16 +30,22 @@ def test_async_factory():
 
 @pytest.mark.asyncio
 async def test_async_connection():
-    config = EngineConfig(dsn=RMQ_URI)
+    config = EngineConf(dsn=RMQ_URI)
 
     factory = RmqAsyncEngineFactory()
-    engine = factory('test', config)
+    engine = factory.create_engine('test', config)
 
+    assert not engine.active
     await engine.start()
+    assert engine.active
 
-    async with engine.session() as conn:
-        queue = await conn.declare_queue('test', auto_delete=True)
-        await conn.default_exchange.publish(
+    ctx = engine.get_context(RmqAsyncContext)
+    assert ctx
+    assert isinstance(ctx, AsyncContext)
+
+    async with ctx as conn:
+        queue = await conn.connection.declare_queue('test', auto_delete=True)
+        await conn.connection.default_exchange.publish(
             aio_pika.Message(body=b'12345'),
             routing_key='test',
         )
@@ -46,4 +55,6 @@ async def test_async_connection():
                     assert message.body == b'12345'
                 break
 
+    assert engine.active
     await engine.stop()
+    assert not engine.active
