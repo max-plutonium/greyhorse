@@ -1,20 +1,23 @@
 import asyncio
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from typing import override
 
 import asynch
 from asynch.cursors import DictCursor
 from asynch.pool import Pool
 
-from greyhorse.engines.base import AsyncEngine
+from greyhorse.app.context import AsyncContextBuilder, Context
+from greyhorse.data.storage import DataStorageEngine
 from greyhorse.i18n import tr
 from greyhorse.logging import logger
-from greyhorse_clickhouse.config import EngineConfig
+from .config import EngineConf
+from .contexts import ClickHouseContext
 
-AsyncChannel = asynch.connection.Cursor
+type AsyncChannel = asynch.connection.Cursor
 
 
-class CHAsyncEngine(AsyncEngine[AsyncChannel]):
-    def __init__(self, name: str, config: EngineConfig):
+class ClickHouseAsyncEngine(DataStorageEngine):
+    def __init__(self, name: str, config: EngineConf):
         super().__init__(name)
         self._config = config
         self._counter = 0
@@ -22,14 +25,8 @@ class CHAsyncEngine(AsyncEngine[AsyncChannel]):
         self._pool: Pool | None = None
 
     @property
-    def connection_class(self):
-        return AsyncChannel
-
-    @asynccontextmanager
-    async def session(self, *args, **kwargs) -> AbstractAsyncContextManager[AsyncChannel]:
-        async with self._pool.acquire() as conn:
-            async with conn.cursor() as cursor:
-                yield cursor
+    def active(self) -> bool:
+        return self._counter > 0
 
     async def start(self):
         async with self._lock:
@@ -38,7 +35,7 @@ class CHAsyncEngine(AsyncEngine[AsyncChannel]):
 
                 loop = asyncio.get_event_loop()
                 self._pool = Pool(
-                    dsn=self._config.dsn, echo=self._config.echo,
+                    dsn=str(self._config.dsn), echo=self._config.echo,
                     minsize=self._config.pool_min_size,
                     maxsize=self._config.pool_max_size,
                     loop=loop, cursor_cls=DictCursor,
@@ -59,3 +56,19 @@ class CHAsyncEngine(AsyncEngine[AsyncChannel]):
                 logger.info(tr('greyhorse.engines.ch.engine.stopped').format(name=self.name))
 
             self._counter = max(self._counter - 1, 0)
+
+    @asynccontextmanager
+    async def session(self) -> AbstractAsyncContextManager[AsyncChannel]:
+        async with self._pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                yield cursor
+
+    @override
+    def get_context[T: Context](self, kind: type[ClickHouseContext]) -> T | None:
+        if kind is ClickHouseContext:
+            builder = AsyncContextBuilder[ClickHouseContext](kind)
+            builder.add_param('name', self.name)
+            builder.add_param('connection', self.session())
+            return builder.build()
+        else:
+            return None
