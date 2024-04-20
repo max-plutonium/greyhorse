@@ -3,8 +3,8 @@ from typing import override
 from greyhorse.data.storage import SimpleDataStorageFactory
 from greyhorse.i18n import tr
 from greyhorse.logging import logger
-from greyhorse_clickhouse.config import EngineConf
-from greyhorse_clickhouse.engine import ClickHouseAsyncEngine
+from .config import EngineConf
+from .engine import ClickHouseAsyncEngine
 
 
 class CHAsyncEngineFactory(SimpleDataStorageFactory[ClickHouseAsyncEngine]):

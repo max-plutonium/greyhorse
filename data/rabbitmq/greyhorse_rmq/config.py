@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class EngineConf(BaseModel):
     dsn: AmqpDsn
     virtualhost: str = '/'
-    timeout_seconds: int = 5
+    timeout_seconds: int = Field(default=5, gt=0)
     pool_max_connections: int = Field(default=4, gt=0)
     pool_max_channels_per_connection: int = Field(default=100, gt=0)
 

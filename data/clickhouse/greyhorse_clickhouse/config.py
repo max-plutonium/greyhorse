@@ -10,7 +10,7 @@ class EngineConf(BaseModel):
     dsn: ClickHouseDsn
     echo: bool = False
     pool_min_size: int = Field(default=1, gt=0)
-    pool_max_size: int = Field(default=8, gt=0)
+    pool_max_size: int = Field(default=4, gt=0)
 
 
 class ClickHouseSettings(BaseSettings):

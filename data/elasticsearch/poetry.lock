@@ -4,7 +4,7 @@
 name = "aiohttp"
 version = "3.9.5"
 description = "Async http client/server framework (asyncio)"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "aiohttp-3.9.5-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:fcde4c397f673fdec23e6b05ebf8d4751314fa7c24f93334bf1f1364c1c69ac7"},
@@ -99,7 +99,7 @@ speedups = ["Brotli", "aiodns", "brotlicffi"]
 name = "aiosignal"
 version = "1.3.1"
 description = "aiosignal: a list of registered asynchronous callbacks"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "aiosignal-1.3.1-py3-none-any.whl", hash = "sha256:f8376fb07dd1e86a584e4fcdec80b36b7f81aac666ebc724e2c090300dd83b17"},
@@ -159,7 +159,7 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 name = "attrs"
 version = "23.2.0"
 description = "Classes Without Boilerplate"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "attrs-23.2.0-py3-none-any.whl", hash = "sha256:99b87a485a5820b23b879f04c2305b44b951b502fd64be915879d77a7e8fc6f1"},
@@ -236,7 +236,7 @@ uvloop = ["uvloop (>=0.15.2)"]
 name = "certifi"
 version = "2024.2.2"
 description = "Python package for providing Mozilla's CA Bundle."
-optional = false
+optional = true
 python-versions = ">=3.6"
 files = [
     {file = "certifi-2024.2.2-py3-none-any.whl", hash = "sha256:dc383c07b76109f368f6106eee2b593b04a011ea4d55f652c6ca24a754d1cdd1"},
@@ -378,7 +378,7 @@ wmi = ["wmi (>=1.5.1)"]
 name = "elastic-transport"
 version = "8.13.0"
 description = "Transport classes and utilities shared among Python Elastic client libraries"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "elastic-transport-8.13.0.tar.gz", hash = "sha256:2410ec1ff51221e8b3a01c0afa9f0d0498e1386a269283801f5c12f98e42dc45"},
@@ -396,7 +396,7 @@ develop = ["aiohttp", "furo", "httpx", "mock", "opentelemetry-api", "opentelemet
 name = "elasticsearch"
 version = "8.13.0"
 description = "Python client for Elasticsearch"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "elasticsearch-8.13.0-py3-none-any.whl", hash = "sha256:4aaf49253e974eb500f01136a487bdd0f09d3cafd37a0456eff6acfff0c9199b"},
@@ -477,7 +477,7 @@ pyflakes = ">=3.1.0,<3.2.0"
 name = "frozenlist"
 version = "1.4.1"
 description = "A list-like structure which implements collections.abc.MutableSequence"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "frozenlist-1.4.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:f9aa1878d1083b276b0196f2dfbe00c9b7e752475ed3b682025ff20c1c1f51ac"},
@@ -564,22 +564,20 @@ name = "greyhorse"
 version = "0.4.2"
 description = "Greyhorse library"
 optional = false
-python-versions = "^3.12"
-files = []
-develop = true
+python-versions = "<4.0,>=3.12"
+files = [
+    {file = "greyhorse-0.4.2-py3-none-any.whl", hash = "sha256:fbeaf12deedc35fba911f584d22c5f859e12edec0f8d38c48d630a05112a0a6b"},
+    {file = "greyhorse-0.4.2.tar.gz", hash = "sha256:3a07055a8551b19ef1144c82181af1981299197edb49bf6810705694697ff5a1"},
+]
 
 [package.dependencies]
-asyncclick = "^8.1"
-click = "^8.1"
-orjson = "^3.8"
-pydantic = {version = "^2.0", extras = ["dotenv", "email"]}
-pytz = "^2023.0"
-timeparse-plus = "^1.2"
-tomlkit = "^0.11"
-
-[package.source]
-type = "directory"
-url = "../../core"
+asyncclick = ">=8.1,<9.0"
+click = ">=8.1,<9.0"
+orjson = ">=3.8,<4.0"
+pydantic = {version = ">=2.0,<3.0", extras = ["dotenv", "email"]}
+pytz = ">=2023.0,<2024.0"
+timeparse-plus = ">=1.2,<2.0"
+tomlkit = ">=0.11,<0.12"
 
 [[package]]
 name = "identify"
@@ -646,7 +644,7 @@ files = [
 name = "multidict"
 version = "6.0.5"
 description = "multidict implementation"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "multidict-6.0.5-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:228b644ae063c10e7f324ab1ab6b548bdf6f8b47f3ec234fef1093bc2735e5f9"},
@@ -1353,7 +1351,7 @@ files = [
 name = "urllib3"
 version = "2.2.1"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "urllib3-2.2.1-py3-none-any.whl", hash = "sha256:450b20ec296a467077128bff42b73080516e71b56ff59a60a02bef2232c4fa9d"},
@@ -1390,7 +1388,7 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 name = "yarl"
 version = "1.9.4"
 description = "Yet another URL library"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "yarl-1.9.4-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:a8c1df72eb746f4136fe9a2e72b0c9dc1da1cbd23b5372f94b5820ff8ae30e0e"},
@@ -1489,7 +1487,10 @@ files = [
 idna = ">=2.0"
 multidict = ">=4.0"
 
+[extras]
+async = ["elasticsearch"]
+
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "afdcfb6d3caa2b8df19c1839e9f262cb9c25f921847ae64a2b6ed61fcd348dee"
+content-hash = "2d0d8d1139854ffaf3c9ca7af079780b32ffa5de0be508d48feba1aa9373d10c"

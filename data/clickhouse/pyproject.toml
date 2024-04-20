@@ -19,7 +19,10 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.12"
-greyhorse = { path = "../../core/", develop = true }
+greyhorse = [
+    { path = "../../core/", develop = true },
+    { version = "0.4.2" }
+]
 pydantic = {version = "^2.0", extras = ["dotenv"]}
 pydantic-settings = "^2.2.1"
 

@@ -28,6 +28,7 @@ class ClickHouseAsyncEngine(DataStorageEngine):
     def active(self) -> bool:
         return self._counter > 0
 
+    @override
     async def start(self):
         async with self._lock:
             if 0 == self._counter:
@@ -44,6 +45,7 @@ class ClickHouseAsyncEngine(DataStorageEngine):
 
             self._counter += 1
 
+    @override
     async def stop(self):
         async with self._lock:
             if 1 == self._counter:
