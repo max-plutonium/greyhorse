@@ -1,6 +1,6 @@
 from typing import Any, Callable, Optional, Pattern
 
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+from pydantic import BaseModel, Field, PrivateAttr
 
 from greyhorse.utils.invoke import caller_path
 from .controller import ControllerConf
@@ -12,16 +12,12 @@ from ..entities.providers import ProviderKey
 from ..entities.service import ServiceFactoryMapping
 
 
-class ProviderClaim(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
+class ProviderClaim(BaseModel, frozen=True, arbitrary_types_allowed=True):
     key: ProviderKey
     name_pattern: Pattern | None = None
 
 
-class OperatorExport(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
+class OperatorExport(BaseModel, frozen=True, arbitrary_types_allowed=True):
     key: OperatorKey
     name_pattern: Pattern | None = None
 
@@ -35,9 +31,7 @@ class ModuleDesc(BaseModel):
     _initpath: list[str] = PrivateAttr(default_factory=lambda: caller_path(5))
 
 
-class ModuleConf(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
+class ModuleConf(BaseModel, arbitrary_types_allowed=True):
     name: str = Field(frozen=True)
     enabled: bool = Field(default=True)
     factory: Callable[[...], Module] = Field(default=Module, frozen=True)
