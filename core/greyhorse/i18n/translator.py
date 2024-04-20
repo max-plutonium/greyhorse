@@ -3,7 +3,6 @@ from pathlib import Path
 
 import tomlkit
 
-from greyhorse.app.context import get_context
 from greyhorse.utils.dicts import build_dotted_keys_from_dict
 
 
@@ -48,8 +47,6 @@ class StaticTranslator:
         return set(self._defaults.keys())
 
     def __call__(self, key: str, lang: str | None = None, default: str = '') -> str:
-        lang = lang or get_context().data.get('lang')
-
         if len(self._defaults) == 1:
             ns = list(self._defaults.keys())[0]
         else:

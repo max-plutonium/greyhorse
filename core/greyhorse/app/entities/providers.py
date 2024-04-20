@@ -4,109 +4,94 @@ from contextlib import AbstractAsyncContextManager, AbstractContextManager, asyn
 from typing import Callable
 
 from greyhorse.result import Result
+from ..context import AsyncContext, SyncContext
 from ..utils.registry import ReadonlyRegistry
 
 type ProviderKey = type[Provider]
-type ProviderFactoryFn = Callable[[...], Result[Provider]]
+type ProviderFactoryFn = Callable[[], Provider]
 type ProviderFactoryRegistry = ReadonlyRegistry[ProviderKey, ProviderFactoryFn]
 
 
 class BorrowType(str, enum.Enum):
-    SIMPLE = 'simple'
+    CONTEXT = 'context'
     SESSION = 'session'
     EXCLUSIVE = 'exclusive'
     SHARED = 'shared'
 
 
 class Provider:
-    is_sync: bool
-    is_async: bool
     type: BorrowType
 
-    @property
-    def active(self) -> bool:
-        return False
+
+class SyncContextProvider[T](Provider):
+    type = BorrowType.CONTEXT
+
+    def __init__(self, instance: SyncContext[T]):
+        self._instance = instance
+
+    def get(self) -> SyncContext[T]:
+        return self._instance
 
 
-class SyncSimpleProvider[R](Provider, ABC):
-    is_sync = True
-    is_async = False
-    type = BorrowType.SIMPLE
+class AsyncContextProvider[T](Provider):
+    type = BorrowType.CONTEXT
 
-    @abstractmethod
-    def get(self, *args, **kwargs) -> R:
-        ...
+    def __init__(self, instance: AsyncContext[T]):
+        self._instance = instance
 
-
-class AsyncSimpleProvider[R](Provider, ABC):
-    is_sync = False
-    is_async = True
-    type = BorrowType.SIMPLE
-
-    @abstractmethod
-    async def get(self, *args, **kwargs) -> R:
-        ...
+    def get(self) -> AsyncContext[T]:
+        return self._instance
 
 
-class SyncSessionProvider[R](Provider, ABC):
-    is_sync = True
-    is_async = False
+class SyncSessionProvider[T](Provider, ABC):
     type = BorrowType.SESSION
 
     @contextmanager
     @abstractmethod
-    def acquire_session(self, *args, **kwargs) -> AbstractContextManager[R]:
+    def acquire_session(self, *args, **kwargs) -> AbstractContextManager[T]:
         ...
 
     def release(self):
         pass
 
 
-class AsyncSessionProvider[R](Provider, ABC):
-    is_sync = False
-    is_async = True
+class AsyncSessionProvider[T](Provider, ABC):
     type = BorrowType.SESSION
 
     @asynccontextmanager
     @abstractmethod
-    async def acquire_session(self, *args, **kwargs) -> AbstractAsyncContextManager[R]:
+    async def acquire_session(self, *args, **kwargs) -> AbstractAsyncContextManager[T]:
         ...
 
     async def release(self):
         pass
 
 
-class SyncExclusiveProvider[R](Provider, ABC):
-    is_sync = True
-    is_async = False
+class SyncExclusiveProvider[T](Provider, ABC):
     type = BorrowType.EXCLUSIVE
 
     @abstractmethod
-    def acquire(self, *args, **kwargs) -> Result[R]:
+    def acquire(self, *args, **kwargs) -> Result[T]:
         ...
 
     @abstractmethod
-    def release(self, instance: R) -> Result:
+    def release(self, instance: T) -> Result:
         ...
 
 
-class AsyncExclusiveProvider[R](Provider, ABC):
-    is_sync = False
-    is_async = True
+class AsyncExclusiveProvider[T](Provider, ABC):
     type = BorrowType.EXCLUSIVE
 
     @abstractmethod
-    async def acquire(self, *args, **kwargs) -> Result[R]:
+    async def acquire(self, *args, **kwargs) -> Result[T]:
         ...
 
     @abstractmethod
-    async def release(self, instance: R) -> Result:
+    async def release(self, instance: T) -> Result:
         ...
 
 
 class SyncSharedProvider[ExclR, SharedR](Provider, ABC):
-    is_sync = True
-    is_async = False
     type = BorrowType.SHARED
 
     @abstractmethod
@@ -123,8 +108,6 @@ class SyncSharedProvider[ExclR, SharedR](Provider, ABC):
 
 
 class AsyncSharedProvider[ExclR, SharedR](Provider, ABC):
-    is_sync = False
-    is_async = True
     type = BorrowType.SHARED
 
     @abstractmethod

@@ -30,13 +30,19 @@ def invoke_sync[T, **P](func: Callable[P, T], *args: P.args, **kwargs: P.kwargs)
         return func
 
 
-async def invoke_async[T, **P](func: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T:
+async def invoke_async[T, **P](
+    func: Callable[P, T], to_thread: bool = False,
+    *args: P.args, **kwargs: P.kwargs,
+) -> T:
     if is_awaitable(func):
         if iscoroutine(func):
             return await func
         return await func(*args, **kwargs)
     elif callable(func):
-        return await asyncio.to_thread(func, *args, **kwargs)
+        if to_thread:
+            return await asyncio.to_thread(func, *args, **kwargs)
+        else:
+            return func(*args, **kwargs)
     else:
         future = Future()
         future.set_result(func)
