@@ -1,3 +1,4 @@
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Literal, Mapping, Self, TYPE_CHECKING, cast, override
 
@@ -265,9 +266,27 @@ class Module:
 
     def satisfy_provider_claims(self, items: list[ModuleProviderItem]) -> list[ModuleErrorsItem]:
         errors: list[ModuleErrorsItem] = []
-
+        items_set: dict[ProviderKey, dict[str | None, ProviderFactoryFn]] = defaultdict(dict)
         for item in items:
-            self._provider_factories.set(item.key, item.instance, name=item.name)
+            items_set[item.key][item.name] = item.instance
+
+        for claim in self.config.provider_claims:
+            result = False
+
+            for name, instance in items_set.get(claim.key, {}).items():
+                if claim.name_pattern is not None:
+                    if claim.name_pattern.match(name):
+                        result = self._provider_factories.set(claim.key, instance, name=name)
+                        break
+                else:
+                    result = self._provider_factories.set(claim.key, instance, name=name)
+
+            if not result:
+                claim_name = f'{claim.key}' + (f' ("{claim.name_pattern}")' if claim.name_pattern else '')
+                error = ProvClaimPolicyViolation(type='module', name=self.name, claim_name=claim_name)
+                errors.append(ModuleErrorsItem(
+                    where='provider', name=claim_name, errors=[error],
+                ))
 
         for module in self._modules.values():
             sub_errors = module._resolve_claims(self)
@@ -417,39 +436,39 @@ class Module:
     def start(self):
         logger.info(tr('app.entities.module.start-start').format(name=self.name))
 
-        for key in self._services.list_keys():
-            for name in self._services.get_names(key):
-                instance = self._services.get(key, name)
-                invoke_sync(instance.start)
-                logger.info(tr('app.entities.module.service-started').format(name=name))
-
-        for module in self._modules.values():
-            module.start()
-
         for key in self._controllers.list_keys():
             for name in self._controllers.get_names(key):
                 instance = self._controllers.get(key, name)
                 invoke_sync(instance.start)
                 logger.info(tr('app.entities.module.ctrl-started').format(name=name))
 
+        for module in self._modules.values():
+            module.start()
+
+        for key in self._services.list_keys():
+            for name in self._services.get_names(key):
+                instance = self._services.get(key, name)
+                invoke_sync(instance.start)
+                logger.info(tr('app.entities.module.service-started').format(name=name))
+
         logger.info(tr('app.entities.module.start-finish').format(name=self.name))
 
     def stop(self):
         logger.info(tr('app.entities.module.stop-start').format(name=self.name))
-
-        for key in self._controllers.list_keys():
-            for name in self._controllers.get_names(key):
-                instance = self._controllers.get(key, name)
-                invoke_sync(instance.stop)
-                logger.info(tr('app.entities.module.ctrl-stopped').format(name=name))
-
-        for module in reversed(self._modules.values()):
-            module.stop()
 
         for key in self._services.list_keys():
             for name in self._services.get_names(key):
                 instance = self._services.get(key, name)
                 invoke_sync(instance.stop)
                 logger.info(tr('app.entities.module.service-stopped').format(name=name))
+
+        for module in reversed(self._modules.values()):
+            module.stop()
+
+        for key in self._controllers.list_keys():
+            for name in self._controllers.get_names(key):
+                instance = self._controllers.get(key, name)
+                invoke_sync(instance.stop)
+                logger.info(tr('app.entities.module.ctrl-stopped').format(name=name))
 
         logger.info(tr('app.entities.module.stop-finish').format(name=self.name))
