@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "greyhorse"
-version = "0.4.0"
+version = "0.4.2"
 description = "Greyhorse library"
 license = "MIT"
 repository = "https://gitlab.com/max-plutonium/greyhorse"
@@ -28,28 +28,18 @@ tomlkit = "^0.11"
 orjson = "^3.8"
 
 [tool.poetry.dev-dependencies]
-pytest = "^7.2"
-pytest-asyncio = "^0.21"
-pytest-cov = "^4.0"
-pytest-mock = "^3.10"
+pytest = "^7.4"
+pytest-asyncio = "^0.23"
+pytest-cov = "^4.1"
+pytest-mock = "^3.12"
 pytest-faker = "^2.0"
-autoflake = "^2.0"
-black = "^23.1"
-flake8 = "^6.0"
+autoflake = "^2.2"
+black = "^23.11"
+flake8 = "^6.1"
 isort = "^5.12"
-mypy = "^1.1"
-pre-commit = "^3.2"
+mypy = "^1.7"
+pre-commit = "^3.5"
 
 [build-system]
-requires = ["poetry-core", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
-build-backend = "poetry_dynamic_versioning.backend"
-
-[tool.poetry-dynamic-versioning]
-enable = true
-vcs = "git"
-pattern = "default-unprefixed"
-style = "pep440"
-bump = true
-strict = false
-latest-tag = true
-dirty = false
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
