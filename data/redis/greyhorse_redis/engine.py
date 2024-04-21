@@ -68,7 +68,7 @@ class RedisSyncEngine(DataStorageEngine):
         if kind is RedisSyncContext:
             builder = SyncContextBuilder[RedisSyncContext](kind)
             builder.add_param('name', self.name)
-            builder.add_param('connection', self.session())
+            builder.add_param('connection', self.session)
             return builder.build()
         else:
             return None
@@ -126,7 +126,7 @@ class RedisAsyncEngine(DataStorageEngine):
         if kind is RedisAsyncContext:
             builder = AsyncContextBuilder[RedisAsyncContext](kind)
             builder.add_param('name', self.name)
-            builder.add_param('connection', self.session())
+            builder.add_param('connection', self.session)
             return builder.build()
         else:
             return None

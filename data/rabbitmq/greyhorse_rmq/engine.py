@@ -83,7 +83,7 @@ class RmqAsyncEngine(DataStorageEngine):
         if kind is RmqAsyncContext:
             builder = AsyncContextBuilder[RmqAsyncContext](kind)
             builder.add_param('name', self.name)
-            builder.add_param('connection', self.session())
+            builder.add_param('connection', self.session)
             return builder.build()
         else:
             return None

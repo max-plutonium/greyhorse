@@ -70,7 +70,7 @@ class ClickHouseAsyncEngine(DataStorageEngine):
         if kind is ClickHouseContext:
             builder = AsyncContextBuilder[ClickHouseContext](kind)
             builder.add_param('name', self.name)
-            builder.add_param('connection', self.session())
+            builder.add_param('connection', self.session)
             return builder.build()
         else:
             return None

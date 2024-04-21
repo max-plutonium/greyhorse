@@ -18,7 +18,8 @@ class ClickHouseService(Service):
         self._active = False
         self._event: asyncio.Event = asyncio.Event()
         self._registry = ScopedRegistry[Any, Any](
-            factory=lambda: DictRegistry(), scope_func=current_scope_id,
+            factory=lambda: DictRegistry(),
+            scope_func=lambda: current_scope_id(ClickHouseContext),
         )
 
         for name in self._configs.keys():

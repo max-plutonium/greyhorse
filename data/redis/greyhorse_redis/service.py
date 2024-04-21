@@ -19,7 +19,8 @@ class SyncRedisService(Service):
         self._active = False
         self._event: threading.Event = threading.Event()
         self._registry = ScopedRegistry[Any, Any](
-            factory=lambda: DictRegistry(), scope_func=current_scope_id,
+            factory=lambda: DictRegistry(),
+            scope_func=lambda: current_scope_id(RedisSyncContext),
         )
 
         for name in self._configs.keys():
@@ -79,7 +80,8 @@ class AsyncRedisService(Service):
         self._active = False
         self._event: asyncio.Event = asyncio.Event()
         self._registry = ScopedRegistry[Any, Any](
-            factory=lambda: DictRegistry(), scope_func=current_scope_id,
+            factory=lambda: DictRegistry(),
+            scope_func=lambda: current_scope_id(RedisAsyncContext),
         )
 
         for name in self._configs.keys():
