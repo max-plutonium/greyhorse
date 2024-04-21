@@ -1,0 +1,6 @@
+default = "en"
+
+[engines.sqla]
+engine.created = "SqlAlchemy engine '{name}' created: {db_type} [{async_}]"
+engine.started = "SqlAlchemy engine '{name}' started: {db_type} [{async_}]"
+engine.stopped = "SqlAlchemy engine '{name}' stopped: {db_type} [{async_}]"
