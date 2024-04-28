@@ -2,13 +2,13 @@ from functools import partial
 from importlib import import_module
 
 
-def import_path(dotted_path: str):
+def import_path(dotted_path: str, package: str | None = None):
     if ':' in dotted_path:
         module_path, attr_path = dotted_path.rsplit(':', maxsplit=1)
     else:
         module_path, attr_path = dotted_path.rsplit('.', maxsplit=1)
 
-    module = import_module(module_path)
+    module = import_module(module_path, package)
 
     if ':' in dotted_path:
         result = module

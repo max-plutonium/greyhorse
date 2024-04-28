@@ -13,7 +13,7 @@ from .service import Service, ServiceKey
 from ..errors import AppNotLoadedError
 from ...i18n import tr
 from ...logging import logger
-from ...utils.invoke import get_asyncio_loop
+from ...utils.invoke import get_asyncio_loop, caller_path
 
 if TYPE_CHECKING:
     from ..schemas.module import ModuleDesc
@@ -118,7 +118,8 @@ class Application:
 
         logger.info(tr('app.application.try-load').format(module_path=module_path))
 
-        root_desc = ModuleDesc(path=module_path, args=args or {}, _initpath='')
+        root_desc = ModuleDesc(path=module_path, args=args or {})
+        root_desc._initpath = caller_path(2)
         builder = ModuleBuilder(self, root_desc)
 
         res = builder.load_pass()

@@ -4,27 +4,6 @@ from itertools import chain
 import pydantic
 
 from greyhorse.result import Result
-from greyhorse.utils.injectors import ParamsInjector
-from greyhorse.utils.invoke import invoke_sync
-from greyhorse.utils.imports import import_path
-
-from ..entities.application import Application
-from ..entities.controller import Controller, ControllerFactoryFn
-from ..entities.module import Module, ModuleErrorsItem
-from ..entities.service import Service, ServiceFactoryFn
-from ..errors import ControllerCreationError, CtrlFactoryNotFoundError, InvalidModuleConfError, ModuleCreationError, \
-    ModuleLoadError, ModuleUnloadError, ModuleValidationError, ServiceCreationError, ServiceFactoryNotFoundError
-from ..schemas.controller import ControllerConf
-from ..schemas.module import ModuleConf, ModuleDesc
-from ..schemas.service import ServiceConf
-from ...i18n import tr
-from ...logging import logger
-import sys
-from itertools import chain
-
-import pydantic
-
-from greyhorse.result import Result
 from greyhorse.utils.imports import import_path
 from greyhorse.utils.injectors import ParamsInjector
 from greyhorse.utils.invoke import invoke_sync
@@ -39,6 +18,26 @@ from ..schemas.module import ModuleConf, ModuleDesc
 from ..schemas.service import ServiceConf
 from ...i18n import tr
 from ...logging import logger
+
+
+def _get_module_package(desc: ModuleDesc) -> str:
+    if not desc.path.startswith('.'):
+        return desc.path
+
+    path = desc.path
+    dots_count = 0
+
+    for c in path[1:]:
+        if '.' == c:
+            dots_count += 1
+        else:
+            path = path[dots_count + 1:]
+            break
+
+    initpath = desc._initpath
+    dots_count = min(dots_count, len(initpath))
+    initpath = initpath[0:len(initpath) - dots_count]
+    return '.'.join(initpath + [path])
 
 
 class ModuleBuilder:
@@ -49,25 +48,6 @@ class ModuleBuilder:
         self._injector = ParamsInjector()
         self._key_stack: list[str] = []
         self._root_desc = root_desc
-
-    def get_module_init_path(self, desc: ModuleDesc) -> str:
-        initpath = desc._initpath
-        path = desc.path
-
-        if desc.path.startswith('.'):
-            dots_count = 0
-
-            for c in path[1:]:
-                if '.' == c:
-                    dots_count += 1
-                else:
-                    path = path[dots_count + 1:]
-                    break
-
-            dots_count = min(dots_count, len(initpath))
-            initpath = initpath[0:len(initpath) - dots_count]
-
-        return '.'.join(initpath + [path]) if desc is not self._root_desc else desc.path
 
     def load_pass(self, desc: ModuleDesc | None = None) -> Result[ModuleConf | None]:
         desc = desc or self._root_desc
@@ -153,12 +133,11 @@ class ModuleBuilder:
         if desc._conf is not None:
             return Result.from_ok()
 
-        module_init_path = self.get_module_init_path(desc)
-        func_name = module_init_path + ':__init__'
-        logger.info(tr('app.builder.try-load').format(module_init_path=module_init_path))
+        module_path = _get_module_package(desc)
+        logger.info(tr('app.builder.try-load').format(module_init_path=module_path))
 
         try:
-            func = import_path(func_name)
+            func = import_path(f'{module_path}:__init__')
 
         except (ImportError, AttributeError) as e:
             error = ModuleLoadError(exc=e)
@@ -180,11 +159,11 @@ class ModuleBuilder:
             return Result.from_error(error)
 
         if not isinstance(res, ModuleConf):
-            error = InvalidModuleConfError(module_init_path=module_init_path)
+            error = InvalidModuleConfError(module_init_path=module_path)
             logger.error(error.message)
             return Result.from_error(error)
 
-        logger.info(tr('app.builder.load-success').format(module_init_path=module_init_path))
+        logger.info(tr('app.builder.load-success').format(module_init_path=module_path))
         desc._conf = res
         return Result.from_ok()
 
@@ -312,9 +291,6 @@ class ModuleTerminator:
         self._key_stack: list[str] = []
         self._root_desc = root_desc
 
-    def get_module_init_path(self, desc: ModuleDesc) -> str:
-        return '.'.join(desc._initpath + [desc.path]) if desc is not self._root_desc else desc.path
-
     def unload_pass(self, desc: ModuleDesc | None = None) -> Result:
         desc = desc or self._root_desc
 
@@ -369,12 +345,11 @@ class ModuleTerminator:
         if desc._conf is None:
             return Result.from_ok()
 
-        module_init_path = self.get_module_init_path(desc)
-        func_name = module_init_path + ':__fini__'
-        logger.info(tr('app.builder.try-unload').format(module_init_path=module_init_path))
+        module_path = _get_module_package(desc)
+        logger.info(tr('app.builder.try-unload').format(module_init_path=module_path))
 
         try:
-            func = import_path(func_name)
+            func = import_path(f'{module_path}:__fini__')
 
         except (ImportError, AttributeError):
             pass
@@ -389,7 +364,7 @@ class ModuleTerminator:
                 logger.error(error.message)
                 return Result.from_error(error)
 
-        logger.info(tr('app.builder.unload-success').format(module_init_path=module_init_path))
+        logger.info(tr('app.builder.unload-success').format(module_init_path=module_path))
         desc._conf = None
-        del sys.modules[module_init_path]
+        del sys.modules[module_path]
         return Result.from_ok()
