@@ -1,7 +1,7 @@
 import asyncio
 import threading
 from abc import ABC, abstractmethod
-from typing import Awaitable, Callable, Mapping, TYPE_CHECKING, cast
+from typing import Awaitable, Callable, Mapping, TYPE_CHECKING, cast, override
 
 from greyhorse.result import Result
 from .deps import DepsProvider
@@ -169,3 +169,63 @@ class Service(ABC):
             ))
 
         return Result.from_ok(key_mapping)
+
+
+class SyncService(Service, ABC):
+    def __init__(self, name: str):
+        super().__init__(name)
+        self._event = threading.Event()
+
+    @property
+    def active(self) -> bool:
+        return not self._event.is_set()
+
+    @override
+    def create(self) -> Result:
+        return Result.from_ok()
+
+    @override
+    def destroy(self) -> Result:
+        return Result.from_ok()
+
+    @override
+    def start(self) -> None:
+        self._event.clear()
+
+    @override
+    def stop(self) -> None:
+        self._event.set()
+
+    @override
+    def wait(self) -> threading.Event:
+        return self._event
+
+
+class AsyncService(Service, ABC):
+    def __init__(self, name: str):
+        super().__init__(name)
+        self._event = asyncio.Event()
+
+    @property
+    def active(self) -> bool:
+        return not self._event.is_set()
+
+    @override
+    async def create(self) -> Result:
+        return Result.from_ok()
+
+    @override
+    async def destroy(self) -> Result:
+        return Result.from_ok()
+
+    @override
+    async def start(self) -> None:
+        self._event.clear()
+
+    @override
+    async def stop(self) -> None:
+        self._event.set()
+
+    @override
+    def wait(self) -> asyncio.Event:
+        return self._event

@@ -1,10 +1,9 @@
-import threading
 from typing import cast
 
 from greyhorse.app.entities.controller import Controller
 from greyhorse.app.entities.module import Module
 from greyhorse.app.entities.providers import SyncContextProvider
-from greyhorse.app.entities.service import Service
+from greyhorse.app.entities.service import AsyncService
 from greyhorse.app.schemas.components import OperatorPolicy, ProviderPolicy
 from greyhorse.app.schemas.controller import OperatorMappingPolicy
 from greyhorse.app.schemas.module import ControllerConf, ModuleConf, OperatorExport, ProviderClaim, ServiceConf
@@ -16,27 +15,14 @@ class Provider2(SyncContextProvider[int]):
     pass
 
 
-class Service2(Service):
-    def __init__(self, name: str):
-        super().__init__(name)
-        self._event = threading.Event()
-
-    @property
-    def active(self) -> bool:
-        return False
-
+class Service2(AsyncService):
     async def start(self):
         if of := self.get_operator_factory(Operator1, 'name1'):
             res = of()
             op = cast(Operator1, res)
             r = op.summ(100, 200)
-        self._event.clear()
 
-    async def stop(self):
-        self._event.set()
-
-    def wait(self) -> threading.Event:
-        return self._event
+        return await super().start()
 
 
 class Controller2(Controller):
