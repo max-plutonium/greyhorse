@@ -1,0 +1,16 @@
+[[mapping]]
+module = "module1"
+model = "model1"
+method = "method1"
+map_to.type = "legacy"
+map_to.url = "127.0.0.1"
+map_to.port = 50001
+
+[[mapping]]
+module = "module1"
+model = "model1"
+method = "method1"
+map_to.type = "grpc"
+map_to.path = "tests.test1"
+map_to.service = "TestService"
+map_to.method = "ping1"

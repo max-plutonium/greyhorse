@@ -1,0 +1,8 @@
+default = "en"
+
+[greyhorse-renders]
+template-not-found = "Template not found: '{template}'"
+syntax-error = "Template syntax error at '{filename}' line {lineno}: '{detail}'"
+yaml-error = "YAML error raised: {exc}"
+toml-error = "TOML error raised: {exc}"
+validation-error = "Config schema validation error: {exc}"

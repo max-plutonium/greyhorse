@@ -1,0 +1,17 @@
+mapping:
+  - module: module1
+    model: model1
+    method: method1
+    map_to:
+      type: legacy
+      url: 127.0.0.1
+      port: 50001
+
+  - module: module2
+    model: model1
+    method: method1
+    map_to:
+      type: grpc
+      path: tests.test1
+      service: TestService
+      method: ping1
