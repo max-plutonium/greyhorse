@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "greyhorse-renders"
-version = "0.1.0"
+version = "0.1.2"
 description = "Greyhorse Renders library"
 license = "MIT"
 repository = "https://gitlab.com/max-plutonium/greyhorse"
@@ -21,7 +21,7 @@ packages = [
 python = "^3.12"
 greyhorse = [
     { path = "../../core/", develop = true },
-    { version = "^0.4.2" }
+    { version = "^0.4.3" }
 ]
 pydantic = {version = "^2.0", extras = ["dotenv"]}
 pydantic-settings = "^2.2.1"

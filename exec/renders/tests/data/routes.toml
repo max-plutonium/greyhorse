@@ -7,7 +7,7 @@ map_to.url = "127.0.0.1"
 map_to.port = 50001
 
 [[mapping]]
-module = "module1"
+module = "module2"
 model = "model1"
 method = "method1"
 map_to.type = "grpc"
