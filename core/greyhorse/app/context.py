@@ -1,5 +1,4 @@
 import asyncio
-import inspect
 import threading
 from collections import defaultdict
 from contextlib import AbstractAsyncContextManager, AbstractContextManager, AsyncExitStack, ExitStack
@@ -7,10 +6,18 @@ from contextvars import ContextVar
 from typing import Any, AsyncContextManager, Awaitable, Callable, ContextManager, Mapping, override
 from uuid import uuid4
 
-from greyhorse.utils.invoke import get_asyncio_loop, invoke_async, invoke_sync
+from greyhorse.utils.invoke import get_asyncio_loop, invoke_async, invoke_sync, is_like_sync_context_manager, \
+    is_like_async_context_manager
 
 type FieldFactory[T] = (
     T | Callable[[], Awaitable[T] | T] |
+    AbstractContextManager[T] | AbstractAsyncContextManager[T] |
+    Callable[[], AbstractContextManager[T]] | Callable[[], AbstractAsyncContextManager[T]]
+)
+
+
+type ContextManagerLike[T] = (
+    AbstractContextManager[T] | AbstractAsyncContextManager[T] |
     Callable[[], AbstractContextManager[T]] | Callable[[], AbstractAsyncContextManager[T]]
 )
 
@@ -104,24 +111,26 @@ class SyncContext[T](Context, ContextManager):
         self, factory: Callable[[...], T] | None = None,
         fields: Mapping[str, FieldFactory[T]] | None = None,
         finalizers: list[Callable[[], Awaitable[None] | None]] | None = None,
-        contexts: list[Callable[[], AbstractContextManager[T]]] | None = None,
+        contexts: list[ContextManagerLike[T]] | None = None,
     ):
         super().__init__(factory, fields, finalizers)
         self._sync_stack = ExitStack()
-        self._sub_contexts: list[tuple[Callable[[], AbstractContextManager[T]], str | None]] = []
+        self._sub_contexts: list[tuple[ContextManagerLike, str | None]] = []
         self._counter = 0
         self._lock = threading.Lock()
 
         if contexts:
-            self._sub_contexts = [(ctx, None) for ctx in contexts]
+            for ctx in contexts:
+                if is_like_sync_context_manager(ctx):
+                    self._sub_contexts.append((ctx, None))
 
         names_to_remove = []
 
         for name, factory in self._field_factories.items():
-            if inspect.isgeneratorfunction(inspect.unwrap(factory)):
+            if is_like_sync_context_manager(factory):
                 self._sub_contexts.append((factory, name))
                 names_to_remove.append(name)
-            elif inspect.isasyncgenfunction(inspect.unwrap(factory)):
+            elif is_like_async_context_manager(factory):
                 names_to_remove.append(name)
 
         for name in names_to_remove:
@@ -152,7 +161,9 @@ class SyncContext[T](Context, ContextManager):
         self._sync_stack.__enter__()
 
         for ctx, field in self._sub_contexts:
-            if value := self._sync_stack.enter_context(ctx()):
+            if callable(ctx):
+                ctx = ctx()
+            if value := self._sync_stack.enter_context(ctx):
                 if field is not None:
                     self._params[field] = value
 
@@ -216,30 +227,30 @@ class AsyncContext[T](Context, AsyncContextManager):
         self, factory: Callable[[...], T] | None = None,
         fields: Mapping[str, FieldFactory[T]] | None = None,
         finalizers: list[Callable[[], Awaitable[None] | None]] | None = None,
-        contexts: list[Callable[[], AbstractContextManager[T] | AbstractAsyncContextManager[T]]] | None = None,
+        contexts: list[ContextManagerLike[T]] | None = None,
     ):
         super().__init__(factory, fields, finalizers)
         self._sync_stack = ExitStack()
         self._async_stack = AsyncExitStack()
-        self._sync_sub_contexts: list[tuple[Callable[[], AbstractContextManager[T]], str | None]] = []
-        self._async_sub_contexts: list[tuple[Callable[[], AbstractAsyncContextManager[T]], str | None]] = []
+        self._sync_sub_contexts: list[tuple[ContextManagerLike[T], str | None]] = []
+        self._async_sub_contexts: list[tuple[ContextManagerLike[T], str | None]] = []
         self._counter = 0
         self._lock = asyncio.Lock()
 
         if contexts:
             for ctx in contexts:
-                if inspect.isasyncgenfunction(inspect.unwrap(ctx)):
+                if is_like_async_context_manager(ctx):
                     self._async_sub_contexts.append((ctx, None))
-                elif inspect.isgeneratorfunction(inspect.unwrap(ctx)):
+                elif is_like_sync_context_manager(ctx):
                     self._sync_sub_contexts.append((ctx, None))
 
         names_to_remove = []
 
         for name, factory in self._field_factories.items():
-            if inspect.isasyncgenfunction(inspect.unwrap(factory)):
+            if is_like_async_context_manager(factory):
                 self._async_sub_contexts.append((factory, name))
                 names_to_remove.append(name)
-            elif inspect.isgeneratorfunction(inspect.unwrap(factory)):
+            elif is_like_sync_context_manager(factory):
                 self._sync_sub_contexts.append((factory, name))
                 names_to_remove.append(name)
 
@@ -272,12 +283,16 @@ class AsyncContext[T](Context, AsyncContextManager):
         await self._async_stack.__aenter__()
 
         for ctx, field in self._sync_sub_contexts:
-            if value := self._sync_stack.enter_context(ctx()):
+            if callable(ctx):
+                ctx = ctx()
+            if value := self._sync_stack.enter_context(ctx):
                 if field is not None:
                     self._params[field] = value
 
         for ctx, field in self._async_sub_contexts:
-            if value := await self._async_stack.enter_async_context(ctx()):
+            if callable(ctx):
+                ctx = ctx()
+            if value := await self._async_stack.enter_async_context(ctx):
                 if field is not None:
                     self._params[field] = value
 
@@ -350,7 +365,7 @@ class SyncContextBuilder[T]:
     def add_param(self, name: str, value: FieldFactory[T]):
         self._fields[name] = value
 
-    def add_context(self, context: Callable[[], AbstractContextManager[T]]):
+    def add_context(self, context: ContextManagerLike[T]):
         self._contexts.append(context)
 
     def add_finalizer(self, finalizer: Callable[[], Awaitable[None] | None]):
@@ -373,7 +388,7 @@ class AsyncContextBuilder[T]:
     def add_param(self, name: str, value: FieldFactory[T]):
         self._fields[name] = value
 
-    def add_context(self, context: Callable[[], AbstractContextManager[T] | AbstractAsyncContextManager[T]]):
+    def add_context(self, context: ContextManagerLike[T]):
         self._contexts.append(context)
 
     def add_finalizer(self, finalizer: Callable[[], Awaitable[None] | None]):

@@ -11,6 +11,20 @@ def is_awaitable(f):
     return iscoroutinefunction(f) or inspect.isawaitable(f)
 
 
+def is_like_sync_context_manager(instance) -> bool:
+    if callable(instance):
+        if inspect.isgeneratorfunction(inspect.unwrap(instance)):
+            instance = instance()
+    return hasattr(instance, '__enter__') and hasattr(instance, '__exit__')
+
+
+def is_like_async_context_manager(instance) -> bool:
+    if callable(instance):
+        if inspect.isasyncgenfunction(inspect.unwrap(instance)):
+            instance = instance()
+    return hasattr(instance, '__aenter__') and hasattr(instance, '__aexit__')
+
+
 def get_asyncio_loop():
     try:
         return get_running_loop()
@@ -31,8 +45,7 @@ def invoke_sync[T, **P](func: Callable[P, T], *args: P.args, **kwargs: P.kwargs)
 
 
 async def invoke_async[T, **P](
-    func: Callable[P, T], to_thread: bool = False,
-    *args: P.args, **kwargs: P.kwargs,
+    func: Callable[P, T], *args: P.args, to_thread: bool = False, **kwargs: P.kwargs,
 ) -> T:
     if is_awaitable(func):
         if iscoroutine(func):
