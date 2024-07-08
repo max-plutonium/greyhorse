@@ -1,5 +1,4 @@
 from dataclasses import make_dataclass, fields as dataclass_fields, field as dataclass_field
-from dataclasses import make_dataclass, fields as dataclass_fields, field as dataclass_field
 from typing import Any, Generic
 
 from greyhorse.utils.invoke import caller_path
@@ -58,7 +57,7 @@ class Tuple[*Ts]:
         )
 
         dc = make_dataclass(
-            name, fields, bases=tuple(bases), namespace={'__metaclass__': Enum0},
+            name, fields, bases=tuple(bases),
             module=f'{'.'.join(caller_path(3))}.{self._base.__name__}',
             slots=True, frozen=True, repr=False, match_args=False,
         )
