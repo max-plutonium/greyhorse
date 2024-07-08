@@ -70,5 +70,5 @@ def caller_path(depth: int) -> list[str]:
     for _ in range(depth, 0, -1):
         frame = frame.f_back
 
-    path = inspect.getmodule(frame).__name__.split('.')[:-1]
+    path = inspect.getmodule(frame).__name__.split('.')
     return path
