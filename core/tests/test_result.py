@@ -3,7 +3,7 @@ from unittest import mock
 import pytest
 
 from greyhorse.maybe import Just, Nothing
-from greyhorse.result import ResultUnwrapError, Ok, Err
+from greyhorse.result import ResultUnwrapError, Ok, Err, as_result_sync, as_result_async, Result, do, do_async
 
 
 def test_result():
@@ -81,7 +81,7 @@ def test_result():
     assert 123 == result_ok.unwrap_or_raise(Exception)
 
     with pytest.raises(Exception):
-        assert result_err.unwrap_or_raise(Exception)
+        result_err.unwrap_or_raise(Exception)
 
     assert Ok(134) == result_ok.map(lambda i: i + 11)
     assert Err('err') == result_err.map(lambda i: i + 11)
@@ -120,3 +120,95 @@ def test_result():
     assert Just(Ok(123)) == Ok(Just(123)).to_maybe()
     assert Just(Err('err')) == Err('err').to_maybe()
     assert Nothing is Ok(Nothing).to_maybe()
+
+
+def test_as_result_sync():
+    @as_result_sync(ValueError, IndexError)
+    def f(value: int) -> int:
+        if value == 0:
+            raise ValueError  # becomes Err
+        elif value == 1:
+            raise IndexError  # becomes Err
+        elif value == 2:
+            raise KeyError  # raises Exception
+        else:
+            return value  # becomes Ok
+
+    assert isinstance(f(0).unwrap_err(), ValueError)
+    assert isinstance(f(1).unwrap_err(), IndexError)
+
+    with pytest.raises(Exception):
+        f(2)
+
+    assert Ok(3) == f(3)
+
+
+@pytest.mark.asyncio
+async def test_as_result_async():
+    @as_result_async(ValueError, IndexError)
+    async def f(value: int) -> int:
+        if value == 0:
+            raise ValueError  # becomes Err
+        elif value == 1:
+            raise IndexError  # becomes Err
+        elif value == 2:
+            raise KeyError  # raises Exception
+        else:
+            return value  # becomes Ok
+
+    assert isinstance((await f(0)).unwrap_err(), ValueError)
+    assert isinstance((await f(1)).unwrap_err(), IndexError)
+
+    with pytest.raises(Exception):
+        await f(2)
+
+    assert Ok(3) == await f(3)
+
+
+def test_do_sync():
+    def get_result(i: int = 1):
+        if i < 3:
+            return Ok(i)
+        return Err(i)
+
+    final_result: Result[int, str] = do(
+        Ok(x + y)
+        for x in get_result(1)
+        for y in get_result(2)
+    )
+
+    assert Ok(3) == final_result
+
+    final_result: Result[int, str] = do(
+        Ok(x + y + z)
+        for x in get_result(1)
+        for y in get_result(2)
+        for z in get_result(10)
+    )
+
+    assert Err(10) == final_result
+
+
+@pytest.mark.asyncio
+async def test_do_async():
+    async def get_result(i: int = 1):
+        if i < 3:
+            return Ok(i)
+        return Err(i)
+
+    final_result: Result[int, str] = await do_async(
+        Ok(x + y)
+        for x in await get_result(1)
+        for y in await get_result(2)
+    )
+
+    assert Ok(3) == final_result
+
+    final_result: Result[int, str] = await do_async(
+        Ok(x + y + z)
+        for x in await get_result(1)
+        for y in await get_result(2)
+        for z in await get_result(10)
+    )
+
+    assert Err(10) == final_result

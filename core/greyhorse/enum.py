@@ -82,7 +82,14 @@ class Tuple[*Ts]:
     def _repr_fn(self, instance):
         res = []
         for field, type_ in zip(dataclass_fields(instance), instance.__orig_class__.__args__):
-            res.append(f'{type_.__name__}: {getattr(instance, field.name)}')
+            if not field.repr:
+                continue
+
+            if v := str(getattr(instance, field.name, '')):
+                res.append(f'{type_.__name__}: {v}')
+            else:
+                res.append(f'{type_.__name__}')
+
         return f'{self._base.__name__}:{self._name}({", ".join(res)})'
 
     def __call__(self, *args):
@@ -127,7 +134,12 @@ class Struct:
         for field in dataclass_fields(instance):
             if not field.repr:
                 continue
-            res.append(f'{field.name}: {field.type.__name__} = {getattr(instance, field.name)}')
+
+            if v := str(getattr(instance, field.name, '')):
+                res.append(f'{field.name}: {field.type.__name__} = {v}')
+            else:
+                res.append(f'{field.name}: {field.type.__name__}')
+
         return f'{self._base.__name__}:{self._name}({", ".join(res)})'
 
     def __call__(self, **kwargs):
