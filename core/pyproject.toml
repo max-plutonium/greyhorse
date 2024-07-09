@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "greyhorse"
-version = "0.4.4"
+version = "0.4.5"
 description = "Greyhorse library"
 license = "MIT"
 repository = "https://gitlab.com/max-plutonium/greyhorse"
@@ -43,3 +43,76 @@ pre-commit = "^3.5"
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+python_version = "3.12"
+files = [
+  "greyhorse",
+  "tests",
+]
+plugins = "pydantic.mypy"
+pretty = true
+#strict_optional = false
+allow_redefinition = true
+check_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+follow_imports = "normal"
+ignore_errors = false
+ignore_missing_imports = true
+no_implicit_optional = true
+no_implicit_reexport = true
+show_column_numbers = true
+show_error_codes = true
+show_error_context = true
+strict_equality = true
+strict_optional = true
+warn_no_return = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unused_configs = true
+warn_unused_ignores = true
+warn_unreachable = true
+disable_error_code = [
+    "no-redef", "valid-type", "attr-defined", "type-arg", "var-annotated"
+]
+exclude = "tests/broken/*"
+
+[tool.pytest.ini_options]
+addopts = [
+  "--tb=short",
+  "--cov=greyhorse",
+  "--cov=tests",
+  "--cov-report=term",
+  "--cov-report=html",
+  "--ignore-glob=tests/broken",
+]
+testpaths = [
+  "tests",
+]
+
+[tool.isort]
+profile = "black"
+known_first_party = "greyhorse"
+skip = ".tox,.eggs,ci/templates,build,dist"
+
+[tool.flake8]
+exclude = ".venv,.git,.tox,.eggs,ci/templates,build,dist"
+max-line-length = 90
+max-complexity = 7
+statistics = true
+ignore = "W503,E203"
+per-file-ignores = "__init__.py: F401"
+
+[tool.coverage.report]
+exclude_lines = [
+    "except ImportError",
+    "if TYPE_CHECKING:",
+    "pragma: no cover",
+    "raise AssertionError",
+    "raise NotImplementedError",
+]
