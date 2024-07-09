@@ -1,152 +1,365 @@
-import dataclasses
-import enum
+from __future__ import annotations
+
 from functools import wraps
-from typing import Callable, Container, Optional, Protocol, Self, Sequence, Type
+from typing import Callable, TypeVar, Any, Iterator, \
+    NoReturn, TYPE_CHECKING, Awaitable, TypeGuard
 
-from .i18n import tr
+from .enum import enum, Tuple
 
-
-class ResultProtocol[T](Protocol):
-    success: bool
-    result: T | None
-    errors: Sequence['Error'] | None
+if TYPE_CHECKING:
+    from .maybe import Maybe
 
 
-class ResultStatus(str, enum.Enum):
-    OK: str = 'ok'
-    PARTIAL: str = 'partial'
-    ERROR: str = 'error'
+ExcType = TypeVar('ExcType', bound=BaseException)
 
 
-@dataclasses.dataclass(slots=True, frozen=True)
-class Result[T]:
-    success: bool
-    result: T | None = None
-    errors: Sequence['Error'] | None = dataclasses.field(default_factory=list)
+@enum
+class Result[T, E]:
+    Ok = Tuple(T)
+    Err = Tuple(E)
 
-    @classmethod
-    def from_ok(cls, value: T | None = None):
-        return cls(success=True, result=value, errors=[])
+    def __hash__(self) -> int:
+        match self:
+            case Result.Ok(v):
+                return hash((True, v))
+            case Result.Err(e):
+                return hash((False, e))
 
-    @classmethod
-    def from_error(cls, error: 'Error'):
-        return cls(success=False, result=None, errors=[error])
+    def __iter__(self) -> Iterator[T]:
+        match self:
+            case Result.Ok(v):
+                yield v
+            case Result.Err(_):
+                def _iter() -> Iterator[NoReturn]:
+                    # Exception will be raised when the iterator is advanced, not when it's created
+                    raise DoException(self)
+                return _iter()
 
-    @classmethod
-    def from_errors(cls, errors: Sequence['Error']):
-        return cls(success=False, result=None, errors=errors)
+    def is_ok(self) -> bool:
+        """ Returns true if the `Result` is `Ok`. """
+        return isinstance(self, Result[T, E].Ok)
 
-    @property
-    def error(self) -> Optional['Error']:
-        return self.errors[0] if len(self.errors) else None
+    def is_ok_and(self, f: Callable[[T], bool]) -> bool:
+        """
+        Returns true if the `Result` is `Ok` and the value inside of it matches a predicate.
+        """
+        match self:
+            case Result.Ok(v): return f(v)
+            case Result.Err(_): return False
 
-    @property
-    def error_count(self) -> int:
-        return len(self.errors)
+    def is_err(self) -> bool:
+        """ Returns true if the `Result` is `Err`. """
+        return isinstance(self, Result[T, E].Err)
 
+    def is_err_and(self, f: Callable[[E], bool]) -> bool:
+        """
+        Returns true if the `Result` is `Err` and the value inside of it matches a predicate.
+        """
+        match self:
+            case Result.Ok(_): return False
+            case Result.Err(e): return f(e)
 
-@dataclasses.dataclass(slots=True, frozen=True)
-class ComplexResult[T: Container]:
-    status: ResultStatus
-    result: T | None = None
-    errors: Sequence['Error'] | None = dataclasses.field(default_factory=list)
+    def ok(self) -> 'Maybe[T]':
+        """
+        Converts the `Result` into a `Maybe[T]` and discarding the error, if any.
+        """
+        from .maybe import Just, Nothing
 
-    @classmethod
-    def from_ok(cls, values: T | None = None):
-        return cls(status=ResultStatus.OK, result=values, errors=[])
+        match self:
+            case Result.Ok(v): return Just(v)
+            case Result.Err(_): return Nothing
 
-    @classmethod
-    def from_partial(
-        cls, values: T | None = None, error: Optional['Error'] = None,
-        errors: Sequence['Error'] | None = None,
-    ):
-        errors = errors if errors else [error] if error else []
-        return cls(status=ResultStatus.PARTIAL, result=values, errors=errors)
+    def err(self) -> 'Maybe[E]':
+        """
+        Converts the `Result` into a `Maybe[E]` and discarding the success value, if any.
+        """
+        from .maybe import Just, Nothing
 
-    @classmethod
-    def from_error(cls, error: 'Error'):
-        return cls(status=ResultStatus.ERROR, result=None, errors=[error])
+        match self:
+            case Result.Ok(_): return Nothing
+            case Result.Err(e): return Just(e)
 
-    @classmethod
-    def from_errors(cls, errors: Sequence['Error']):
-        return cls(status=ResultStatus.ERROR, result=None, errors=errors)
+    def inspect(self, f: Callable[[T], Any]) -> Result[T, E]:
+        """
+        Calls a function with the contained value if `Ok`.
+        Returns the original `Result`.
+        """
+        match self:
+            case Result.Ok(v): f(v)
+            case Result.Err(_): pass
+        return self
 
-    @property
-    def error(self) -> Optional['Error']:
-        return self.errors[0] if len(self.errors) else None
+    def inspect_err(self, f: Callable[[E], Any]) -> Result[T, E]:
+        """
+        Calls a function with the contained value if `Err`.
+        Returns the original `Result`.
+        """
+        match self:
+            case Result.Ok(_): pass
+            case Result.Err(e): f(e)
+        return self
 
-    @property
-    def error_count(self) -> int:
-        return len(self.errors)
+    def expect(self, message: str) -> T:
+        """
+        Returns the contained `Ok` value if the `Result` is `Ok` or raises a `ResultUnwrapError`.
+        """
+        match self:
+            case Result.Ok(v): return v
+            case Result.Err(e): raise ResultUnwrapError(message, e)
 
+    def expect_err(self, message: str) -> E:
+        """
+        Returns the contained `Err` value if the `Result` is `Err` or raises a `ResultUnwrapError`.
+        """
+        match self:
+            case Result.Ok(v): raise ResultUnwrapError(message, v)
+            case Result.Err(e): return e
 
-type ListResult[T] = ComplexResult[list[T]]
-type DictResult[K, V] = ComplexResult[dict[K, V]]
+    def unwrap(self) -> T:
+        """
+        Returns the contained `Ok` value if the `Result` is `Ok` or raises a `ResultUnwrapError`.
+        """
+        match self:
+            case Result.Ok(v): return v
+            case Result.Err(e): raise ResultUnwrapError('Called `Result.unwrap()` on an `Err` value', e)
 
+    def unwrap_err(self) -> E:
+        """
+        Returns the contained `Err` value if the `Result` is `Err` or raises a `ResultUnwrapError`.
+        """
+        match self:
+            case Result.Ok(v): raise ResultUnwrapError('Called `Result.unwrap_err()` on an `Ok` value', v)
+            case Result.Err(e): return e
 
-class Error:
-    _type_classes: dict[str, type[Self]] = dict()
+    def unwrap_or(self, default: T) -> T:
+        """
+        Returns the contained `Ok` value or a provided default.
+        """
+        match self:
+            case Result.Ok(v): return v
+            case Result.Err(_): return default
 
-    app: str = ''
-    type: str
-    msg: str = ''
-    tr_key: str = ''
+    def unwrap_or_else(self, f: Callable[[E], T]) -> T:
+        """
+        Returns the contained `Ok` value or computes it from a closure.
+        """
+        match self:
+            case Result.Ok(v): return v
+            case Result.Err(e): return f(e)
 
-    @property
-    def message(self):
-        if self.tr_key:
-            return tr('.'.join([self.app, self.tr_key]))
-        return tr('.'.join([self.app, self.type]), default=self.msg)
+    def unwrap_or_raise(self, exc: type[ExcType]) -> T:
+        """
+        Returns the contained `Ok` value or raise the provided exception.
+        """
+        match self:
+            case Result.Ok(v): return v
+            case Result.Err(e):
+                if isinstance(e, BaseException):
+                    raise exc() from e
+                raise exc()
 
-    def __repr__(self):
-        return f'Error [{self.app}] ({self.type}): \"{self.message}\"'
+    def map[U](self, f: Callable[[T], U]) -> Result[U, E]:
+        """
+        Maps a `Result[T, E]` to `Result[U, E]` by applying a function to a contained `Ok` value,
+        leaving an `Err` value untouched.
 
-    def __eq__(self, other: Self):
-        return (self.app, self.type) == (other.app, other.type)
+        This function can be used to compose the results of two functions.
+        """
+        match self:
+            case Result.Ok(v): return Result[U, E].Ok(f(v))
+            case Result.Err(e): return Result[U, E].Err(e)
 
-    def __hash__(self):
-        return hash((self.app, self.type))
+    async def map_async[U](self, f: Callable[[T], Awaitable[U]]) -> Result[U, E]:
+        """
+        Maps a `Result[T, E]` to `Result[U, E]` by applying a function to a contained `Ok` value,
+        leaving an `Err` value untouched.
 
-    @property
-    def dict(self):
-        return dict(app=self.app, type=self.type, message=self.message)
+        This function can be used to compose the results of two functions.
+        """
+        match self:
+            case Result.Ok(v): return Result[U, E].Ok(await f(v))
+            case Result.Err(e): return Result[U, E].Err(e)
 
-    @classmethod
-    def get_by_type(cls, type_: str) -> Type[Self] | None:
-        return cls._type_classes.get(type_)
+    def map_or[U](self, default: U, f: Callable[[T], U]) -> U:
+        """
+        Returns the provided default (if `Err`), or applies a function
+        to the contained value (if `Ok`).
+        """
+        match self:
+            case Result.Ok(v): return f(v)
+            case Result.Err(_): return default
 
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        if hasattr(cls, 'type'):
-            cls._type_classes[cls.type] = cls
+    def map_or_else[U](self, default_f: Callable[[E], U], f: Callable[[T], U]) -> U:
+        """
+        Maps a `Result[T, E]` to `U` by applying fallback function `default` to a contained `Err` value,
+        or function `f` to a contained `Ok` value.
 
+        This function can be used to unpack a successful result while handling an error.
+        """
+        match self:
+            case Result.Ok(v): return f(v)
+            case Result.Err(e): return default_f(e)
 
-class ErrorKwargsMixin:
-    def __init__(self, **kwargs):
-        self.kwargs = kwargs
+    def map_err[F](self, f: Callable[[E], F]) -> Result[T, F]:
+        """
+        Maps a `Result[T, E]` to `Result[T, F]` by applying a function to a contained `Err` value,
+        leaving an `Ok` value untouched.
 
-    # noinspection PyUnresolvedReferences
-    @property
-    def message(self):
-        message = super(ErrorKwargsMixin, self).message
-        return message.format(**self.kwargs)
+        This function can be used to pass through a successful result while handling an error.
+        """
+        match self:
+            case Result.Ok(v): return Result[T, F].Ok(v)
+            case Result.Err(e): return Result[T, F].Err(f(e))
 
+    def and_[U](self, other: Result[U, E]) -> Result[U, E]:
+        """
+        Returns `other` if the Result is `Ok`, otherwise returns the `Err` value of `self`.
+        """
+        match self:
+            case Result.Ok(_): return other
+            case Result.Err(_): return self
 
-def result_or(result, error):
-    if callable(result):
-        result = result()
-    if result:
-        return result
-    if isinstance(error, Exception):
-        if callable(error):
-            raise error()
-        raise error
-    return error
+    def and_then[U](self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
+        """
+        Calls `f` if the result is `Ok`, otherwise returns the `Err` value of `self`.
+        This function can be used for control flow based on `Result` values.
+        """
+        match self:
+            case Result.Ok(v): return f(v)
+            case Result.Err(_): return self
+
+    async def and_then_async[U](self, f: Callable[[T], Awaitable[Result[U, E]]]) -> Result[U, E]:
+        """
+        Calls `f` if the result is `Ok`, otherwise returns the `Err` value of `self`.
+        This function can be used for control flow based on `Result` values.
+        """
+        match self:
+            case Result.Ok(v): return await f(v)
+            case Result.Err(_): return self
+
+    def or_(self, other: Result[T, F]) -> Result[T, F]:
+        """
+        Returns `other` if the Result is `Err`, otherwise returns the `Ok` value of `self`.
+        """
+        match self:
+            case Result.Ok(_): return self
+            case Result.Err(_): return other
+
+    def or_else(self, f: Callable[[E], Result[T, F]]) -> Result[T, F]:
+        """
+        Calls `f` if the result is `Err`, otherwise returns the `Ok` value of `self`.
+        This function can be used for control flow based on `Result` values.
+        """
+        match self:
+            case Result.Ok(_): return self
+            case Result.Err(e): return f(e)
+
+    def flatten(self) -> Result[T, E]:
+        """
+        Converts from `Result[Result[T, E], E]` to `Result[T, E]`.
+        """
+        match self:
+            case Result.Ok(v):
+                match v:
+                    case Result.Ok(_): return v
+                    case Result.Err(_): return v
+                    case _: return self
+            case Result.Err(_): return self
+
+    def to_maybe(self) -> 'Maybe[Result[T, E]]':
+        """
+        Transposes a `Result` of an `Maybe` into an `Maybe` of a `Result`.
+
+        `Ok(Nothing)` will be mapped to `Nothing`.
+        `Ok(Just(_))` and `Err(_)` will be mapped to `Just(Ok(_))` and `Just(Err(_))`.
+        """
+        from .maybe import Maybe, Just, Nothing
+
+        match self:
+            case Result.Ok(v):
+                match v:
+                    case Maybe.Just(x): return Just(Ok(x))
+                    case Maybe.Nothing: return Nothing
+                    case _: return Just(self)
+
+            case Result.Err(e): return Just(Result[T, E].Err(e))
 
 
 # noinspection PyPep8Naming
-def F[T, **P](func: Callable[P, T]) -> Callable[P, Result[T]]:
+def Ok[T](value: T) -> Result[T, Any]:
+    return Result[T, Any].Ok(value)
+
+
+# noinspection PyPep8Naming
+def Err[E](value: E) -> Result[Any, E]:
+    return Result[Any, E].Err(value)
+
+
+class ResultUnwrapError[V](Exception):
+    """
+    Exception raised from ``.unwrap_<...>`` and ``.expect_<...>`` calls.
+
+    The contained value can be accessed via the ``.value`` attribute, but
+    this is not intended for regular use, as type information is lost:
+    ``ResultUnwrapError`` doesn't know about both ``T`` and ``E``, since it's raised
+    from ``Ok()`` or ``Err()`` which only knows about either ``T`` or ``E``,
+    not both.
+    """
+
+    def __init__(self, message: str, value: V) -> None:
+        super().__init__(message)
+        self._value = value
+
+    @property
+    def value(self) -> V:
+        """
+        Returns the contained value.
+        """
+        return self._value
+
+
+class DoException(Exception):
+    """
+    This is used to signal to `do()` that the result is an `Err`,
+    which short-circuits the generator and returns that Err.
+    Using this exception for control flow in `do()` allows us
+    to simulate `and_then()` in the Err case: namely, we don't call `op`,
+    we just return `self` (the Err).
+    """
+
+    def __init__(self, err: Result.Err):
+        self.err = err
+
+
+def is_ok[T, E](result: Result[T, E]) -> TypeGuard[Result[T, E].Ok]:
+    """A typeguard to check if a result is an Ok
+
+    Usage:
+    >>> r: Result[int, str] = get_a_result()
+    >>> if is_ok(r):
+    >>>     r   # r is of type Ok[int]
+    >>> elif is_err(r):
+    >>>     r   # r is of type Err[str]
+    """
+    return result.is_ok()
+
+
+def is_err[T, E](result: Result[T, E]) -> TypeGuard[Result[T, E].Err]:
+    """A typeguard to check if a result is an Err
+
+    Usage:
+    >>> r: Result[int, str] = get_a_result()
+    >>> if is_ok(r):
+    >>>     r   # r is of type Ok[int]
+    >>> elif is_err(r):
+    >>>     r   # r is of type Err[str]
+    """
+    return result.is_err()
+
+
+# noinspection PyPep8Naming
+def F[T, **P](func: Callable[P, T]) -> Callable[P, Ok[T]]:
     @wraps(func)
-    def inner(*args: P.args, **kwargs: P.kwargs) -> Result[T]:
-        return Result.from_ok(func(*args, **kwargs))
+    def inner(*args: P.args, **kwargs: P.kwargs) -> Ok[T]:
+        return Ok(func(*args, **kwargs))
     return inner
