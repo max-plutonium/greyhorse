@@ -19,6 +19,9 @@ class Result[T, E]:
     Ok = Tuple(T)
     Err = Tuple(E)
 
+    def __bool__(self) -> bool:
+        return self.is_ok()
+
     def __hash__(self) -> int:
         match self:
             case Result.Ok(v):

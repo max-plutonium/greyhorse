@@ -16,6 +16,9 @@ class Maybe[T]:
     Just = Tuple(T)
     Nothing = Unit()
 
+    def __bool__(self) -> bool:
+        return self.is_just()
+
     def __hash__(self) -> int:
         match self:
             case Maybe.Just(v):
