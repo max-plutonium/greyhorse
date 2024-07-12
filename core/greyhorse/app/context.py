@@ -1,11 +1,13 @@
 import asyncio
 import threading
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from contextlib import AbstractAsyncContextManager, AbstractContextManager, AsyncExitStack, ExitStack
 from contextvars import ContextVar
 from typing import Any, AsyncContextManager, Awaitable, Callable, ContextManager, Mapping, override
 from uuid import uuid4
 
+from greyhorse.maybe import Maybe, Nothing, Just
 from greyhorse.utils.invoke import get_asyncio_loop, invoke_async, invoke_sync, is_like_sync_context_manager, \
     is_like_async_context_manager
 
@@ -59,6 +61,16 @@ class Context(object):
         raise NotImplementedError
 
 
+class MutContext(Context, ABC):
+    @abstractmethod
+    def apply(self) -> Awaitable[None] | None:
+        ...
+
+    @abstractmethod
+    def cancel(self) -> Awaitable[None] | None:
+        ...
+
+
 class _ContextStorage(threading.local):
     __slots__ = ('_storage',)
 
@@ -71,21 +83,24 @@ class _ContextStorage(threading.local):
     def remove(self, kind: type, instance: Context):
         self._storage[kind].remove(instance)
 
-    def get_last(self, kind: type) -> Context | None:
+    def get_last(self, kind: type) -> Maybe[Context]:
         if objects := self._storage.get(kind, []):
-            return objects[0]
-        return None
+            return Just(objects[0])
+        return Nothing
 
 
 _current_context: ContextVar[Context] = ContextVar('_ctx')
 _context_storage = _ContextStorage()
 
 
-def current_context(kind: type | None = None) -> Context | None:
+def current_context(kind: type | None = None) -> Maybe[Context]:
     if kind is None:
-        return _current_context.get(None)
+        if res := _current_context.get(None):
+            return Just(res)
     else:
         return _context_storage.get_last(kind)
+
+    return Nothing
 
 
 def current_scope_id(kind: type | None = None) -> str:
@@ -94,7 +109,7 @@ def current_scope_id(kind: type | None = None) -> str:
             return ctx.ident
     else:
         if ctx := _context_storage.get_last(kind):
-            return ctx.ident
+            return ctx.unwrap().ident
 
     if loop := get_asyncio_loop():
         return f'asyncio:{id(asyncio.current_task(loop))}'
@@ -144,6 +159,12 @@ class SyncContext[T](Context, ContextManager):
         del self._object
         self._object = None
 
+    def _enter(self):
+        pass
+
+    def _exit(self, *args):
+        pass
+
     def _nested_enter(self):
         pass
 
@@ -173,6 +194,7 @@ class SyncContext[T](Context, ContextManager):
             self._params[name] = value
 
         self._create()
+        self._enter()
 
         self._prev = _current_context.get(None)
         _current_context.set(self)
@@ -188,6 +210,7 @@ class SyncContext[T](Context, ContextManager):
                 self._nested_exit()
                 return
 
+        self._exit(exc_type, exc_value, traceback)
         _context_storage.remove(type(self._object), self)
 
         try:
@@ -215,6 +238,30 @@ class SyncContext[T](Context, ContextManager):
 
         _current_context.set(self._prev)
         self._prev = self._parent = None
+
+
+class SyncMutContext[T](SyncContext[T], MutContext, ABC):
+    __slots__ = (
+        '_force_rollback', '_auto_apply',
+    )
+
+    def __init__(
+        self, factory: Callable[[...], T] | None = None,
+        fields: Mapping[str, FieldFactory[T]] | None = None,
+        finalizers: list[Callable[[], Awaitable[None] | None]] | None = None,
+        contexts: list[ContextManagerLike[T]] | None = None,
+        force_rollback: bool = False, auto_apply: bool = False,
+    ):
+        super().__init__(factory, fields, finalizers, contexts)
+        self._force_rollback = force_rollback
+        self._auto_apply = auto_apply
+
+    @override
+    def _exit(self, *args):
+        if self._force_rollback or args[0] is not None:
+            self.cancel()
+        elif self._auto_apply:
+            self.apply()
 
 
 class AsyncContext[T](Context, AsyncContextManager):
@@ -265,6 +312,12 @@ class AsyncContext[T](Context, AsyncContextManager):
         del self._object
         self._object = None
 
+    async def _enter(self):
+        pass
+
+    async def _exit(self, *args):
+        pass
+
     async def _nested_enter(self):
         pass
 
@@ -302,6 +355,7 @@ class AsyncContext[T](Context, AsyncContextManager):
             self._params[name] = value
 
         await self._create()
+        await self._enter()
 
         self._prev = _current_context.get(None)
         _current_context.set(self)
@@ -317,6 +371,7 @@ class AsyncContext[T](Context, AsyncContextManager):
                 await self._nested_exit()
                 return
 
+        await self._exit(exc_type, exc_value, traceback)
         _context_storage.remove(type(self._object), self)
 
         try:
@@ -355,12 +410,42 @@ class AsyncContext[T](Context, AsyncContextManager):
         self._prev = self._parent = None
 
 
-class SyncContextBuilder[T]:
-    def __init__(self, factory: Callable[[...], T]):
+class AsyncMutContext[T](AsyncContext[T], MutContext, ABC):
+    __slots__ = (
+        '_force_rollback', '_auto_apply',
+    )
+
+    def __init__(
+        self, factory: Callable[[...], T] | None = None,
+        fields: Mapping[str, FieldFactory[T]] | None = None,
+        finalizers: list[Callable[[], Awaitable[None] | None]] | None = None,
+        contexts: list[ContextManagerLike[T]] | None = None,
+        force_rollback: bool = False, auto_apply: bool = False,
+    ):
+        super().__init__(factory, fields, finalizers, contexts)
+        self._force_rollback = force_rollback
+        self._auto_apply = auto_apply
+
+    @override
+    async def _exit(self, *args):
+        if self._force_rollback or args[0] is not None:
+            await self.cancel()
+        elif self._auto_apply:
+            await self.apply()
+
+
+class ContextBuilder[T]:
+    def __init__(
+        self, factory: Callable[[...], T],
+        class_: type[SyncContext[T] | AsyncContext[T] | SyncMutContext[T] | AsyncMutContext[T]],
+        **kwargs: dict[str, Any],
+    ):
         self._factory = factory
         self._fields = {}
         self._finalizers = []
         self._contexts = []
+        self._class = class_
+        self._kwargs = kwargs
 
     def add_param(self, name: str, value: FieldFactory[T]):
         self._fields[name] = value
@@ -371,31 +456,9 @@ class SyncContextBuilder[T]:
     def add_finalizer(self, finalizer: Callable[[], Awaitable[None] | None]):
         self._finalizers.append(finalizer)
 
-    def build(self) -> SyncContext[T]:
-        return SyncContext[T](
+    def build(self):
+        return self._class(
             factory=self._factory, fields=self._fields,
             finalizers=self._finalizers, contexts=self._contexts,
-        )
-
-
-class AsyncContextBuilder[T]:
-    def __init__(self, factory: Callable[[...], T]):
-        self._factory = factory
-        self._fields = {}
-        self._finalizers = []
-        self._contexts = []
-
-    def add_param(self, name: str, value: FieldFactory[T]):
-        self._fields[name] = value
-
-    def add_context(self, context: ContextManagerLike[T]):
-        self._contexts.append(context)
-
-    def add_finalizer(self, finalizer: Callable[[], Awaitable[None] | None]):
-        self._finalizers.append(finalizer)
-
-    def build(self) -> AsyncContext[T]:
-        return AsyncContext[T](
-            factory=self._factory, fields=self._fields,
-            finalizers=self._finalizers, contexts=self._contexts,
+            **self._kwargs,
         )
