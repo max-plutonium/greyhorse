@@ -663,3 +663,10 @@ class ContextBuilder[T]:
             finalizers=self._finalizers, contexts=self._contexts,
             **self._kwargs,
         )
+
+
+def context_builder[T](
+    class_: type[SyncContext[T] | AsyncContext[T] | SyncMutContext[T] | AsyncMutContext[T]],
+    type_: type[T], factory: Callable[[...], T] | T, **kwargs: dict[str, Any],
+):
+    return ContextBuilder[type_](factory, class_[type_], **kwargs)
