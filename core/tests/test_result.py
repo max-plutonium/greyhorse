@@ -2,11 +2,28 @@ from unittest import mock
 
 import pytest
 
+from greyhorse.error import Error, ErrorCase
 from greyhorse.maybe import Just, Nothing
 from greyhorse.result import ResultUnwrapError, Ok, Err, as_result_sync, as_result_async, Result, do, do_async
 
 
+class TestError(Error):
+    Unexpected = ErrorCase(msg='Unexpected error')
+
+
 def test_result():
+    result_ok = Result(123)
+    result_err = Result(TestError.Unexpected())
+
+    assert result_ok
+    assert not result_err
+
+    assert result_ok.is_ok()
+    assert not result_err.is_ok()
+
+    assert not result_ok.is_err()
+    assert result_err.is_err()
+
     result_ok = Ok(123)
     result_err = Err('err')
 

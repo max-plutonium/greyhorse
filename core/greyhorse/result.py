@@ -19,6 +19,18 @@ class Result[T, E](Enum):
     Ok = Tuple(T)
     Err = Tuple(E)
 
+    def __new__(cls, *args, **kwargs):
+        if cls.__name__ == 'Result':
+            if len(args) > 0:
+                if isinstance(args[0], Error):
+                    # noinspection PyTypeChecker
+                    return super().__new__(cls.Err)
+                else:
+                    # noinspection PyTypeChecker
+                    return super().__new__(cls.Ok)
+
+        return super().__new__(cls)
+
     def __bool__(self) -> bool:
         return self.is_ok()
 

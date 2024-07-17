@@ -1,6 +1,6 @@
-from greyhorse.enum import enum
 from greyhorse.error import Error, ErrorCase
 from greyhorse.i18n import StaticTranslator
+from greyhorse.result import Result
 
 tr = StaticTranslator()
 
@@ -43,5 +43,9 @@ def test_error():
             case TestError.Unexpected(d):
                 assert d == 'Unexpected'
                 res += 1
+
+        err_result = e.result()
+        assert isinstance(err_result, Result.Err)
+        assert err_result.is_err()
 
     assert res == 4

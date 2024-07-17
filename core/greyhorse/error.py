@@ -6,6 +6,8 @@ from typing import ClassVar, Final, TYPE_CHECKING, Any, Self
 from .enum import Struct, Enum
 from .i18n import StaticTranslator
 
+if TYPE_CHECKING:
+    from .result import Result
 
 
 class Error(Enum):
@@ -38,6 +40,11 @@ class Error(Enum):
             assert isinstance(kwargs['tr'], StaticTranslator)
             cls._tr = kwargs.pop('tr')
         return super().__init_subclass__(**kwargs)
+
+    def result(self) -> 'Result[Any, Self]':
+        from .result import Err
+
+        return Err(self)
 
 
 class ErrorCase(Struct):
