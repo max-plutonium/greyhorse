@@ -16,6 +16,17 @@ class Maybe[T]:
     Just = Tuple(T)
     Nothing = Unit()
 
+    def __new__(cls, *args, **kwargs):
+        if cls.__name__ == 'Maybe':
+            if len(args) > 0:
+                if args[0] is None:
+                    return cls.Nothing
+                else:
+                    # noinspection PyTypeChecker
+                    return super().__new__(cls.Just)
+
+        return super().__new__(cls)
+
     def __bool__(self) -> bool:
         return self.is_just()
 

@@ -2,13 +2,28 @@ from unittest import mock
 
 import pytest
 
-from greyhorse.maybe import MaybeUnwrapError, Just, Nothing
+from greyhorse.maybe import MaybeUnwrapError, Just, Nothing, Maybe
 from greyhorse.result import Ok, Err
 
 
 def test_maybe():
+    maybe_just = Maybe(123)
+    maybe_none = Maybe(None)
+
+    assert maybe_just
+    assert not maybe_none
+
+    assert maybe_just.is_just()
+    assert not maybe_none.is_just()
+
+    assert not maybe_just.is_nothing()
+    assert maybe_none.is_nothing()
+
     maybe_just = Just(123)
     maybe_none = Nothing
+
+    assert maybe_just
+    assert not maybe_none
 
     assert maybe_just.is_just()
     assert not maybe_none.is_just()

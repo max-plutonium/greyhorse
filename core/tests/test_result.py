@@ -10,6 +10,9 @@ def test_result():
     result_ok = Ok(123)
     result_err = Err('err')
 
+    assert result_ok
+    assert not result_err
+
     assert result_ok.is_ok()
     assert not result_err.is_ok()
 
