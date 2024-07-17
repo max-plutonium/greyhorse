@@ -5,7 +5,6 @@ from greyhorse.i18n import StaticTranslator
 tr = StaticTranslator()
 
 
-@enum
 class TestError(Error, tr=tr):
     namespace = 'tests'
 

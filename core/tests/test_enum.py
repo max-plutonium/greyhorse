@@ -1,18 +1,16 @@
 import pytest
 
-from greyhorse.enum import enum, Tuple, Struct, Unit
+from greyhorse.enum import Tuple, Struct, Unit, Enum
 
 
-@enum
-class Result[T, E]:
+class Result[T, E](Enum):
     Ok = Tuple(T)
     Err = Tuple(E)
     Val = Struct(msg='message', value=int)
     Uno = Unit()
 
 
-@enum(allow_init=True)
-class ResultAllowInit[T, E]:
+class ResultAllowInit[T, E](Enum, allow_init=True):
     pass
 
 

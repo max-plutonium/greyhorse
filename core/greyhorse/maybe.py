@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, TypeVar, TypeGuard, TYPE_CHECKING, Awaitable
 
-from .enum import enum, Tuple, Unit
+from .enum import Tuple, Unit, Enum
 
 if TYPE_CHECKING:
     from .result import Result
@@ -11,8 +11,7 @@ if TYPE_CHECKING:
 ExcType = TypeVar('ExcType', bound=BaseException)
 
 
-@enum
-class Maybe[T]:
+class Maybe[T](Enum):
     Just = Tuple(T)
     Nothing = Unit()
 

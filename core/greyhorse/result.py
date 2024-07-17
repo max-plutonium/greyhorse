@@ -5,7 +5,8 @@ from functools import wraps
 from typing import Callable, TypeVar, Any, Iterator, \
     NoReturn, TYPE_CHECKING, Awaitable, TypeGuard, Generator, AsyncGenerator
 
-from .enum import enum, Tuple
+from .enum import Tuple, Enum
+from .error import Error
 
 if TYPE_CHECKING:
     from .maybe import Maybe
@@ -14,8 +15,7 @@ if TYPE_CHECKING:
 ExcType = TypeVar('ExcType', bound=BaseException)
 
 
-@enum
-class Result[T, E]:
+class Result[T, E](Enum):
     Ok = Tuple(T)
     Err = Tuple(E)
 

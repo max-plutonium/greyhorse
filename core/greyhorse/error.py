@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import fields as dataclass_fields
-from typing import ClassVar, Final
+from typing import ClassVar, Final, TYPE_CHECKING, Any, Self
 
-from .enum import Struct
+from .enum import Struct, Enum
 from .i18n import StaticTranslator
 
 
-class Error:
+
+class Error(Enum):
     _tr: ClassVar[StaticTranslator] = None
     namespace: ClassVar[str] = ''
     code: Final[str] = ''

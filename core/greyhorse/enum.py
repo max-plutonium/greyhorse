@@ -1,5 +1,5 @@
 from dataclasses import make_dataclass, fields as dataclass_fields, field as dataclass_field
-from typing import Any, Generic
+from typing import Any, Generic, ClassVar
 
 from greyhorse.utils.invoke import caller_path
 
@@ -156,6 +156,36 @@ class Struct:
 
     def __call__(self, **kwargs):
         return self._factory(**kwargs)
+
+
+class Enum:
+    """
+    Implements algebraic enumeration class.
+    """
+    def __init_subclass__(cls, allow_init: bool = False, **kwargs):
+        fields: dict[str, ClassVar[Unit | Tuple | Struct]] = {}
+
+        for field_name in dir(cls):
+            instance = getattr(cls, field_name)
+
+            if isinstance(instance, (Unit, Tuple, Struct)):
+                fields[field_name] = instance
+                delattr(cls, field_name)
+            else:
+                continue
+
+        for field_name, instance in fields.items():
+            # noinspection PyProtectedMember
+            factory = instance._bind(field_name, cls)
+            setattr(cls, field_name, factory)
+
+        if fields and not allow_init:
+            def __init__(*_, **__):
+                raise NotImplementedError()
+
+            cls.__init__ = __init__
+
+        return super().__init_subclass__(**kwargs)
 
 
 def enum(cls: type | None = None, allow_init: bool = False):
