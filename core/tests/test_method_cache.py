@@ -70,7 +70,7 @@ async def test_get():
     operator_mock.load_one.return_value = (True, 123)
     exists, data = await method_cache.get('method', args)
     assert exists
-    assert data is 123
+    assert data == 123
     operator_mock.get_cache_key.assert_called_once_with(MethodCache.cache_key_for('method', args))
     operator_mock.load_one.assert_called_once_with('greyhorse.models.test:1')
     operator_mock.get_cache_key.reset_mock()
