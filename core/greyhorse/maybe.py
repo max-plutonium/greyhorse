@@ -116,6 +116,14 @@ class Maybe[T](Enum):
             case Maybe.Just(v): return v
             case Maybe.Nothing: return default
 
+    def unwrap_or_none(self) -> T | None:
+        """
+        Returns the contained `Just` value or `None`.
+        """
+        match self:
+            case Maybe.Just(v): return v
+            case Maybe.Nothing: return None
+
     def unwrap_or_else(self, f: Callable[[], T]) -> T:
         """
         Returns the contained `Just` value or computes it from a closure.

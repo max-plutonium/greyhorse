@@ -6,9 +6,9 @@ def test_load_file_unload_file():
     assert tr.size() == 0
 
     tr.load_file('tests/translations.toml')
-    assert tr.size() == 6
+    assert tr.size() == 8
     tr.load_file('tests/translations.toml', namespace='root')
-    assert tr.size() == 12
+    assert tr.size() == 16
 
     assert 'Title' == tr('translations.title')
     assert 'Title' == tr('root.title')
@@ -22,7 +22,7 @@ def test_load_file_unload_file():
     tr.unload('translations1')
     tr.unload('translations')
 
-    assert tr.size() == 6
+    assert tr.size() == 8
     assert not tr('translations.title')
     assert 'Title' == tr('root.title')
 

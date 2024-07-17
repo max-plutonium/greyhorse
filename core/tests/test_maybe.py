@@ -64,6 +64,9 @@ def test_maybe():
     assert 123 == maybe_just.unwrap_or(456)
     assert 456 == maybe_none.unwrap_or(456)
 
+    assert 123 == maybe_just.unwrap_or_none()
+    assert None is maybe_none.unwrap_or_none()
+
     assert 123 == maybe_just.unwrap_or_else(lambda: 789)
     assert 789 == maybe_none.unwrap_or_else(lambda: 789)
 

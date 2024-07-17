@@ -41,7 +41,7 @@ class Error(Enum):
             cls._tr = kwargs.pop('tr')
         return super().__init_subclass__(**kwargs)
 
-    def result(self) -> 'Result[Any, Self]':
+    def to_result(self) -> 'Result[Any, Self]':
         from .result import Err
 
         return Err(self)

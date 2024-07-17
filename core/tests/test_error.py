@@ -27,6 +27,8 @@ def test_error():
     assert 'Error: \'error value\'' == e3.message
     assert 'Unexpected error: "Unexpected"' == e4.message
 
+    tr.unload('tests')
+
     res = 0
 
     for e in (e1, e2, e3, e4):
@@ -44,7 +46,7 @@ def test_error():
                 assert d == 'Unexpected'
                 res += 1
 
-        err_result = e.result()
+        err_result = e.to_result()
         assert isinstance(err_result, Result.Err)
         assert err_result.is_err()
 

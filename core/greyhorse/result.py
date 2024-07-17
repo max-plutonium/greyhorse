@@ -155,6 +155,22 @@ class Result[T, E](Enum):
             case Result.Ok(v): return v
             case Result.Err(_): return default
 
+    def unwrap_or_none(self) -> T | None:
+        """
+        Returns the contained `Ok` value or `None`.
+        """
+        match self:
+            case Result.Ok(v): return v
+            case Result.Err(_): return None
+
+    def unwrap_err_or_none(self) -> T | None:
+        """
+        Returns the contained `Err` value or `None`.
+        """
+        match self:
+            case Result.Ok(_): return None
+            case Result.Err(e): return e
+
     def unwrap_or_else(self, f: Callable[[E], T]) -> T:
         """
         Returns the contained `Ok` value or computes it from a closure.
@@ -253,7 +269,7 @@ class Result[T, E](Enum):
             case Result.Ok(v): return await f(v)
             case Result.Err(_): return self
 
-    def or_(self, other: Result[T, F]) -> Result[T, F]:
+    def or_[F](self, other: Result[T, F]) -> Result[T, F]:
         """
         Returns `other` if the Result is `Err`, otherwise returns the `Ok` value of `self`.
         """
@@ -261,7 +277,7 @@ class Result[T, E](Enum):
             case Result.Ok(_): return self
             case Result.Err(_): return other
 
-    def or_else(self, f: Callable[[E], Result[T, F]]) -> Result[T, F]:
+    def or_else[F](self, f: Callable[[E], Result[T, F]]) -> Result[T, F]:
         """
         Calls `f` if the result is `Err`, otherwise returns the `Ok` value of `self`.
         This function can be used for control flow based on `Result` values.

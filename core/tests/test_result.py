@@ -95,6 +95,12 @@ def test_result():
     assert 123 == result_ok.unwrap_or(456)
     assert 456 == result_err.unwrap_or(456)
 
+    assert 123 == result_ok.unwrap_or_none()
+    assert None is result_err.unwrap_or_none()
+
+    assert None is result_ok.unwrap_err_or_none()
+    assert 'err' == result_err.unwrap_err_or_none()
+
     assert 123 == result_ok.unwrap_or_else(lambda e: 789)
     assert 789 == result_err.unwrap_or_else(lambda e: 789)
 
