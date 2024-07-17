@@ -1,5 +1,5 @@
 from dataclasses import make_dataclass, fields as dataclass_fields, field as dataclass_field
-from typing import Any, Generic, ClassVar
+from typing import Any, Generic, ClassVar, TypeVar
 
 from greyhorse.utils.invoke import caller_path
 
@@ -104,7 +104,7 @@ class Struct:
         self._fields: dict[str, type] = {}
 
         for k, v in kwargs.items():
-            if isinstance(v, type):
+            if isinstance(v, (type, TypeVar)):
                 self._fields[k] = v
             else:
                 self._values[k] = v
@@ -148,9 +148,9 @@ class Struct:
                 continue
 
             if v := getattr(instance, field.name, ''):
-                res.append(f'{field.name}: {field.type.__name__} = {repr(v)}')
+                res.append(f'{field.name}: {type(v).__name__} = {repr(v)}')
             else:
-                res.append(f'{field.name}: {field.type.__name__}')
+                res.append(f'{field.name}: {type(v).__name__}')
 
         return f'{self._base.__name__}:{self._name}({", ".join(res)})'
 
