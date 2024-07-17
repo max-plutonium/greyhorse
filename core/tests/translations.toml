@@ -6,6 +6,8 @@ title.ru = "Заголовок"  # Comment
 [owner]  # Owner
 name.en = "Name"
 name.ru = "Имя"
+error.en = "Error: '{value}'"
+error.ru = "Ошибка: '{value}'"
 
 [[data]]
 title1 = 'Data'
