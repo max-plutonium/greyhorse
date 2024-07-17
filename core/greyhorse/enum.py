@@ -85,8 +85,8 @@ class Tuple[*Ts]:
             if not field.repr:
                 continue
 
-            if v := str(getattr(instance, field.name, '')):
-                res.append(f'{type_.__name__}: {v}')
+            if v := getattr(instance, field.name, ''):
+                res.append(f'{type_.__name__}: {repr(v)}')
             else:
                 res.append(f'{type_.__name__}')
 
@@ -97,10 +97,17 @@ class Tuple[*Ts]:
 
 
 class Struct:
-    __slots__ = ('_name', '_base', '_factory', '_kwargs')
+    __slots__ = ('_name', '_base', '_factory', '_fields', '_values')
 
     def __init__(self, **kwargs):
-        self._kwargs: dict[str, type] = kwargs
+        self._values: dict[str, Any] = {}
+        self._fields: dict[str, type] = {}
+
+        for k, v in kwargs.items():
+            if isinstance(v, type):
+                self._fields[k] = v
+            else:
+                self._values[k] = v
 
     def _bind(self, name: str, base: type):
         self._name = name
@@ -108,10 +115,15 @@ class Struct:
 
         bases = [base]
 
-        fields = list(self._kwargs.items())
+        fields = list(self._fields.items())
         fields.append(
             ('__orig_class__', Any, dataclass_field(default=self._base, init=True, repr=False))
         )
+
+        for k, v in self._values.items():
+            fields.append(
+                (k, type(v), dataclass_field(default=v, init=False, repr=True))
+            )
 
         dc = make_dataclass(
             name, fields, bases=tuple(bases),
@@ -120,14 +132,14 @@ class Struct:
         )
 
         dc.__orig_class__ = self.__class__
-        dc.__match_args__ = tuple([f'{k}' for k in self._kwargs.keys()])
+        dc.__match_args__ = tuple([f'{k}' for k in self._fields.keys()])
         dc.__repr__ = lambda self0: self._repr_fn(self0)
         self._factory = dc
         return self._factory
 
     def __repr__(self):
         return f'{self._base.__name__}:{self._name}(' \
-               f'{", ".join([f'{n}: {t.__name__}' for n, t in self._kwargs.items()])})'
+               f'{", ".join([f'{n}: {t.__name__}' for n, t in self._fields.items()])})'
 
     def _repr_fn(self, instance):
         res = []
@@ -135,8 +147,8 @@ class Struct:
             if not field.repr:
                 continue
 
-            if v := str(getattr(instance, field.name, '')):
-                res.append(f'{field.name}: {field.type.__name__} = {v}')
+            if v := getattr(instance, field.name, ''):
+                res.append(f'{field.name}: {field.type.__name__} = {repr(v)}')
             else:
                 res.append(f'{field.name}: {field.type.__name__}')
 
@@ -146,18 +158,30 @@ class Struct:
         return self._factory(**kwargs)
 
 
-def enum(cls):
+def enum(cls: type | None = None, allow_init: bool = False):
     """
     Create algebraic enumeration from class.
     """
-    for field_name in dir(cls):
-        instance = getattr(cls, field_name)
+    def decorator(cls):
+        for field_name in dir(cls):
+            instance = getattr(cls, field_name)
 
-        if isinstance(instance, (Unit, Tuple, Struct)):
-            # noinspection PyProtectedMember
-            factory = instance._bind(field_name, cls)
-            setattr(cls, field_name, factory)
-        else:
-            continue
+            if isinstance(instance, (Unit, Tuple, Struct)):
+                # noinspection PyProtectedMember
+                factory = instance._bind(field_name, cls)
+                setattr(cls, field_name, factory)
+            else:
+                continue
 
-    return cls
+        if not allow_init:
+            def __init__(*_, **__):
+                raise NotImplementedError()
+
+            cls.__init__ = __init__
+
+        return cls
+
+    if cls is None:
+        return decorator
+
+    return decorator(cls)

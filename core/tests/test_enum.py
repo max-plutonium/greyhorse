@@ -1,3 +1,5 @@
+import pytest
+
 from greyhorse.enum import enum, Tuple, Struct, Unit
 
 
@@ -5,11 +7,21 @@ from greyhorse.enum import enum, Tuple, Struct, Unit
 class Result[T, E]:
     Ok = Tuple(T)
     Err = Tuple(E)
-    Val = Struct(value=int)
+    Val = Struct(msg='message', value=int)
     Uno = Unit()
 
 
+@enum(allow_init=True)
+class ResultAllowInit[T, E]:
+    pass
+
+
 def test_enum():
+    with pytest.raises(NotImplementedError):
+        Result()
+
+    ResultAllowInit()
+
     r1 = Result.Ok(1)
     r2 = Result.Err('1')
     r3 = Result.Val(value=123)
