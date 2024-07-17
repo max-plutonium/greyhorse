@@ -1,9 +1,9 @@
 from collections import defaultdict
 from typing import Callable, Mapping, Type, TypeVar
 
-from .logging import logger
-from .result import Result
-from .utils.invoke import invoke_async, invoke_sync
+from greyhorse.logging import logger
+from greyhorse.result import Result
+from greyhorse.utils.invoke import invoke_async, invoke_sync
 
 MessageType = TypeVar('MessageType')
 CommandHandler = Callable[[MessageType], Result]
