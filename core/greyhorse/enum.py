@@ -37,19 +37,29 @@ class Unit:
 
 
 class Tuple[*Ts]:
-    __slots__ = ('_name', '_base', '_factory', '_types')
+    __slots__ = ('_name', '_base', '_factory', '_fields', '_types')
 
     def __init__(self, *types: *Ts):
-        self._types = types
+        self._types: list[TypeVar] = []
+        self._fields: list[type] = []
+
+        for t in types:
+            if isinstance(t, type):
+                self._fields.append(t)
+            elif isinstance(t, TypeVar):
+                self._types.append(t)
 
     def _bind(self, name: str, base: type):
         self._name = name
         self._base = base
 
-        bases = [base, Generic[*self._types]]
+        bases = [base]
+
+        if self._types:
+            bases += [Generic[*self._types]]
 
         fields = {
-            f'_{i}': arg for i, arg in enumerate(self._types)
+            f'_{i}': arg for i, arg in enumerate(self._types + self._fields)
         }
         fields = list(fields.items())
         fields.append(
@@ -63,16 +73,17 @@ class Tuple[*Ts]:
         )
 
         dc.__orig_class__ = self.__class__
-        dc.__match_args__ = tuple([f'_{i}' for i, _ in enumerate(self._types)])
+        dc.__match_args__ = tuple([f'_{i}' for i, _ in enumerate(self._types + self._fields)])
         dc.__repr__ = lambda self0: self._repr_fn(self0)
         self._factory = dc
 
         # noinspection PyUnresolvedReferences
-        def _init(self0, *args):
+        def __init__(self0, *args):
             types = tuple(type(arg) for arg in args)
-            return old_init(self0, *args, __orig_class__=self._factory[*types])
+            orig_class = self._factory[*types] if self._types else self.__class__
+            return old_init(self0, *args, __orig_class__=orig_class)
 
-        old_init, dc.__init__ = dc.__init__, _init
+        old_init, dc.__init__ = dc.__init__, __init__
         return self._factory
 
     def __repr__(self):
