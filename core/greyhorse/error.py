@@ -17,7 +17,7 @@ class Error(Enum):
     msg: Final[str] = ''
 
     @property
-    def message(self):
+    def message(self) -> str:
         values = {}
 
         # noinspection PyDataclass

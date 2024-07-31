@@ -19,17 +19,27 @@ class Result[T, E](Enum):
     Ok = Tuple(T)
     Err = Tuple(E)
 
-    def __new__(cls, *args, **kwargs):
-        if cls.__name__ == 'Result':
-            if len(args) > 0:
-                if isinstance(args[0], Error):
-                    # noinspection PyTypeChecker
-                    return super().__new__(cls.Err)
+    def __new__(cls, value: T | E | None = None):
+        match cls.__name__:
+            case 'Result':
+                if isinstance(value, Error):
+                    return cls.__new_err__(value)
                 else:
-                    # noinspection PyTypeChecker
-                    return super().__new__(cls.Ok)
+                    return cls.__new_ok__(value)
+            case 'Ok':
+                return cls.__new_ok__(value)
+            case 'Err':
+                return cls.__new_err__(value)
 
-        return super().__new__(cls)
+        assert False
+
+    @classmethod
+    def __new_ok__(cls, value: T):
+        return super().__new__(Result[type(value), Any].Ok)
+
+    @classmethod
+    def __new_err__(cls, value: E):
+        return super().__new__(Result[Any, type(value)].Err)
 
     def __bool__(self) -> bool:
         return self.is_ok()
@@ -317,14 +327,8 @@ class Result[T, E](Enum):
             case Result.Err(e): return Just(Result[T, E].Err(e))
 
 
-# noinspection PyPep8Naming
-def Ok[T](value: T) -> Result[T, Any]:
-    return Result[T, Any].Ok(value)
-
-
-# noinspection PyPep8Naming
-def Err[E](value: E) -> Result[Any, E]:
-    return Result[Any, E].Err(value)
+Ok = Result.Ok
+Err = Result.Err
 
 
 class ResultUnwrapError[V](Exception):

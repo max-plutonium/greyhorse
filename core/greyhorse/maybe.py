@@ -15,16 +15,23 @@ class Maybe[T](Enum):
     Just = Tuple(T)
     Nothing = Unit()
 
-    def __new__(cls, *args, **kwargs):
-        if cls.__name__ == 'Maybe':
-            if len(args) > 0:
-                if args[0] is None:
+    def __new__(cls, value: T | None = None):
+        match cls.__name__:
+            case 'Maybe':
+                if value is None:
                     return cls.Nothing
                 else:
-                    # noinspection PyTypeChecker
-                    return super().__new__(cls.Just)
+                    return cls.__new_just__(value)
+            case 'Just':
+                return cls.__new_just__(value)
+            case 'Nothing':
+                return super().__new__(cls)
 
-        return super().__new__(cls)
+        assert False
+
+    @classmethod
+    def __new_just__(cls, value: T):
+        return super().__new__(Maybe[type(value)].Just)
 
     def __bool__(self) -> bool:
         return self.is_just()
@@ -272,11 +279,7 @@ class Maybe[T](Enum):
             case Maybe.Nothing: return Result[Maybe[T], Any].Ok(Nothing)
 
 
-# noinspection PyPep8Naming
-def Just[T](value: T) -> Maybe[T]:
-    return Maybe[T].Just(value)
-
-
+Just = Maybe.Just
 Nothing = Maybe.Nothing
 
 
