@@ -1,5 +1,6 @@
+from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, override
+from typing import Any, override, Callable
 
 from greyhorse.app.abc.collectors import Collector, MutCollector
 from greyhorse.app.abc.selectors import Selector
@@ -16,6 +17,8 @@ class _RegistryItem:
 
 
 class ResourceRegistry[T](Collector[T], Selector[T], TypeWrapper[T]):
+    __slots__ = ('_storage',)
+
     def __init__(self):
         type_ = type[self.wrapped_type]
         self._storage: dict[_RegistryItem, type_] = {}
@@ -102,3 +105,80 @@ class MutResourceRegistry[T](MutCollector[T], ResourceRegistry[T]):
                     value = self._storage.pop(item, None)
 
         return Maybe(value)
+
+
+class ScopedResourceRegistry[T](ResourceRegistry[T]):
+    def __init__(
+        self, factory: Callable[[], ResourceRegistry[T]], scope_func: Callable[[], str],
+    ):
+        super().__init__()
+        self._scope_func = scope_func
+        self._storage: dict[str, ResourceRegistry[T]] = defaultdict(factory)
+
+    def _get_registry(self) -> ResourceRegistry[T]:
+        key = self._scope_func()
+        return self._storage[key]
+
+    def __len__(self):
+        registry = self._get_registry()
+        return registry.__len__()
+
+    @override
+    def add(
+        self, instance: T, class_: type[T] | None = None,
+        classes: list[type[T]] | None = None, **keys,
+    ) -> bool:
+        registry = self._get_registry()
+        return registry.add(instance, class_, classes, **keys)
+
+    @override
+    def has(self, class_: type[T] | None = None, **keys) -> bool:
+        registry = self._get_registry()
+        return registry.has(class_, **keys)
+
+    @override
+    def get(self, class_: type[T] | None = None, **keys) -> Maybe[T]:
+        registry = self._get_registry()
+        return registry.get(class_, **keys)
+
+
+class ScopedMutResourceRegistry[T](MutResourceRegistry[T]):
+    def __init__(
+        self, factory: Callable[[], MutResourceRegistry[T]], scope_func: Callable[[], str],
+    ):
+        super().__init__()
+        self._scope_func = scope_func
+        self._storage: dict[str, MutResourceRegistry[T]] = defaultdict(factory)
+
+    def _get_registry(self) -> MutResourceRegistry[T]:
+        key = self._scope_func()
+        return self._storage[key]
+
+    def __len__(self):
+        registry = self._get_registry()
+        return registry.__len__()
+
+    @override
+    def add(
+        self, instance: T, class_: type[T] | None = None,
+        classes: list[type[T]] | None = None, **keys,
+    ) -> bool:
+        registry = self._get_registry()
+        return registry.add(instance, class_, classes, **keys)
+
+    @override
+    def has(self, class_: type[T] | None = None, **keys) -> bool:
+        registry = self._get_registry()
+        return registry.has(class_, **keys)
+
+    @override
+    def get(self, class_: type[T] | None = None, **keys) -> Maybe[T]:
+        registry = self._get_registry()
+        return registry.get(class_, **keys)
+
+    @override
+    def remove(
+        self, class_: type[T] | None = None, classes: list[type[T]] | None = None, **keys,
+    ) -> Maybe[T]:
+        registry = self._get_registry()
+        return registry.remove(class_, classes, **keys)
