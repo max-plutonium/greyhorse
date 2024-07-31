@@ -1,7 +1,6 @@
 import types
 from typing import TypeVar
 
-
 _TYPES_CACHE = {}
 
 
