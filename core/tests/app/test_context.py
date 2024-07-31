@@ -5,11 +5,11 @@ from unittest.mock import Mock, MagicMock
 
 import pytest
 
-from greyhorse.app.context import SyncContext, AsyncContext, context_builder
+from greyhorse.app.context import SyncContext, AsyncContext, ContextBuilder
 
 
 def test_sync_context_scalar():
-    ctx_builder = context_builder(SyncContext, int, lambda: 123)
+    ctx_builder = ContextBuilder[SyncContext, int](lambda: 123)
 
     mock_context = MagicMock(spec=contextlib.AbstractContextManager)
 
@@ -41,7 +41,7 @@ class ContextData:
 
 
 def test_sync_context_complex():
-    ctx_builder = context_builder(SyncContext, ContextData, ContextData)
+    ctx_builder = ContextBuilder[SyncContext, ContextData](ContextData)
 
     mock_context = MagicMock(spec=contextlib.AbstractContextManager)
 
@@ -72,7 +72,7 @@ def test_sync_context_complex():
 
 @pytest.mark.asyncio
 async def test_async_context_scalar():
-    ctx_builder = context_builder(AsyncContext, int, lambda: 123)
+    ctx_builder = ContextBuilder[AsyncContext, int](lambda: 123)
 
     mock_context = MagicMock(spec=contextlib.AbstractAsyncContextManager)
 
@@ -98,7 +98,7 @@ async def test_async_context_scalar():
 
 @pytest.mark.asyncio
 async def test_async_context_complex():
-    ctx_builder = context_builder(AsyncContext, ContextData, ContextData)
+    ctx_builder = ContextBuilder[AsyncContext, ContextData](ContextData)
 
     mock_context = MagicMock(spec=contextlib.AbstractAsyncContextManager)
 

@@ -14,6 +14,7 @@ from greyhorse.enum import Enum, Struct, Unit
 from greyhorse.maybe import Maybe, Nothing, Just
 from greyhorse.utils.invoke import get_asyncio_loop, invoke_async, invoke_sync, is_like_sync_context_manager, \
     is_like_async_context_manager
+from greyhorse.utils.types import TypeWrapper
 
 type FieldFactory[T] = (
     T | Callable[[], Awaitable[T] | T] |
@@ -363,8 +364,8 @@ class SyncMutContext[T](SyncContext[T], MutContext, ABC):
                     pass
 
     @override
-    def _exit(self, *args):
-        if self._force_rollback or args[0] is not None:
+    def _exit(self, instance: T, exc_type, exc_value, traceback):
+        if self._force_rollback or exc_type is not None:
             self.cancel()
         elif self._auto_apply:
             self.apply()
@@ -628,24 +629,19 @@ class AsyncMutContext[T](AsyncContext[T], MutContext, ABC):
                     pass
 
     @override
-    async def _exit(self, *args):
-        if self._force_rollback or args[0] is not None:
+    async def _exit(self, instance: T, exc_type, exc_value, traceback):
+        if self._force_rollback or exc_type is not None:
             await self.cancel()
         elif self._auto_apply:
             await self.apply()
 
 
-class ContextBuilder[T]:
-    def __init__(
-        self, factory: Callable[[...], T],
-        class_: type[SyncContext[T] | AsyncContext[T] | SyncMutContext[T] | AsyncMutContext[T]],
-        **kwargs: dict[str, Any],
-    ):
+class ContextBuilder[T](TypeWrapper[T]):
+    def __init__(self, factory: Callable[[...], T], **kwargs: dict[str, Any]):
         self._factory = factory
         self._fields = {}
         self._finalizers = []
         self._contexts = []
-        self._class = class_
         self._kwargs = kwargs
 
     def add_param(self, name: str, value: FieldFactory[T]):
@@ -658,15 +654,14 @@ class ContextBuilder[T]:
         self._finalizers.append(finalizer)
 
     def build(self):
-        return self._class(
+        return self.wrapped_type(
             factory=self._factory, fields=self._fields,
             finalizers=self._finalizers, contexts=self._contexts,
             **self._kwargs,
         )
 
-
-def context_builder[T](
-    class_: type[SyncContext[T] | AsyncContext[T] | SyncMutContext[T] | AsyncMutContext[T]],
-    type_: type[T], factory: Callable[[...], T] | T, **kwargs: dict[str, Any],
-):
-    return ContextBuilder[type_](factory, class_[type_], **kwargs)
+    def __class_getitem__[C: SyncContext | AsyncContext | SyncMutContext | AsyncMutContext](
+        cls, args: tuple[type[C], type[T]]
+    ) -> ContextBuilder:
+        class_, type_ = args
+        return super(ContextBuilder, cls).__class_getitem__(class_[type_])
