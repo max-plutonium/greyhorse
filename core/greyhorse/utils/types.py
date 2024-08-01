@@ -18,18 +18,26 @@ class TypeWrapper[T]:
 
         if hasattr(type_, '__args__'):
             type_args = [a.__name__.capitalize() for a in type_.__args__]
-            type_name = f'{type_.__name__}{''.join(type_args)}{cls.__name__}'
+            type_name = f'{type_.__name__.capitalize()}{''.join(type_args)}{cls.__name__}'
         else:
-            type_name = f'{type_.__name__}{cls.__name__}'
+            type_name = f'{type_.__name__.capitalize()}{cls.__name__}'
 
         if class_ := _TYPES_CACHE.get(type_name):
             return class_
 
-        attrs = dict(cls.__dict__)
-        attrs.pop('__class_getitem__', None)
-        attrs['__wrapped_type__'] = type_
-        attrs['__module__'] = type_.__module__
+        if hasattr(cls, '__slots__'):
+            cls.__slots__ = (*cls.__slots__, '__wrapped_type__')
+            attrs = {k: v for k, v in cls.__dict__.items() if k in cls.__slots__}
+            attrs['__wrapped_type__'] = type_
+            class_ = types.new_class(type_name, (cls,), exec_body=lambda d: d.update(attrs))
 
-        class_ = types.new_class(type_name, (cls,), exec_body=lambda d: d.update(attrs))
+        else:
+            attrs = dict(cls.__dict__)
+            attrs.pop('__class_getitem__', None)
+            attrs['__wrapped_type__'] = type_
+            attrs['__module__'] = type_.__module__
+
+            class_ = types.new_class(type_name, (cls,), exec_body=lambda d: d.update(attrs))
+
         _TYPES_CACHE[type_name] = class_
         return class_

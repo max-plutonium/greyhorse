@@ -141,7 +141,7 @@ def current_scope_id(kind: type | None = None) -> str:
         return f'thread:{threading.current_thread().ident}'
 
 
-class SyncContext[T](Context, ContextManager):
+class SyncContext[T](Context, TypeWrapper[T], ContextManager):
     __slots__ = (
         '_sync_stack', '_context_managers', '_children', '_lock',
     )
@@ -294,7 +294,7 @@ class SyncContext[T](Context, ContextManager):
                         self._state = ContextState[type(value)].Idle
 
 
-class SyncMutContext[T](SyncContext[T], MutContext, ABC):
+class SyncMutContext[T](SyncContext[T], MutContext):
     __slots__ = (
         '_mut_children', '_force_rollback', '_auto_apply',
     )
@@ -371,7 +371,7 @@ class SyncMutContext[T](SyncContext[T], MutContext, ABC):
             self.apply()
 
 
-class AsyncContext[T](Context, AsyncContextManager):
+class AsyncContext[T](Context, TypeWrapper[T], AsyncContextManager):
     __slots__ = (
         '_sync_stack', '_async_stack',
         '_sync_sub_contexts', '_async_sub_contexts',
@@ -550,7 +550,7 @@ class AsyncContext[T](Context, AsyncContextManager):
                         self._state = ContextState[type(value)].Idle
 
 
-class AsyncMutContext[T](AsyncContext[T], MutContext, ABC):
+class AsyncMutContext[T](AsyncContext[T], MutContext):
     __slots__ = (
         '_sync_mut_children', '_async_mut_children', '_force_rollback', '_auto_apply',
     )
