@@ -106,7 +106,7 @@ class FactoryProvider[T](Provider[T], ABC):
         ...
 
 
-class ForwardProvider[T](ABC):
+class ForwardProvider[T](Provider[T], ABC):
     @abstractmethod
     def take(self) -> Maybe[T] | Awaitable[Maybe[T]]:
         ...

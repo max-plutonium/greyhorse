@@ -1,32 +1,8 @@
-from abc import ABC, abstractmethod
-from typing import Awaitable
-
-from greyhorse.error import Error, ErrorCase
 from greyhorse.result import Result, Ok, do
-from .collectors import Collector, MutCollector
-from .operators import Operator
-from .providers import Provider, SharedProvider, MutProvider, FactoryProvider, ForwardProvider
-from .selectors import Selector
-
-
-class ControllerError(Error):
-    namespace = 'greyhorse.app'
-
-    Deps = ErrorCase(msg='Dependency error occurred: "{details}"', details=str)
-
-
-class Controller(ABC):
-    @abstractmethod
-    def setup(
-        self, providers: Collector[Provider], operators: Collector[Operator],
-    ) -> Result[bool, ControllerError] | Awaitable[Result[bool, ControllerError]]:
-        ...
-
-    @abstractmethod
-    def teardown(
-        self, providers: MutCollector[Provider], operators: MutCollector[Operator],
-    ) -> Result[bool, ControllerError] | Awaitable[Result[bool, ControllerError]]:
-        ...
+from ..abc.controllers import Controller, ControllerError
+from ..abc.operators import Operator
+from ..abc.providers import Provider, SharedProvider, MutProvider, FactoryProvider, ForwardProvider
+from ..abc.selectors import Selector
 
 
 class OperatorController[T: Provider](Controller):
@@ -43,7 +19,7 @@ class OperatorController[T: Provider](Controller):
         self._key_to = key_to
 
     def setup(
-        self, prov_selector: Selector[SharedProvider], op_selector: Selector[Operator],
+        self, prov_selector: Selector[T], op_selector: Selector[Operator],
     ) -> Result[bool, ControllerError]:
         return do(
             Ok(r)
@@ -55,7 +31,7 @@ class OperatorController[T: Provider](Controller):
         ).map_err(lambda e: ControllerError.Deps(details=e))
 
     def teardown(
-        self, prov_selector: Selector[SharedProvider], op_selector: Selector[Operator],
+        self, prov_selector: Selector[T], op_selector: Selector[Operator],
     ) -> Result[bool, ControllerError]:
         return do(
             Ok(r)
