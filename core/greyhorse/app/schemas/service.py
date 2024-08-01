@@ -1,18 +1,32 @@
-from typing import Pattern
+from typing import Pattern, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
-from .components import ResourceConf
-from .controller import OperatorMappingPolicy
-from ..entities.providers import ProviderKey
-from ..entities.service import ServiceKey
-
-
-class ProviderMappingPolicy(BaseModel, frozen=True, arbitrary_types_allowed=True):
-    key: ProviderKey
-    name_pattern: Pattern | None = None
+from ..abc.operators import Operator
+from ..abc.providers import Provider
+from ..abc.services import Service
 
 
-class ServiceConf(ResourceConf[ServiceKey]):
-    operator_mapping: list[OperatorMappingPolicy] = Field(default_factory=list)
-    provider_mapping: list[ProviderMappingPolicy] = Field(default_factory=list)
+class ProvColPolicy(BaseModel, frozen=True, arbitrary_types_allowed=True):
+    type: type[Provider]
+    key_pattern: Pattern | None = None
+
+
+class OpColPolicy(BaseModel, frozen=True, arbitrary_types_allowed=True):
+    type: type[Operator]
+    key_pattern: Pattern | None = None
+
+
+class SvcConf(BaseModel, frozen=True):
+    type: type[Service]
+    name: str | None = None
+    args: dict[str, Any] = Field(default_factory=dict)
+    enabled: bool = Field(default=True)
+    providers_set: list[ProvColPolicy] = Field(default_factory=list)
+    operators_set: list[OpColPolicy] = Field(default_factory=list)
+
+    @model_validator(mode='before')
+    def _setup_name(self: dict[str, Any]):
+        if 'name' not in self:
+            self['name'] = self['type'].__name__
+        return self
