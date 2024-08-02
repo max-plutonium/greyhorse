@@ -3,7 +3,6 @@ from typing import Awaitable, Union
 
 from greyhorse.app.context import SyncContext, AsyncContext, SyncMutContext, AsyncMutContext
 from greyhorse.error import Error, ErrorCase
-from greyhorse.maybe import Maybe
 from greyhorse.result import Result
 from greyhorse.utils.types import TypeWrapper
 
@@ -60,6 +59,20 @@ class FactoryError(Error):
     )
 
 
+class ForwardError(Error):
+    namespace = 'greyhorse.app'
+
+    Empty = ErrorCase(
+        msg='Cannot forward "{name}" because the value is empty',
+        name=str,
+    )
+
+    MovedOut = ErrorCase(
+        msg='Cannot forward "{name}" because the value was moved out',
+        name=str,
+    )
+
+
 class Provider[T](TypeWrapper[T]):
     ...
 
@@ -108,7 +121,7 @@ class FactoryProvider[T](Provider[T], ABC):
 
 class ForwardProvider[T](Provider[T], ABC):
     @abstractmethod
-    def take(self) -> Maybe[T] | Awaitable[Maybe[T]]:
+    def take(self) -> Result[T, ForwardError] | Awaitable[Result[T, ForwardError]]:
         ...
 
     @abstractmethod
