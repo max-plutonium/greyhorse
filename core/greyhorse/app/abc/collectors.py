@@ -2,9 +2,10 @@ from abc import ABC, abstractmethod
 from typing import overload
 
 from greyhorse.maybe import Maybe
+from greyhorse.utils.types import TypeWrapper
 
 
-class Collector[T](ABC):
+class Collector[T](TypeWrapper[T], ABC):
     @overload
     def add(self, instance: T, **keys) -> bool:
         ...

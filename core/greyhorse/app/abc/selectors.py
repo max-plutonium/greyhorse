@@ -2,9 +2,10 @@ from abc import ABC, abstractmethod
 from typing import overload
 
 from greyhorse.maybe import Maybe
+from greyhorse.utils.types import TypeWrapper
 
 
-class Selector[T](ABC):
+class Selector[T](TypeWrapper[T], ABC):
     @overload
     def has(self, **keys) -> bool:
         ...
