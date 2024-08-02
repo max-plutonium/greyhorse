@@ -1,6 +1,9 @@
 import re
 from enum import Enum
-from typing import Type
+
+
+def capitalize(string: str) -> str:
+    return string[0].upper() + string[1:]
 
 
 def snake2kebab(string: str) -> str:
@@ -22,7 +25,7 @@ def snake2camel(string: str, upper: bool = False) -> str:
     return ''.join(result)
 
 
-def prepare_enum_keys(enum_class: Type[Enum]):
+def prepare_enum_keys(enum_class: type[Enum]):
     return [snake2kebab(str(e.value).lower()) for e in enum_class]
 
 
