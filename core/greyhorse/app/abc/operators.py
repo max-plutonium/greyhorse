@@ -1,9 +1,7 @@
 from abc import ABC, abstractmethod
-from abc import ABC, abstractmethod
 from functools import partial
 from typing import Awaitable, override, Union, Any, Literal, Callable
 
-from greyhorse.app.context import SyncContext, AsyncContext, SyncMutContext, AsyncMutContext
 from greyhorse.maybe import Maybe, Just, Nothing
 from greyhorse.utils.types import TypeWrapper
 
@@ -16,18 +14,6 @@ class Operator[T](TypeWrapper[T], ABC):
     @abstractmethod
     def revoke(self) -> Maybe[T] | Awaitable[Maybe[T]]:
         ...
-
-
-class ContextOperator[T](Operator, ABC):
-    def __class_getitem__[C: SyncContext | AsyncContext](cls, args: tuple[type[C], type[T]]):
-        class_, type_ = args
-        return super(ContextOperator, cls).__class_getitem__(class_[type_])
-
-
-class MutContextOperator[T](Operator, ABC):
-    def __class_getitem__[C: SyncMutContext | AsyncMutContext](cls, args: tuple[type[C], type[T]]):
-        class_, type_ = args
-        return super(MutContextOperator, cls).__class_getitem__(class_[type_])
 
 
 class AssignOperator[T](Operator[T]):
@@ -58,4 +44,4 @@ class AttrOperator[T](AssignOperator[T]):
         if hasattr(instance, attr):
             super().__init__(partial(getattr, instance, attr), partial(setattr, instance, attr))
         else:
-            raise ValueError(f'Instance {repr(instance)} has no attribute {attr}')
+            raise ValueError(f'Instance {repr(instance)} has no attribute "{attr}"')

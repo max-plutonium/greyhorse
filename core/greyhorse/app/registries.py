@@ -20,7 +20,7 @@ class ResourceRegistry[T](Collector[T], Selector[T], TypeWrapper[T]):
     __slots__ = ('_storage',)
 
     def __init__(self):
-        type_ = type[self.wrapped_type]
+        type_ = self.wrapped_type
         self._storage: dict[_RegistryItem, type_] = {}
 
     @staticmethod

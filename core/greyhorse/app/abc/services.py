@@ -29,7 +29,7 @@ class ServiceError(Error):
     Deps = ErrorCase(msg='Dependency error occurred: "{details}"', details=str)
 
 
-type ServiceFactoryFn = Callable[[...], Result[Service, ServiceError]]
+type ServiceFactoryFn = Callable[[...], Service | Result[Service, ServiceError]]
 type ServiceFactories = dict[type[Service], ServiceFactoryFn]
 
 

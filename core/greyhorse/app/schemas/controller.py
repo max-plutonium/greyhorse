@@ -17,7 +17,7 @@ class OpSelPolicy(BaseModel, frozen=True, arbitrary_types_allowed=True):
     key_pattern: Pattern | None = None
 
 
-class OpCtrlConf(BaseModel, frozen=True):
+class CtrlConf(BaseModel, frozen=True):
     type: type[Controller]
     name: str | None = None
     args: dict[str, Any] = Field(default_factory=dict)

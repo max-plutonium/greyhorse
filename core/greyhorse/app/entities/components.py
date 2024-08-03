@@ -1,6 +1,6 @@
+from greyhorse.app.abc.controllers import Controller
 from greyhorse.app.abc.operators import Operator
 from greyhorse.app.abc.providers import Provider
-from greyhorse.app.abc.selectors import Selector
 from greyhorse.app.abc.services import Service, ServiceState
 from greyhorse.app.registries import MutResourceRegistry
 from greyhorse.app.schemas.component import ComponentConf
@@ -19,11 +19,12 @@ class ComponentState(Enum):
 class Component:
     def __init__(
         self, name: str, conf: ComponentConf, path: str,
-        services: list[tuple[str, Service]],
+        controllers: list[Controller], services: list[tuple[str, Service]],
     ):
         self._name = name
         self._conf = conf
         self._path = path
+        self._controllers: dict[type[Controller], Controller] = {type(c): c for c in controllers}
         self._service_names: dict[str, Service] = {k: v for (k, v) in services}
         self._service_types: dict[type[Service], Service] = {type(v): v for (_, v) in services}
         self._providers = MutResourceRegistry[Provider]()
@@ -45,11 +46,27 @@ class Component:
                 return Maybe(self._service_types.get(key))
         return Nothing
 
-    def get_providers(self) -> Selector[Provider]:
-        return self._providers
+    def get_providers(self) -> list[tuple[type[Provider], Provider]]:
+        result = []
 
-    def get_operators(self) -> Selector[Operator]:
-        return self._operators
+        for resource_data in self._conf.resources:
+            for prov_type in resource_data.providers:
+                if provider := self._providers.get(class_=prov_type).unwrap_or_none():
+                    result.append((prov_type, provider))
+
+        return result
+
+    def get_operators(self) -> list[tuple[type[Operator], Operator]]:
+        result = []
+
+        for t in self._conf.operators:
+            if operator := self._operators.get(class_=t):
+                result.append((t, operator.unwrap()))
+
+        return result
+
+    def get_provider[P: Provider](self, class_: type[P]) -> Maybe[P]:
+        return self._providers.get(class_=class_)
 
     def setup(self) -> ComponentState:
         count = 0

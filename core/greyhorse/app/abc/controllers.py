@@ -16,7 +16,7 @@ class ControllerError(Error):
     Deps = ErrorCase(msg='Dependency error occurred: "{details}"', details=str)
 
 
-type ControllerFactoryFn = Callable[[...], Result[Controller, ControllerError]]
+type ControllerFactoryFn = Callable[[...], Controller | Result[Controller, ControllerError]]
 type ControllerFactories = dict[type[Controller], ControllerFactoryFn]
 
 

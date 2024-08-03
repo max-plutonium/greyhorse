@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Awaitable, Union
 
-from greyhorse.app.context import SyncContext, AsyncContext, SyncMutContext, AsyncMutContext
 from greyhorse.error import Error, ErrorCase
 from greyhorse.result import Result
 from greyhorse.utils.types import TypeWrapper
@@ -97,18 +96,6 @@ class MutProvider[T](Provider[T], ABC):
         ...
 
 
-class ContextProvider[T](SharedProvider, ABC):
-    def __class_getitem__[C: SyncContext | AsyncContext](cls, args: tuple[type[C], type[T]]):
-        class_, type_ = args
-        return super(ContextProvider, cls).__class_getitem__(class_[type_])
-
-
-class MutContextProvider[T](MutProvider, ABC):
-    def __class_getitem__[C: SyncMutContext | AsyncMutContext](cls, args: tuple[type[C], type[T]]):
-        class_, type_ = args
-        return super(MutContextProvider, cls).__class_getitem__(class_[type_])
-
-
 class FactoryProvider[T](Provider[T], ABC):
     @abstractmethod
     def create(self) -> Result[T, FactoryError] | Awaitable[Result[T, FactoryError]]:
@@ -133,5 +120,4 @@ class ForwardProvider[T](Provider[T], ABC):
         ...
 
 
-AnyProvider = Union[FactoryProvider, ForwardProvider, ContextProvider, MutContextProvider]
-AnyComponentProvider = Union[ContextProvider, MutContextProvider]
+AnyProvider = Union[SharedProvider, MutProvider, FactoryProvider, ForwardProvider]
