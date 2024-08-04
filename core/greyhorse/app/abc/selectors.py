@@ -1,31 +1,20 @@
 from abc import ABC, abstractmethod
-from typing import overload
+from typing import Callable
 
 from greyhorse.maybe import Maybe
-from greyhorse.utils.types import TypeWrapper
 
 
-class Selector[T](TypeWrapper[T], ABC):
-    @overload
-    def has(self, **keys) -> bool:
-        ...
-
-    @overload
-    def has(self, class_: type[T], **keys) -> bool:
+class Selector[K, T](ABC):
+    @abstractmethod
+    def has(self, key: K) -> bool:
         ...
 
     @abstractmethod
-    def has(self, class_: type[T] | None = None, **keys) -> bool:
+    def get(self, key: K) -> Maybe[T]:
         ...
 
-    @overload
-    def get(self, **keys) -> Maybe[T]:
-        ...
 
-    @overload
-    def get(self, class_: type[T], **keys) -> Maybe[T]:
-        ...
-
+class ListSelector[K, T](Selector[K, T], ABC):
     @abstractmethod
-    def get(self, class_: type[T] | None = None, **keys) -> Maybe[T]:
+    def items(self, filter_fn: Callable[[K], bool] | None = None) -> list[tuple[K, T]]:
         ...
