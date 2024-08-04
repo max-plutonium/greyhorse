@@ -5,7 +5,7 @@ from typing import Awaitable, Callable
 
 from greyhorse.enum import Enum, Unit, Tuple, Struct
 from greyhorse.error import Error, ErrorCase
-from greyhorse.result import Result, Ok
+from greyhorse.result import Result
 from .operators import Operator
 from .providers import Provider
 from .selectors import ListSelector
@@ -50,7 +50,7 @@ class ProvisionError(Error):
 
 
 class Service(ABC):
-    def __init__(self, *args, **kwargs):
+    def __init__(self):
         self._state = ServiceState.Idle
 
     @property
@@ -87,21 +87,19 @@ class Service(ABC):
         ...
 
     @abstractmethod
-    def setup_resource[T](
-        self, prov_type: type[Provider[T]], operator: Operator[T], *args, **kwargs,
+    def setup_resource(
+        self, prov_type: type[Provider], operator: Operator, *args, **kwargs,
     ) -> Result[None, ProvisionError] | Awaitable[Result[None, ProvisionError]]:
         ...
 
     @abstractmethod
     def teardown_resource[T](
-        self, prov_type: type[Provider[T]], operator: Operator[T],
+        self, prov_type: type[Provider], operator: Operator,
     ) -> Result[None, ProvisionError] | Awaitable[Result[None, ProvisionError]]:
         ...
 
-    def _switch_to_idle(self) -> Result[ServiceState, ServiceError]:
+    def _switch_to_idle(self):
         self._state = ServiceState.Idle
-        return Ok(self._state)
 
-    def _switch_to_active(self, started: bool = False) -> Result[ServiceState, ServiceError]:
+    def _switch_to_active(self, started: bool = False):
         self._state = ServiceState.Active(started=started)
-        return Ok(self._state)

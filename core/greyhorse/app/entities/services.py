@@ -41,8 +41,8 @@ def provider(provider_type: type[Provider]):
 
 
 class SyncService(Service):
-    def __init__(self, *args, **kwargs):
-        super(SyncService, self).__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
         self._providers: dict[type, list[type[Provider]]] = defaultdict(list)
         self._provider_members: dict[type[Provider], _ProviderMember] = {}
         self._provided_resources: dict[type, dict[Operator, SyncResourceMapper]] = defaultdict(dict)
@@ -68,7 +68,18 @@ class SyncService(Service):
     ) -> Result[ServiceState, ServiceError]:
         if self.state == ServiceState.Active:
             return Ok(self.state)
-        return self._switch_to_active()
+
+        for prov_type in self._provider_members.keys():
+            res_type = prov_type.__wrapped_type__
+
+            for _, operator in selector.items(lambda t: issubclass(t, res_type)):
+                res = self.setup_resource(prov_type, operator) \
+                    .map_err(lambda e: ServiceError.Deps(details=e.message))
+                if not res:
+                    return res
+
+        self._switch_to_active()
+        return Ok(self.state)
 
     @override
     def teardown(
@@ -76,7 +87,18 @@ class SyncService(Service):
     ) -> Result[ServiceState, ServiceError]:
         if self.state == ServiceState.Idle:
             return Ok(self.state)
-        return self._switch_to_idle()
+
+        for prov_type in reversed(self._provider_members.keys()):
+            res_type = prov_type.__wrapped_type__
+
+            for _, operator in selector.items(lambda t: issubclass(t, res_type)):
+                res = self.teardown_resource(prov_type, operator) \
+                    .map_err(lambda e: ServiceError.Deps(details=e.message))
+                if not res:
+                    return res
+
+        self._switch_to_idle()
+        return Ok(self.state)
 
     @override
     def can_provide(self, resource_type: type) -> bool:
@@ -95,8 +117,8 @@ class SyncService(Service):
         return self._providers[resource_type].copy()
 
     @override
-    def setup_resource[T](
-        self, prov_type: type[Provider[T]], operator: Operator[T], *args, **kwargs,
+    def setup_resource(
+        self, prov_type: type[Provider], operator: Operator, *args, **kwargs,
     ) -> Result[None, ProvisionError]:
         if not (member := self._provider_members.get(prov_type)):
             return ProvisionError.NoSuchProvider(type_=prov_type.__name__).to_result()
@@ -116,8 +138,8 @@ class SyncService(Service):
                 return e
 
     @override
-    def teardown_resource[T](
-        self, prov_type: type[Provider], operator: Operator[T],
+    def teardown_resource(
+        self, prov_type: type[Provider], operator: Operator,
     ) -> Result[None, ProvisionError]:
         if not (mappers := self._provided_resources.get(prov_type.__wrapped_type__)):
             return Ok(None)
@@ -129,19 +151,22 @@ class SyncService(Service):
         return res
 
     @override
-    def _switch_to_active(self, started: bool = False) -> Result[ServiceState, ServiceError]:
+    def _switch_to_idle(self):
+        self._state = ServiceState.Idle
+
+    @override
+    def _switch_to_active(self, started: bool = False):
         if started:
             self._waiter.clear()
         else:
             self._waiter.set()
 
         self._state = ServiceState.Active(started=not self._waiter.is_set())
-        return Ok(self._state)
 
 
 class AsyncService(Service):
-    def __init__(self, *args, **kwargs):
-        super(AsyncService, self).__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
         self._providers: dict[type, list[type[Provider]]] = defaultdict(list)
         self._provider_members: dict[type[Provider], _ProviderMember] = {}
         self._provided_resources: dict[type, dict[Operator, AsyncResourceMapper]] = defaultdict(dict)
@@ -167,7 +192,18 @@ class AsyncService(Service):
     ) -> Result[ServiceState, ServiceError]:
         if self.state == ServiceState.Active:
             return Ok(self.state)
-        return self._switch_to_active()
+
+        for prov_type in self._provider_members.keys():
+            res_type = prov_type.__wrapped_type__
+
+            for _, operator in selector.items(lambda t: issubclass(t, res_type)):
+                res = (await self.setup_resource(prov_type, operator)) \
+                    .map_err(lambda e: ServiceError.Deps(details=e.message))
+                if not res:
+                    return res
+
+        await self._switch_to_active()
+        return Ok(self.state)
 
     @override
     async def teardown(
@@ -175,7 +211,18 @@ class AsyncService(Service):
     ) -> Result[ServiceState, ServiceError]:
         if self.state == ServiceState.Idle:
             return Ok(self.state)
-        return self._switch_to_idle()
+
+        for prov_type in reversed(self._provider_members.keys()):
+            res_type = prov_type.__wrapped_type__
+
+            for _, operator in selector.items(lambda t: issubclass(t, res_type)):
+                res = (await self.teardown_resource(prov_type, operator)) \
+                    .map_err(lambda e: ServiceError.Deps(details=e.message))
+                if not res:
+                    return res
+
+        await self._switch_to_idle()
+        return Ok(self.state)
 
     @override
     def can_provide(self, resource_type: type) -> bool:
@@ -194,8 +241,8 @@ class AsyncService(Service):
         return self._providers[resource_type].copy()
 
     @override
-    async def setup_resource[T](
-        self, prov_type: type[Provider[T]], operator: Operator[T], *args, **kwargs,
+    async def setup_resource(
+        self, prov_type: type[Provider], operator: Operator, *args, **kwargs,
     ) -> Result[None, ProvisionError]:
         if not (member := self._provider_members.get(prov_type)):
             return ProvisionError.NoSuchProvider(type_=prov_type.__name__).to_result()
@@ -215,8 +262,8 @@ class AsyncService(Service):
                 return e
 
     @override
-    async def teardown_resource[T](
-        self, prov_type: type[Provider], operator: Operator[T],
+    async def teardown_resource(
+        self, prov_type: type[Provider], operator: Operator,
     ) -> Result[None, ProvisionError]:
         if not (mappers := self._provided_resources.get(prov_type.__wrapped_type__)):
             return Ok(None)
@@ -228,11 +275,14 @@ class AsyncService(Service):
         return res
 
     @override
-    def _switch_to_active(self, started: bool = False) -> Result[ServiceState, ServiceError]:
+    async def _switch_to_idle(self):
+        self._state = ServiceState.Idle
+
+    @override
+    async def _switch_to_active(self, started: bool = False):
         if started:
             self._waiter.clear()
         else:
             self._waiter.set()
 
         self._state = ServiceState.Active(started=not self._waiter.is_set())
-        return Ok(self._state)
