@@ -32,7 +32,7 @@ type ServiceFactoryFn = Callable[[...], Service | Result[Service, ServiceError]]
 type ServiceFactories = dict[type[Service], ServiceFactoryFn]
 
 
-class ResourceProvisionError(Error):
+class ProvisionError(Error):
     namespace = 'greyhorse.app'
 
     WrongState = ErrorCase(
@@ -89,13 +89,13 @@ class Service(ABC):
     @abstractmethod
     def setup_resource[T](
         self, prov_type: type[Provider[T]], operator: Operator[T], *args, **kwargs,
-    ) -> Result[bool, ResourceProvisionError] | Awaitable[Result[bool, ResourceProvisionError]]:
+    ) -> Result[None, ProvisionError] | Awaitable[Result[None, ProvisionError]]:
         ...
 
     @abstractmethod
     def teardown_resource[T](
         self, prov_type: type[Provider[T]], operator: Operator[T],
-    ) -> Result[bool, ResourceProvisionError] | Awaitable[Result[bool, ResourceProvisionError]]:
+    ) -> Result[None, ProvisionError] | Awaitable[Result[None, ProvisionError]]:
         ...
 
     def _switch_to_idle(self) -> Result[ServiceState, ServiceError]:
