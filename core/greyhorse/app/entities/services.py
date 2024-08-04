@@ -138,7 +138,7 @@ class SyncService(Service):
             return Ok(True)
 
         mapper = SyncResourceMapper[prov_type](provider, operator)
-        if (res := mapper.setup()) and res.unwrap():
+        if res := mapper.setup():
             self._provided_resources[prov_type.__wrapped_type__][operator] = mapper
         return res
 
@@ -150,7 +150,7 @@ class SyncService(Service):
         if not (mapper := mappers.get(operator)):
             return Ok(False)
 
-        if (res := mapper.teardown()) and res.unwrap():
+        if res := mapper.teardown():
             del mappers[operator]
         return res
 
@@ -253,7 +253,7 @@ class AsyncService(Service):
             return Ok(True)
 
         mapper = AsyncResourceMapper[prov_type](provider, operator)
-        if (res := await mapper.setup()) and res.unwrap():
+        if res := await mapper.setup():
             self._provided_resources[prov_type.__wrapped_type__][operator] = mapper
         return res
 
@@ -265,6 +265,6 @@ class AsyncService(Service):
         if not (mapper := mappers.get(operator)):
             return Ok(False)
 
-        if (res := await mapper.teardown()) and res.unwrap():
+        if res := await mapper.teardown():
             del mappers[operator]
         return res

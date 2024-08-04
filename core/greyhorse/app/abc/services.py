@@ -25,7 +25,6 @@ class ServiceError(Error):
     namespace = 'greyhorse.app'
 
     Unexpected = ErrorCase(msg='Service unexpected error: "{details}"', details=str)
-    # Factory = ErrorCase(msg='Service factory error: "{details}"', details=str)
     Deps = ErrorCase(msg='Dependency error occurred: "{details}"', details=str)
 
 
