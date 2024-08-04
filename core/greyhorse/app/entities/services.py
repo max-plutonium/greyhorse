@@ -11,8 +11,8 @@ from ..abc.operators import Operator
 from ..abc.providers import Provider
 from ..abc.selectors import ListSelector
 from ..abc.services import Service, ServiceWaiter, ServiceState, ServiceError, ResourceProvisionError
-from ..private.mappers import ProvidedResourceMapper
-from ...utils.invoke import invoke_sync
+from ..private.mappers import SyncResourceMapper, AsyncResourceMapper
+from ...utils.invoke import invoke_sync, invoke_async
 
 
 @dataclass(slots=True, frozen=True)
@@ -45,7 +45,7 @@ class SyncService(Service):
         super(SyncService, self).__init__(*args, **kwargs)
         self._providers: dict[type, list[type[Provider]]] = defaultdict(list)
         self._provider_members: dict[type[Provider], _ProviderMember] = {}
-        self._provided_resources: dict[type, dict[Operator, ProvidedResourceMapper]] = defaultdict(dict)
+        self._provided_resources: dict[type, dict[Operator, SyncResourceMapper]] = defaultdict(dict)
         self._waiter = threading.Event()
         self._init_provider_members()
 
@@ -137,7 +137,7 @@ class SyncService(Service):
         if operator in self._provided_resources[prov_type.__wrapped_type__]:
             return Ok(True)
 
-        mapper = ProvidedResourceMapper[prov_type](provider, operator)
+        mapper = SyncResourceMapper[prov_type](provider, operator)
         if (res := mapper.setup()) and res.unwrap():
             self._provided_resources[prov_type.__wrapped_type__][operator] = mapper
         return res
@@ -160,7 +160,7 @@ class AsyncService(Service):
         super(AsyncService, self).__init__(*args, **kwargs)
         self._providers: dict[type, list[type[Provider]]] = defaultdict(list)
         self._provider_members: dict[type[Provider], _ProviderMember] = {}
-        self._provided_resources: dict[type, dict[Operator, ProvidedResourceMapper]] = defaultdict(dict)
+        self._provided_resources: dict[type, dict[Operator, AsyncResourceMapper]] = defaultdict(dict)
         self._waiter = asyncio.Event()
         self._init_provider_members()
 
@@ -210,28 +210,28 @@ class AsyncService(Service):
         return self._providers[resource_type].copy()
 
     @override
-    def setup_resource[T](
+    async def setup_resource[T](
         self, prov_type: type[Provider[T]], operator: Operator[T], *args, **kwargs,
     ) -> Result[bool, ResourceProvisionError]:
         if not (member := self._provider_members.get(prov_type)):
             return ResourceProvisionError.NoSuchProvider(type_=prov_type.__name__).to_result()
 
         # noinspection PyTypeChecker
-        res = invoke_sync(member.method, self, *args, **kwargs)
+        res = await invoke_async(member.method, self, *args, **kwargs)
         assert isinstance(res, Result)
 
         if not res:
             return res
 
-        return res.and_then(
+        return (await res.and_then_async(
             partial(self._apply_provision, prov_type=prov_type, operator=operator)
-        ).map_err(lambda e: ResourceProvisionError.Provision(details=e))
+        )).map_err(lambda e: ResourceProvisionError.Provision(details=e))
 
     @override
-    def teardown_resource[T](
+    async def teardown_resource[T](
         self, prov_type: type[Provider], operator: Operator[T],
     ) -> Result[bool, ResourceProvisionError]:
-        return self._cancel_provision(prov_type, operator) \
+        return (await self._cancel_provision(prov_type, operator)) \
             .map_err(lambda e: ResourceProvisionError.Provision(details=e))
 
     @override
@@ -244,7 +244,7 @@ class AsyncService(Service):
         self._state = ServiceState.Active(started=not self._waiter.is_set())
         return Ok(self._state)
 
-    def _apply_provision[T](
+    async def _apply_provision[T](
         self, provider: Provider[T], prov_type: type[Provider], operator: Operator[T],
     ) -> Result[bool, str]:
         if prov_type not in self._provider_members:
@@ -252,12 +252,12 @@ class AsyncService(Service):
         if operator in self._provided_resources[prov_type.__wrapped_type__]:
             return Ok(True)
 
-        mapper = ProvidedResourceMapper[prov_type](provider, operator)
-        if (res := mapper.setup()) and res.unwrap():
+        mapper = AsyncResourceMapper[prov_type](provider, operator)
+        if (res := await mapper.setup()) and res.unwrap():
             self._provided_resources[prov_type.__wrapped_type__][operator] = mapper
         return res
 
-    def _cancel_provision[T](
+    async def _cancel_provision[T](
         self, prov_type: type[Provider], operator: Operator[T],
     ) -> Result[bool, str]:
         if not (mappers := self._provided_resources.get(prov_type.__wrapped_type__)):
@@ -265,6 +265,6 @@ class AsyncService(Service):
         if not (mapper := mappers.get(operator)):
             return Ok(False)
 
-        if (res := mapper.teardown()) and res.unwrap():
+        if (res := await mapper.teardown()) and res.unwrap():
             del mappers[operator]
         return res

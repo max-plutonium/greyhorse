@@ -90,13 +90,13 @@ class Service(ABC):
     @abstractmethod
     def setup_resource[T](
         self, prov_type: type[Provider[T]], operator: Operator[T], *args, **kwargs,
-    ) -> Result[bool, ResourceProvisionError]:
+    ) -> Result[bool, ResourceProvisionError] | Awaitable[Result[bool, ResourceProvisionError]]:
         ...
 
     @abstractmethod
     def teardown_resource[T](
         self, prov_type: type[Provider[T]], operator: Operator[T],
-    ) -> Result[bool, ResourceProvisionError]:
+    ) -> Result[bool, ResourceProvisionError] | Awaitable[Result[bool, ResourceProvisionError]]:
         ...
 
     def _switch_to_idle(self) -> Result[ServiceState, ServiceError]:
