@@ -126,10 +126,11 @@ class ComponentBuilder:
         result = []
 
         for conf in self._conf.controllers:
-            factory = self._conf.controller_factories.get(conf.type, conf.type)
+            factory = self._conf.controller_factories.get(conf.type_, conf.type_)
 
             match self._create_controller(conf, factory):
                 case Ok(ctrl):
+                    self._injector.add_type_provider(type(ctrl), ctrl)
                     result.append(ctrl)
 
                 case Err(e):
@@ -139,15 +140,16 @@ class ComponentBuilder:
 
         return Ok(result)
 
-    def _create_services(self) -> Result[list[tuple[str, Service]], ComponentBuildError]:
+    def _create_services(self) -> Result[list[Service], ComponentBuildError]:
         result = []
 
         for conf in self._conf.services:
-            factory = self._conf.service_factories.get(conf.type, conf.type)
+            factory = self._conf.service_factories.get(conf.type_, conf.type_)
 
             match self._create_service(conf, factory):
                 case Ok(svc):
-                    result.append((conf.name, svc))
+                    self._injector.add_type_provider(type(svc), svc)
+                    result.append(svc)
 
                 case Err(e):
                     error = ComponentBuildError.SvcError(path=self._path, details=e.message)

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, AliasChoices
+from pydantic import BaseModel, Field
 
 from greyhorse.app.abc.controllers import ControllerFactories
 from greyhorse.app.abc.operators import Operator
@@ -8,17 +8,22 @@ from .controller import CtrlConf
 from .service import SvcConf
 
 
-class ResourceConf(BaseModel, frozen=True):
-    type_: type = Field(validation_alias=AliasChoices('type'))
-    providers: list[type[Provider]] = Field(default_factory=list)
+class ProvidersConf(BaseModel, frozen=True):
+    resource: type
+    types: list[type[Provider]] = Field(default_factory=list)
 
 
-class ComponentConf(BaseModel, arbitrary_types_allowed=True):
+class OperatorsConf(BaseModel, frozen=True):
+    resource: type
+    types: list[type[Operator]] = Field(default_factory=list)
+
+
+class ComponentConf(BaseModel):
     name: str = Field(frozen=True)
     enabled: bool = Field(default=True)
 
-    resources: list[ResourceConf] = Field(default_factory=list)
-    operators: list[type[Operator]] = Field(default_factory=list)
+    providers: list[ProvidersConf] = Field(default_factory=list)
+    operators: list[OperatorsConf] = Field(default_factory=list)
 
     controllers: list[CtrlConf] = Field(default_factory=list)
     services: list[SvcConf] = Field(default_factory=list)
