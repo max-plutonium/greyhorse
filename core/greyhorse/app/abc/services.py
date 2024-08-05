@@ -6,6 +6,7 @@ from typing import Awaitable, Callable
 from greyhorse.enum import Enum, Unit, Tuple, Struct
 from greyhorse.error import Error, ErrorCase
 from greyhorse.result import Result
+from .collectors import Collector, MutCollector
 from .operators import Operator
 from .providers import Provider
 from .selectors import ListSelector
@@ -25,7 +26,8 @@ class ServiceError(Error):
     namespace = 'greyhorse.app'
 
     Unexpected = ErrorCase(msg='Service unexpected error: "{details}"', details=str)
-    Deps = ErrorCase(msg='Dependency error occurred: "{details}"', details=str)
+    AutoProvision = ErrorCase(msg='Service error occurred during setup resources: "{details}"', details=str)
+    Collect = ErrorCase(msg='Service error occurred during collect providers: "{details}"', details=str)
 
 
 type ServiceFactoryFn = Callable[[...], Service | Result[Service, ServiceError]]
@@ -65,12 +67,14 @@ class Service(ABC):
     @abstractmethod
     def setup(
         self, selector: ListSelector[type, Operator],
+        collector: Collector[type[Provider], Provider],
     ) -> Result[ServiceState, ServiceError] | Awaitable[Result[ServiceState, ServiceError]]:
         ...
 
     @abstractmethod
     def teardown(
         self, selector: ListSelector[type, Operator],
+        collector: MutCollector[type[Provider], Provider],
     ) -> Result[ServiceState, ServiceError] | Awaitable[Result[ServiceState, ServiceError]]:
         ...
 

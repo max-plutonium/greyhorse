@@ -5,6 +5,8 @@ from greyhorse.error import Error, ErrorCase
 from greyhorse.result import Result
 from .collectors import Collector, MutCollector
 from .operators import Operator
+from .providers import Provider
+from .selectors import Selector
 
 
 class ControllerError(Error):
@@ -21,12 +23,14 @@ type ControllerFactories = dict[type[Controller], ControllerFactoryFn]
 class Controller(ABC):
     @abstractmethod
     def setup(
-        self, collector: Collector[type, Operator],
+        self, selector: Selector[type[Provider], Provider],
+        collector: Collector[type, Operator],
     ) -> Result[bool, ControllerError] | Awaitable[Result[bool, ControllerError]]:
         ...
 
     @abstractmethod
     def teardown(
-        self, collector: MutCollector[type, Operator],
+        self, selector: Selector[type[Provider], Provider],
+        collector: MutCollector[type, Operator],
     ) -> Result[bool, ControllerError] | Awaitable[Result[bool, ControllerError]]:
         ...

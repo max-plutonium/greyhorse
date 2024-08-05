@@ -2,11 +2,12 @@ import asyncio
 import inspect
 import threading
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import partial
 from typing import override, Any
 
 from greyhorse.result import Result, Ok, Err
+from ..abc.collectors import Collector, MutCollector
 from ..abc.operators import Operator
 from ..abc.providers import Provider
 from ..abc.selectors import ListSelector
@@ -22,6 +23,7 @@ class _ProviderMember:
     resource_type: type
     provider_type: type[Provider]
     method: classmethod
+    params: dict[str, inspect.Parameter] = field(default_factory=dict)
 
 
 def _is_provider_member(member: Any) -> bool:
@@ -31,21 +33,26 @@ def _is_provider_member(member: Any) -> bool:
 def provider(provider_type: type[Provider]):
     def decorator(func: classmethod):
         class_name, method_name = func.__qualname__.split('.')
+        sig = inspect.signature(func)
+        params = {k: v for k, v in sig.parameters.items() if k != 'self'}
+
         return _ProviderMember(
             class_name, method_name,
             provider_type.__wrapped_type__,
-            provider_type, func,
+            provider_type, func, params,
         )
 
     return decorator
 
 
 class SyncService(Service):
-    def __init__(self):
+    def __init__(self, providers: list[type[Provider]] | None = None):
         super().__init__()
+        self._public_providers = providers or []
         self._providers: dict[type, list[type[Provider]]] = defaultdict(list)
         self._provider_members: dict[type[Provider], _ProviderMember] = {}
         self._provided_resources: dict[type, dict[Operator, SyncResourceMapper]] = defaultdict(dict)
+        self._provided_providers: dict[type[Provider], Provider] = {}
         self._waiter = threading.Event()
         self._init_provider_members()
 
@@ -65,18 +72,32 @@ class SyncService(Service):
     @override
     def setup(
         self, selector: ListSelector[type, Operator],
+        collector: Collector[type[Provider], Provider],
     ) -> Result[ServiceState, ServiceError]:
         if self.state == ServiceState.Active:
             return Ok(self.state)
 
-        for prov_type in self._provider_members.keys():
+        for prov_type in self._public_providers:
             res_type = prov_type.__wrapped_type__
 
             for _, operator in selector.items(lambda t: issubclass(t, res_type)):
                 res = self.setup_resource(prov_type, operator) \
-                    .map_err(lambda e: ServiceError.Deps(details=e.message))
+                    .map_err(lambda e: ServiceError.AutoProvision(details=e.message))
                 if not res:
                     return res
+
+        for prov_type, member in self._provider_members.items():
+            if len(member.params) > 0:
+                continue
+
+            # noinspection PyTypeChecker
+            match invoke_sync(member.method, self):
+                case Ok(prov) | (Provider() as prov):
+                    if collector.add(prov_type, prov):
+                        self._provided_providers[prov_type] = prov
+
+                case Err(e):
+                    return ServiceError.Collect(details=e.message).to_result()
 
         self._switch_to_active()
         return Ok(self.state)
@@ -84,18 +105,31 @@ class SyncService(Service):
     @override
     def teardown(
         self, selector: ListSelector[type, Operator],
+        collector: MutCollector[type[Provider], Provider],
     ) -> Result[ServiceState, ServiceError]:
         if self.state == ServiceState.Idle:
             return Ok(self.state)
 
-        for prov_type in reversed(self._provider_members.keys()):
+        for prov_type in reversed(self._public_providers):
             res_type = prov_type.__wrapped_type__
 
             for _, operator in selector.items(lambda t: issubclass(t, res_type)):
                 res = self.teardown_resource(prov_type, operator) \
-                    .map_err(lambda e: ServiceError.Deps(details=e.message))
+                    .map_err(lambda e: ServiceError.AutoProvision(details=e.message))
                 if not res:
                     return res
+
+        provs_to_remove = []
+
+        for prov_type, prov in reversed(self._provided_providers.items()):
+            if collector.remove(prov_type, prov):
+                provs_to_remove.append(prov_type)
+            else:
+                # TODO logger warn
+                pass
+
+        for prov_type in provs_to_remove:
+            del self._provided_providers[prov_type]
 
         self._switch_to_idle()
         return Ok(self.state)
@@ -165,11 +199,13 @@ class SyncService(Service):
 
 
 class AsyncService(Service):
-    def __init__(self):
+    def __init__(self, providers: list[type[Provider]] | None = None):
         super().__init__()
+        self._public_providers = providers or []
         self._providers: dict[type, list[type[Provider]]] = defaultdict(list)
         self._provider_members: dict[type[Provider], _ProviderMember] = {}
         self._provided_resources: dict[type, dict[Operator, AsyncResourceMapper]] = defaultdict(dict)
+        self._provided_providers: dict[type[Provider], Provider] = {}
         self._waiter = asyncio.Event()
         self._init_provider_members()
 
@@ -189,18 +225,32 @@ class AsyncService(Service):
     @override
     async def setup(
         self, selector: ListSelector[type, Operator],
+        collector: Collector[type[Provider], Provider],
     ) -> Result[ServiceState, ServiceError]:
         if self.state == ServiceState.Active:
             return Ok(self.state)
 
-        for prov_type in self._provider_members.keys():
+        for prov_type in self._public_providers:
             res_type = prov_type.__wrapped_type__
 
             for _, operator in selector.items(lambda t: issubclass(t, res_type)):
                 res = (await self.setup_resource(prov_type, operator)) \
-                    .map_err(lambda e: ServiceError.Deps(details=e.message))
+                    .map_err(lambda e: ServiceError.AutoProvision(details=e.message))
                 if not res:
                     return res
+
+        for prov_type, member in self._provider_members.items():
+            if len(member.params) > 0:
+                continue
+
+            # noinspection PyTypeChecker
+            match await invoke_async(member.method, self):
+                case Ok(prov) | (Provider() as prov):
+                    if collector.add(prov_type, prov):
+                        self._provided_providers[prov_type] = prov
+
+                case Err(e):
+                    return ServiceError.Collect(details=e.message).to_result()
 
         await self._switch_to_active()
         return Ok(self.state)
@@ -208,18 +258,31 @@ class AsyncService(Service):
     @override
     async def teardown(
         self, selector: ListSelector[type, Operator],
+        collector: MutCollector[type[Provider], Provider],
     ) -> Result[ServiceState, ServiceError]:
         if self.state == ServiceState.Idle:
             return Ok(self.state)
 
-        for prov_type in reversed(self._provider_members.keys()):
+        for prov_type in reversed(self._public_providers):
             res_type = prov_type.__wrapped_type__
 
             for _, operator in selector.items(lambda t: issubclass(t, res_type)):
                 res = (await self.teardown_resource(prov_type, operator)) \
-                    .map_err(lambda e: ServiceError.Deps(details=e.message))
+                    .map_err(lambda e: ServiceError.AutoProvision(details=e.message))
                 if not res:
                     return res
+
+        provs_to_remove = []
+
+        for prov_type, prov in reversed(self._provided_providers.items()):
+            if collector.remove(prov_type, prov):
+                provs_to_remove.append(prov_type)
+            else:
+                # TODO logger warn
+                pass
+
+        for prov_type in provs_to_remove:
+            del self._provided_providers[prov_type]
 
         await self._switch_to_idle()
         return Ok(self.state)
