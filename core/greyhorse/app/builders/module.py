@@ -54,7 +54,7 @@ class ModuleBuilder:
         if not self._conf.enabled:
             return ModuleBuildError.Disabled(path=self._path).to_result()
 
-        logger.info('{path}: Module creation'.format(path=self._path))
+        logger.info('{path}: Module create'.format(path=self._path))
 
         operator_reg = MutDictRegistry[type, Operator]()
 
@@ -76,6 +76,18 @@ class ModuleBuilder:
 
         logger.info('{path}: Module created successfully'.format(path=self._path))
         return Ok(instance)
+
+    def destroy_pass(self) -> Result[None, ModuleBuildError]:
+        if not self._conf.enabled:
+            return ModuleBuildError.Disabled(path=self._path).to_result()
+
+        logger.info('{path}: Module destroy'.format(path=self._path))
+
+        if not (res := self._destroy_components()):
+            return res
+
+        logger.info('{path}: Module destroyed successfully'.format(path=self._path))
+        return Ok(None)
 
     def _create_component(
         self, conf: ComponentConf, operator_reg: MutDictRegistry[type, Operator],
@@ -113,7 +125,7 @@ class ModuleBuilder:
             return ComponentBuildError.Disabled(path=self._path, name=conf.name).to_result()
 
         logger.info(
-            '{path}: Module component "{name}" creation'
+            '{path}: Module component "{name}" create'
             .format(path=self._path, name=conf.name)
         )
 
@@ -183,10 +195,37 @@ class ModuleBuilder:
 
         return Ok(result)
 
+    def _destroy_components(self) -> Result[None, ModuleBuildError]:
+        for conf in reversed(self._conf.components):
+            if not conf.enabled:
+                return ComponentBuildError.Disabled(path=self._path, name=conf.name).to_result()
+
+            match conf:
+                case ComponentConf():
+                    pass
+
+                case ModuleComponentConf() as conf:
+                    logger.info(
+                        '{path}: Module component "{name}" destroy'
+                        .format(path=self._path, name=conf.name)
+                    )
+
+                    if not (res := unload_module(f'{self._path}.{conf.name}', conf).map_err(
+                        lambda e: ModuleBuildError.UnloadError(path=self._path, details=e.message)
+                    )):
+                        return res
+
+                    logger.info(
+                        '{path}: Module component "{name}" destroyed successfully'
+                        .format(path=self._path, name=conf.name)
+                    )
+
+        return Ok(None)
+
 
 def load_module(
     path: str, conf: ModuleComponentConf,
-) -> Result[Module, ModuleBuildError.LoadError]:
+) -> Result[Module, ModuleBuildError]:
     loader = ModuleLoader()
 
     if not (res := loader.load_pass(conf).map_err(
@@ -197,9 +236,7 @@ def load_module(
     module_conf = res.unwrap()
     builder = ModuleBuilder(module_conf, path)
 
-    if not (res := builder.create_pass().map_err(
-        lambda e: ModuleBuildError.LoadError(path=conf.path, details=e.message)
-    )):
+    if not (res := builder.create_pass()):
         return res
 
     module = res.unwrap()
@@ -207,8 +244,13 @@ def load_module(
 
 
 def unload_module(
-    conf: ModuleComponentConf,
-) -> Result[None, ModuleBuildError.UnloadError]:
+    path: str, conf: ModuleComponentConf,
+) -> Result[None, ModuleBuildError]:
+    builder = ModuleBuilder(conf._conf, path)
+
+    if not (res := builder.destroy_pass()):
+        return res
+
     loader = ModuleLoader()
 
     return loader.unload_pass(conf).map_err(
