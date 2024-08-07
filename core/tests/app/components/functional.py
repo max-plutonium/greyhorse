@@ -1,14 +1,10 @@
 from typing import override
 
-from greyhorse.app.abc.collectors import Collector, MutCollector
-from greyhorse.app.abc.controllers import ControllerError
-from greyhorse.app.abc.operators import Operator
-from greyhorse.app.abc.providers import FactoryProvider, FactoryError, Provider
-from greyhorse.app.abc.selectors import Selector
+from greyhorse.app.abc.providers import FactoryProvider, FactoryError
 from greyhorse.app.abc.services import ProvisionError
 from greyhorse.app.entities.controllers import SyncController
 from greyhorse.app.entities.services import SyncService, provider
-from greyhorse.maybe import Maybe, Nothing, Just
+from greyhorse.maybe import Maybe
 from greyhorse.result import Result, Ok, Err, do
 from ..common.functional import FunctionalOperator, FunctionalOpProvider
 from ..common.resources import DictResContext, MutDictResContext, DictCtxProvider, DictMutCtxProvider
@@ -76,51 +72,18 @@ class FunctionalOpProviderImpl(FactoryProvider[FunctionalOperator]):
 
 
 class DictOperatorCtrl(SyncController):
-    def __init__(self):
-        self._provider: Maybe[FunctionalOpProviderImpl] = Nothing
+    def __init__(self, ctx_prov: DictCtxProvider, mut_ctx_prov: DictMutCtxProvider):
+        self._provider = FunctionalOpProviderImpl(ctx_prov, mut_ctx_prov)
 
     def get_provider(self):
         return self._provider
 
-    @override
-    def setup(
-        self, selector: Selector[type[Provider], Provider],
-        collector: Collector[type, Operator],
-    ) -> Result[bool, ControllerError]:
-        if self._provider:
-            return Ok(True)
-
-        res = do(
-            Ok((ctx_prov, mut_ctx_prov))
-            for ctx_prov in selector.get(DictCtxProvider).ok_or('Could not get DictCtxProvider')
-            for mut_ctx_prov in selector.get(DictMutCtxProvider).ok_or('Could not get DictMutCtxProvider')
-        ).map_err(lambda e: ControllerError.Deps(details=e))
-
-        if not res:
-            return res
-
-        ctx_prov, mut_ctx_prov = res.unwrap()
-        self._provider = Just(FunctionalOpProviderImpl(ctx_prov, mut_ctx_prov))
-        return Ok(True)
-
-    @override
-    def teardown(
-        self, selector: Selector[type[Provider], Provider],
-        collector: MutCollector[type, Operator],
-    ) -> Result[bool, ControllerError]:
-        if not self._provider:
-            return Ok(False)
-
-        prov, self._provider = self._provider, Nothing
-        del prov
-        return Ok(True)
-
 
 class DictOperatorService(SyncService):
-    def __init__(self, ctrl: DictOperatorCtrl):
+    def __init__(self, ctx_prov: DictCtxProvider, mut_ctx_prov: DictMutCtxProvider):
         super().__init__()
-        self._ctrl = ctrl
+        self._provider = FunctionalOpProviderImpl(ctx_prov, mut_ctx_prov)
 
     @provider(FunctionalOpProvider)
     def create_op(self) -> Result[FunctionalOpProvider, ProvisionError]:
-        return self._ctrl.get_provider().ok_or(ProvisionError.NoSuchProvider(type_=FunctionalOpProvider.__name__))
+        return Ok(self._provider)
