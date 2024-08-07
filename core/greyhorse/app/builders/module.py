@@ -54,10 +54,7 @@ class ModuleBuilder:
         if not self._conf.enabled:
             return ModuleBuildError.Disabled(path=self._path).to_result()
 
-        logger.info(
-            '{path}: Module "{name}" creation'
-            .format(path=self._path, name=self._conf.name)
-        )
+        logger.info('{path}: Module creation'.format(path=self._path))
 
         operator_reg = MutDictRegistry[type, Operator]()
 
@@ -68,7 +65,7 @@ class ModuleBuilder:
 
         try:
             instance = Module(
-                name=self._conf.name, conf=self._conf, path=self._path,
+                path=self._path, conf=self._conf,
                 components=components, operator_reg=operator_reg,
             )
 
@@ -77,10 +74,7 @@ class ModuleBuilder:
             logger.error(error.message)
             return error.to_result()
 
-        logger.info(
-            '{path}: Module "{name}" created successfully'
-            .format(path=self._path, name=self._conf.name)
-        )
+        logger.info('{path}: Module created successfully'.format(path=self._path))
         return Ok(instance)
 
     def _create_component(

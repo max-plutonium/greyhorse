@@ -29,7 +29,6 @@ class BasicComponentConf(BaseModel):
 
 
 class ModuleConf(BaseModel):
-    name: str = Field(frozen=True)  # TODO remove
     enabled: bool = Field(default=True)
 
     provider_claims: list[ProvidersConf] = Field(default_factory=list)

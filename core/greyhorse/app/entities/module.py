@@ -13,17 +13,16 @@ class ModuleError(Error):
     namespace = 'greyhorse.app.module'
 
     Component = ErrorCase(
-        msg='{path}: Component error in module "{name}", details: "{details}"',
-        path=str, name=str, details=str,
+        msg='{path}: Component error in module, details: "{details}"',
+        path=str, details=str,
     )
 
 
 class Module:
     def __init__(
-        self, name: str, conf: ModuleConf, path: str,
-        components: list[Component], operator_reg: MutDictRegistry[type, Operator],
+        self, path: str, conf: ModuleConf, components: list[Component],
+        operator_reg: MutDictRegistry[type, Operator],
     ):
-        self._name = name
         self._conf = conf
         self._path = path
 
@@ -31,10 +30,6 @@ class Module:
         self._private_providers = MutDictRegistry[type[Provider], Provider]()
         self._public_providers = MutDictRegistry[type[Provider], Provider]()
         self._components: dict[str, Component] = {c.name: c for c in components}
-
-    @property
-    def name(self) -> str:
-        return self._name
 
     @property
     def path(self) -> str:
@@ -53,10 +48,7 @@ class Module:
         return self._public_providers.remove(type_, provider)
 
     def setup(self) -> Result[None, ModuleError]:
-        logger.info(
-            '{path}: Module "{name}" setup'
-            .format(path=self._path, name=self.name)
-        )
+        logger.info('{path}: Module setup'.format(path=self._path))
 
         for prov_conf in self._conf.provider_claims:
             for prov_type in prov_conf.types:
@@ -65,7 +57,7 @@ class Module:
 
         for component in self._components.values():
             if not (res := component.setup(self._private_providers, self._private_providers).map_err(
-                lambda e: ModuleError.Component(path=self._path, name=self.name, details=e.message)
+                lambda e: ModuleError.Component(path=self._path, details=e.message)
             )):
                 return res
 
@@ -74,18 +66,11 @@ class Module:
                 for _, prov in self._private_providers.items(lambda t: issubclass(t, prov_type)):
                     self._public_providers.add(prov_type, prov)
 
-        logger.info(
-            '{path}: Module "{name}" setup successful'
-            .format(path=self._path, name=self.name)
-        )
-
+        logger.info('{path}: Module setup successful'.format(path=self._path))
         return Ok(None)
 
     def teardown(self) -> Result[None, ModuleError]:
-        logger.info(
-            '{path}: Module "{name}" teardown'
-            .format(path=self._path, name=self.name)
-        )
+        logger.info('{path}: Module teardown'.format(path=self._path))
 
         for prov_conf in reversed(self._conf.provider_exports):
             for prov_type in prov_conf.types:
@@ -94,7 +79,7 @@ class Module:
 
         for component in reversed(self._components.values()):
             if not (res := component.teardown(self._private_providers, self._private_providers).map_err(
-                lambda e: ModuleError.Component(path=self._path, name=self.name, details=e.message)
+                lambda e: ModuleError.Component(path=self._path, details=e.message)
             )):
                 return res
 
@@ -103,9 +88,5 @@ class Module:
                 for _, prov in self._public_providers.items(lambda t: issubclass(t, prov_type)):
                     self._private_providers.remove(prov_type, prov)
 
-        logger.info(
-            '{path}: Module "{name}" teardown successful'
-            .format(path=self._path, name=self.name)
-        )
-
+        logger.info('{path}: Module teardown successful'.format(path=self._path))
         return Ok(None)

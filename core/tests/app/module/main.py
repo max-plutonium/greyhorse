@@ -9,7 +9,6 @@ from ..components.resources import DictResourceCtrl, DictProviderService
 
 def __init__():
     return ModuleConf(
-        name='Dict',
         enabled=True,
         provider_exports=[
             ProvidersConf(
