@@ -25,7 +25,7 @@ class ServiceWaiter(Enum):
 class ServiceError(Error):
     namespace = 'greyhorse.app'
 
-    Unexpected = ErrorCase(msg='Service unexpected error: "{details}"', details=str)
+    Factory = ErrorCase(msg='Service factory error: "{details}"', details=str)
     AutoProvision = ErrorCase(msg='Service error occurred during setup resources: "{details}"', details=str)
     Collect = ErrorCase(msg='Service error occurred during collect providers: "{details}"', details=str)
 

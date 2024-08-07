@@ -12,7 +12,7 @@ from .selectors import Selector
 class ControllerError(Error):
     namespace = 'greyhorse.app'
 
-    Unexpected = ErrorCase(msg='Controller unexpected error: "{details}"', details=str)
+    Factory = ErrorCase(msg='Controller factory error: "{details}"', details=str)
     Deps = ErrorCase(msg='Dependency error occurred: "{details}"', details=str)
 
 
