@@ -1,370 +1,222 @@
-import sys
-from itertools import chain
-
-import pydantic
-
-from greyhorse.result import Result
-from greyhorse.utils.imports import import_path
-from greyhorse.utils.injectors import ParamsInjector
-from greyhorse.utils.invoke import invoke_sync
-from ..entities.application import Application
-from ..entities.controller import Controller, ControllerFactoryFn
-from ..entities.module import Module, ModuleErrorsItem
-from ..entities.service import Service, ServiceFactoryFn
-from ..errors import ControllerCreationError, CtrlFactoryNotFoundError, InvalidModuleConfError, ModuleCreationError, \
-    ModuleLoadError, ModuleUnloadError, ModuleValidationError, ServiceCreationError, ServiceFactoryNotFoundError
-from ..schemas.controller import ControllerConf
-from ..schemas.module import ModuleConf, ModuleDesc
-from ..schemas.service import ServiceConf
-from ...i18n import tr
-from ...logging import logger
+from greyhorse.app.abc.operators import Operator
+from greyhorse.app.builders.loader import ModuleLoader
+from greyhorse.app.entities.components import Component, ModuleComponent
+from greyhorse.app.entities.module import Module
+from greyhorse.app.registries import MutDictRegistry
+from greyhorse.app.schemas.components import ModuleConf, ComponentConf, ModuleComponentConf
+from greyhorse.error import Error, ErrorCase
+from greyhorse.logging import logger
+from greyhorse.result import Result, Ok, Err
 
 
-def _get_module_package(desc: ModuleDesc) -> str:
-    if not desc.path.startswith('.'):
-        return desc.path
+class ModuleBuildError(Error):
+    namespace = 'greyhorse.app.builders.module'
 
-    path = desc.path
-    dots_count = 0
+    Disabled = ErrorCase(msg='Module is disabled: "{path}"', path=str)
+    Factory = ErrorCase(
+        msg='Module factory error: "{path}", details: "{details}"',
+        path=str, details=str,
+    )
+    LoadError = ErrorCase(
+        msg='Load error in component: "{path}", details: "{details}"',
+        path=str, details=str,
+    )
+    UnloadError = ErrorCase(
+        msg='Unload error in component: "{path}", details: "{details}"',
+        path=str, details=str,
+    )
+    ComponentError = ErrorCase(
+        msg='Component error in module: "{path}" "{name}", details: "{details}"',
+        path=str, name=str, details=str,
+    )
 
-    for c in path[1:]:
-        if '.' == c:
-            dots_count += 1
-        else:
-            path = path[dots_count + 1:]
-            break
 
-    initpath = desc._initpath
-    dots_count = min(dots_count, len(initpath))
-    initpath = initpath[0:len(initpath) - dots_count]
-    return '.'.join(initpath + [path])
+class ComponentBuildError(Error):
+    namespace = 'greyhorse.app.builders.component'
+
+    Disabled = ErrorCase(msg='Component is disabled: "{path}" "{name}"', path=str, name=str)
+    Factory = ErrorCase(
+        msg='Component factory error: "{path}" "{name}", details: "{details}"',
+        path=str, name=str, details=str,
+    )
+    Submodule = ErrorCase(
+        msg='Component submodule error: "{path}" "{name}", details: "{details}"',
+        path=str, name=str, details=str,
+    )
 
 
 class ModuleBuilder:
-    def __init__(
-        self, app: Application, root_desc: ModuleDesc,
-    ):
-        self._app = app
-        self._injector = ParamsInjector()
-        self._key_stack: list[str] = []
-        self._root_desc = root_desc
+    def __init__(self, conf: ModuleConf, path: str):
+        self._conf = conf
+        self._path = path
 
-    def load_pass(self, desc: ModuleDesc | None = None) -> Result[ModuleConf | None]:
-        desc = desc or self._root_desc
+    def create_pass(self) -> Result[Module, ModuleBuildError]:
+        if not self._conf.enabled:
+            return ModuleBuildError.Disabled(path=self._path).to_result()
 
-        if not desc.enabled:
-            return Result.from_ok()
-
-        res = self._load_module(desc)
-        if not res.success:
-            return res
-
-        assert desc._conf
-        conf = desc._conf
-
-        if not conf.enabled:
-            return Result.from_ok()
-
-        for mod_desc in conf.submodules:
-            res = self.load_pass(mod_desc)
-            if not res.success:
-                return res
-
-        return Result.from_ok(conf)
-
-    def create_module_pass(self, desc: ModuleDesc | None = None) -> Result[Module | None]:
-        desc = desc or self._root_desc
-
-        if not desc._conf:
-            return Result.from_ok()
-
-        current_conf: ModuleConf = desc._conf
-
-        if not current_conf.enabled:
-            logger.warn(tr('app.builder.module-disabled').format(path=desc.path))
-            return Result.from_ok()
-
-        logger.info(tr('app.builder.try-create').format(path=desc.path))
-
-        values = {
-            'name': current_conf.name,
-            'conf': current_conf,
-        }
-
-        injected_args = self._injector(current_conf.factory, values=values)
-
-        try:
-            instance = invoke_sync(current_conf.factory, *injected_args.args, **injected_args.kwargs)
-            assert isinstance(instance, Module)
-
-        except Exception as e:
-            error = ModuleCreationError(exc=e)
-            logger.error(error.message)
-            return Result.from_error(error)
-
-        if errors := self._create_controllers(current_conf, instance):
-            return Result.from_errors(list(chain.from_iterable([e.errors for e in errors])))
-
-        if errors := self._create_services(current_conf, instance):
-            return Result.from_errors(list(chain.from_iterable([e.errors for e in errors])))
-
-        self._key_stack.append(current_conf.name)
-
-        for submodule_desc in current_conf.submodules:
-            res = self.create_module_pass(submodule_desc)
-            if not res.success:
-                return res
-            if not res.result:
-                continue
-
-            submodule = res.result
-            # noinspection PyProtectedMember
-            submodule._resolve_claims(instance)
-            instance.add_module(submodule.name, submodule)
-
-        submodule_key = '.'.join(self._key_stack)
-        self._app.register_module(submodule_key, instance, desc)
-        self._key_stack.pop()
-
-        logger.info(tr('app.builder.create-success').format(path=desc.path))
-        return Result.from_ok(instance)
-
-    def _load_module(self, desc: ModuleDesc) -> Result:
-        if desc._conf is not None:
-            return Result.from_ok()
-
-        module_path = _get_module_package(desc)
-        logger.info(tr('app.builder.try-load').format(module_init_path=module_path))
-
-        try:
-            func = import_path(f'{module_path}:__init__')
-
-        except (ImportError, AttributeError) as e:
-            error = ModuleLoadError(exc=e)
-            logger.error(error.message)
-            return Result.from_error(error)
-
-        injected_args = self._injector(func, values=desc.args)
-
-        try:
-            res = invoke_sync(func, *injected_args.args, **injected_args.kwargs)
-
-        except pydantic.ValidationError as e:
-            error = ModuleValidationError(detail=str(e))
-            logger.error(error.message)
-            return Result.from_error(error)
-        except Exception as e:
-            error = ModuleLoadError(exc=e)
-            logger.error(error.message)
-            return Result.from_error(error)
-
-        if not isinstance(res, ModuleConf):
-            error = InvalidModuleConfError(module_init_path=module_path)
-            logger.error(error.message)
-            return Result.from_error(error)
-
-        logger.info(tr('app.builder.load-success').format(module_init_path=module_path))
-        desc._conf = res
-        return Result.from_ok()
-
-    def _create_controller(
-        self, module: Module, conf: ControllerConf, factory: ControllerFactoryFn,
-    ) -> Result[Controller]:
-        logger.info(tr('app.builder.try-ctrl').format(name=conf.name))
-        values = {'name': conf.name, **conf.args}
-        injected_args = self._injector(factory, values=values)
-
-        try:
-            res = factory(*injected_args.args, **injected_args.kwargs)
-
-        except Exception as e:
-            error = ControllerCreationError(exc=e)
-            logger.error(error.message)
-            return Result.from_error(error)
-
-        if not res.success:
-            return res
-
-        instance = res.result
-
-        res = instance.check_operator_mapping(conf.operator_mapping)
-        if not res.success:
-            return res
-
-        key_mapping = res.result
-        module.add_controller(
-            conf.key, instance, name=conf.name,
-            key_mapping=key_mapping,
-            resources_read=conf.resources_read,
-            resources_write=conf.resources_write,
-            providers_read=conf.providers_read,
-            operators_read=conf.operators_read,
+        logger.info(
+            '{path}: Module "{name}" creation'
+            .format(path=self._path, name=self._conf.name)
         )
 
-        logger.info(tr('app.builder.ctrl-success').format(name=conf.name))
-        return Result.from_ok(instance)
+        operator_reg = MutDictRegistry[type, Operator]()
 
-    def _create_controllers(self, module_conf: ModuleConf, instance: Module) -> list[ModuleErrorsItem]:
-        errors = []
+        if not (res := self._create_components(operator_reg)):
+            return res
 
-        for conf in module_conf.controllers:
-            if factory := module_conf.controller_factories.get(conf.key):
-                res = self._create_controller(instance, conf, factory)
-                if not res.success:
-                    errors.append(ModuleErrorsItem(where='controller', name=conf.name, errors=res.errors))
-            else:
-                error = CtrlFactoryNotFoundError(key=str(conf.key.__name__))
-                logger.error(error.message)
-                errors.append(ModuleErrorsItem(where='controller', name=conf.name, errors=[error]))
-
-        return errors
-
-    def _create_service(
-        self, module: Module, conf: ServiceConf, factory: ServiceFactoryFn,
-    ) -> Result[Service]:
-        logger.info(tr('app.builder.try-service').format(name=conf.name))
-        values = {'name': conf.name, **conf.args}
-        injected_args = self._injector(factory, values=values)
+        components = res.unwrap()
 
         try:
-            res = factory(*injected_args.args, **injected_args.kwargs)
+            instance = Module(
+                name=self._conf.name, conf=self._conf, path=self._path,
+                components=components, operator_reg=operator_reg,
+            )
 
         except Exception as e:
-            error = ServiceCreationError(exc=e)
+            error = ModuleBuildError.Factory(path=self._path, details=str(e))
             logger.error(error.message)
-            return Result.from_error(error)
+            return error.to_result()
 
-        if not res.success:
-            return res
+        logger.info(
+            '{path}: Module "{name}" created successfully'
+            .format(path=self._path, name=self._conf.name)
+        )
+        return Ok(instance)
 
-        instance = res.result
+    def _create_component(
+        self, conf: ComponentConf, operator_reg: MutDictRegistry[type, Operator],
+    ) -> Result[Component, ComponentBuildError]:
+        if not conf.enabled:
+            return ComponentBuildError.Disabled(path=self._path, name=conf.name).to_result()
 
-        res = instance.check_provider_mapping(conf.provider_mapping)
-        if not res.success:
-            return res
-
-        prov_key_mapping = res.result
-
-        res = instance.check_operator_mapping(conf.operator_mapping)
-        if not res.success:
-            return res
-
-        op_key_mapping = res.result
-
-        module.add_service(
-            conf.key, instance, name=conf.name,
-            op_key_mapping=op_key_mapping,
-            prov_key_mapping=prov_key_mapping,
-            resources_read=conf.resources_read,
-            providers_read=conf.providers_read,
-            operators_read=conf.operators_read,
+        logger.info(
+            '{path}: Component "{name}" creation'
+            .format(path=self._path, name=conf.name)
         )
 
-        submodule_key = '.'.join(self._key_stack)
-        self._app.register_service(f'{submodule_key}.{conf.name}', instance)
+        try:
+            instance = Component(
+                name=conf.name, path=self._path,
+                conf=conf, operator_reg=operator_reg,
+            )
 
-        logger.info(tr('app.builder.service-success').format(name=conf.name))
-        return Result.from_ok(instance)
+        except Exception as e:
+            error = ComponentBuildError.Factory(path=self._path, name=conf.name, details=str(e))
+            logger.error(error.message)
+            return error.to_result()
 
-    def _create_services(self, module_conf: ModuleConf, instance: Module) -> list[ModuleErrorsItem]:
-        errors = []
+        logger.info(
+            '{path}: Component "{name}" created successfully'
+            .format(path=self._path, name=conf.name)
+        )
 
-        for conf in module_conf.services:
-            if factory := module_conf.service_factories.get(conf.key):
-                res = self._create_service(instance, conf, factory)
-                if not res.success:
-                    errors.append(ModuleErrorsItem(where='service', name=conf.name, errors=res.errors))
-            else:
-                error = ServiceFactoryNotFoundError(key=str(conf.key.__name__))
-                logger.error(error.message)
-                errors.append(ModuleErrorsItem(where='service', name=conf.name, errors=[error]))
+        return Ok(instance)
 
-        return errors
-
-
-class ModuleTerminator:
-    def __init__(
-        self, app: Application, root_desc: ModuleDesc,
-    ):
-        self._app = app
-        self._injector = ParamsInjector()
-        self._key_stack: list[str] = []
-        self._root_desc = root_desc
-
-    def unload_pass(self, desc: ModuleDesc | None = None) -> Result:
-        desc = desc or self._root_desc
-
-        if not desc.enabled or not desc._conf:
-            return Result.from_ok()
-
-        conf = desc._conf
-
+    def _create_module_component(
+        self, conf: ModuleComponentConf,
+    ) -> Result[ModuleComponent, ComponentBuildError]:
         if not conf.enabled:
-            return Result.from_ok()
+            return ComponentBuildError.Disabled(path=self._path, name=conf.name).to_result()
 
-        for mod_desc in conf.submodules:
-            res = self.unload_pass(mod_desc)
-            if not res.success:
-                return res
+        logger.info(
+            '{path}: Module component "{name}" creation'
+            .format(path=self._path, name=conf.name)
+        )
 
-        return self._unload_module(desc)
+        if not (res := load_module(f'{self._path}.{conf.name}', conf).map_err(
+            lambda e: ComponentBuildError.Submodule(path=self._path, name=conf.name, details=e.message)
+        )):
+            return res
 
-    def destroy_module_pass(
-        self, desc: ModuleDesc | None = None, parent: Module | None = None,
-    ) -> Result:
-        desc = desc or self._root_desc
-
-        if not desc._conf:
-            return Result.from_ok()
-
-        logger.info(tr('app.builder.try-destroy').format(path=desc.path))
-
-        current_conf: ModuleConf = desc._conf
-        self._key_stack.append(current_conf.name)
-        submodule_key = '.'.join(self._key_stack)
-        current = self._app.get_module(submodule_key)
-
-        for submodule_desc in current_conf.submodules:
-            res = self.destroy_module_pass(submodule_desc, current)
-            if not res.success:
-                return res
-
-        if parent:
-            parent.remove_module(current_conf.name)
-
-        for srv in current.service_list:
-            self._app.unregister_service(f'{submodule_key}.{srv.name}')
-
-        self._app.unregister_module(submodule_key)
-        self._key_stack.pop()
-
-        logger.info(tr('app.builder.destroy-success').format(path=desc.path))
-        return Result.from_ok()
-
-    def _unload_module(self, desc: ModuleDesc) -> Result:
-        if desc._conf is None:
-            return Result.from_ok()
-
-        module_path = _get_module_package(desc)
-        logger.info(tr('app.builder.try-unload').format(module_init_path=module_path))
+        module = res.unwrap()
 
         try:
-            func = import_path(f'{module_path}:__fini__')
+            instance = ModuleComponent(
+                name=conf.name, path=self._path,
+                conf=conf, module=module,
+            )
 
-        except (ImportError, AttributeError):
-            pass
-        else:
-            injected_args = self._injector(func, types={ModuleConf: desc._conf})
+        except Exception as e:
+            error = ComponentBuildError.Factory(path=self._path, name=conf.name, details=str(e))
+            logger.error(error.message)
+            return error.to_result()
 
-            try:
-                invoke_sync(func, *injected_args.args, **injected_args.kwargs)
+        logger.info(
+            '{path}: Module component "{name}" created successfully'
+            .format(path=self._path, name=conf.name)
+        )
 
-            except Exception as e:
-                error = ModuleUnloadError(exc=e)
-                logger.error(error.message)
-                return Result.from_error(error)
+        return Ok(instance)
 
-        logger.info(tr('app.builder.unload-success').format(module_init_path=module_path))
-        desc._conf = None
-        del sys.modules[module_path]
-        return Result.from_ok()
+    def _create_components(
+        self, operator_reg: MutDictRegistry[type, Operator],
+    ) -> Result[list[Component], ModuleBuildError]:
+        result = []
+
+        for conf in self._conf.components:
+            match conf:
+                case ComponentConf() as conf:
+                    match self._create_component(conf, operator_reg):
+                        case Ok(component):
+                            result.append(component)
+
+                        case Err(e):
+                            match e:
+                                case ComponentBuildError.Disabled(_):
+                                    logger.info(e.message)
+                                case _:
+                                    error = ModuleBuildError.ComponentError(
+                                        path=self._path, name=conf.name, details=e.message,
+                                    )
+                                    logger.error(error.message)
+                                    return error.to_result()
+
+                case ModuleComponentConf() as conf:
+                    match self._create_module_component(conf):
+                        case Ok(component):
+                            result.append(component)
+
+                        case Err(e):
+                            match e:
+                                case ComponentBuildError.Disabled(_):
+                                    logger.info(e.message)
+                                case _:
+                                    error = ModuleBuildError.ComponentError(
+                                        path=self._path, name=conf.name, details=e.message,
+                                    )
+                                    logger.error(error.message)
+                                    return error.to_result()
+
+        return Ok(result)
+
+
+def load_module(
+    path: str, conf: ModuleComponentConf,
+) -> Result[Module, ModuleBuildError.LoadError]:
+    loader = ModuleLoader()
+
+    if not (res := loader.load_pass(conf).map_err(
+        lambda e: ModuleBuildError.LoadError(path=conf.path, details=e.message)
+    )):
+        return res
+
+    module_conf = res.unwrap()
+    builder = ModuleBuilder(module_conf, path)
+
+    if not (res := builder.create_pass().map_err(
+        lambda e: ModuleBuildError.LoadError(path=conf.path, details=e.message)
+    )):
+        return res
+
+    module = res.unwrap()
+    return Ok(module)
+
+
+def unload_module(
+    conf: ModuleComponentConf,
+) -> Result[None, ModuleBuildError.UnloadError]:
+    loader = ModuleLoader()
+
+    return loader.unload_pass(conf).map_err(
+        lambda e: ModuleBuildError.UnloadError(path=conf.path, details=e.message)
+    )
