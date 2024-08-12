@@ -5,7 +5,7 @@ from unittest.mock import Mock, MagicMock
 
 import pytest
 
-from greyhorse.app.context import SyncContext, AsyncContext, ContextBuilder
+from greyhorse.app.contexts import SyncContext, AsyncContext, ContextBuilder
 
 
 def test_sync_context_scalar():

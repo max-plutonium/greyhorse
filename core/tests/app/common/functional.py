@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 from greyhorse.app.abc.operators import Operator
 from greyhorse.app.abc.providers import FactoryProvider
-from greyhorse.app.context import SyncContext, SyncMutContext
+from greyhorse.app.contexts import SyncContext, SyncMutContext
 from greyhorse.result import Result
 from .resources import DictResource
 

@@ -32,12 +32,8 @@ class TypeWrapper[T]:
             if not isinstance(spec, list):
                 spec = [spec]
 
-            for s in spec:
-                base = cls.__base__
-                while '~' == base.__name__[0]:
-                    base = base.__base__
-                base = base[s]
-                type_name = cls.__generate_typename__(base, False)
+            for spec_class in spec:
+                type_name = cls.__generate_typename__(spec_class, False)
                 _TYPES_CACHE[type_name] = cls
 
         super().__init_subclass__(**kwargs)
@@ -52,15 +48,17 @@ class TypeWrapper[T]:
         if class_ := _TYPES_CACHE.get(type_name):
             return class_
 
+        bases = [cls]
         base_type_name = '~' + cls.__generate_typename__(type_.__base__)
-        base_class = _TYPES_CACHE.get(base_type_name, cls)
+        if base_class := _TYPES_CACHE.get(base_type_name):
+            bases = [base_class] + bases
 
         if hasattr(cls, '__slots__'):
             cls.__slots__ = (*cls.__slots__, '__wrapped_type__')
             attrs = {k: v for k, v in cls.__dict__.items() if k in cls.__slots__}
             attrs['__wrapped_type__'] = type_
             attrs['__module__'] = type_.__module__
-            class_ = types.new_class(type_name, (base_class,), exec_body=lambda d: d.update(attrs))
+            class_ = types.new_class(type_name, tuple(bases), exec_body=lambda d: d.update(attrs))
 
         else:
             attrs = dict(cls.__dict__)
@@ -68,7 +66,7 @@ class TypeWrapper[T]:
             attrs['__wrapped_type__'] = type_
             attrs['__module__'] = type_.__module__
 
-            class_ = types.new_class(type_name, (base_class,), exec_body=lambda d: d.update(attrs))
+            class_ = types.new_class(type_name, tuple(bases), exec_body=lambda d: d.update(attrs))
 
         _TYPES_CACHE[type_name] = class_
         return class_

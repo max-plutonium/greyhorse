@@ -636,8 +636,54 @@ class AsyncMutContext[T](AsyncContext[T], MutContext):
             await self.apply()
 
 
+class SyncMutContextWithCallbacks[T](SyncMutContext[T]):
+    __slots__ = ('_on_apply', '_on_cancel')
+
+    def __init__(
+        self, on_apply: Callable[[T], Any | Awaitable[Any]] | None = None,
+        on_cancel: Callable[[T], Any | Awaitable[Any]] | None = None,
+        *args, **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self._on_apply = on_apply
+        self._on_cancel = on_cancel
+
+    @override
+    def _apply(self, instance: T):
+        if self._on_apply:
+            invoke_sync(self._on_apply, instance)
+
+    @override
+    def _cancel(self, instance: T):
+        if self._on_cancel:
+            invoke_sync(self._on_cancel, instance)
+
+
+class AsyncMutContextWithCallbacks[T](AsyncMutContext[T]):
+    __slots__ = ('_on_apply', '_on_cancel')
+
+    def __init__(
+        self, on_apply: Callable[[T], Any | Awaitable[Any]] | None = None,
+        on_cancel: Callable[[T], Any | Awaitable[Any]] | None = None,
+        *args, **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self._on_apply = on_apply
+        self._on_cancel = on_cancel
+
+    @override
+    async def _apply(self, instance: T):
+        if self._on_apply:
+            await invoke_async(self._on_apply, instance)
+
+    @override
+    async def _cancel(self, instance: T):
+        if self._on_cancel:
+            await invoke_async(self._on_cancel, instance)
+
+
 class ContextBuilder[T](TypeWrapper[T]):
-    def __init__(self, factory: Callable[[...], T], **kwargs: dict[str, Any]):
+    def __init__[**P](self, factory: Callable[P, T], **kwargs):
         self._factory = factory
         self._fields = {}
         self._finalizers = []

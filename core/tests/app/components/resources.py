@@ -5,7 +5,7 @@ from greyhorse.app.abc.controllers import ControllerError
 from greyhorse.app.abc.operators import Operator
 from greyhorse.app.abc.providers import BorrowError, BorrowMutError, SharedProvider, MutProvider, Provider
 from greyhorse.app.abc.selectors import Selector
-from greyhorse.app.context import ContextBuilder, SyncContext, SyncMutContext
+from greyhorse.app.contexts import ContextBuilder, SyncContext, SyncMutContext
 from greyhorse.app.entities.controllers import SyncController
 from greyhorse.app.entities.services import SyncService, provider
 from greyhorse.maybe import Maybe, Just

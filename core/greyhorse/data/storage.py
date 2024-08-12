@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Awaitable, Mapping, override
 
-from greyhorse.app.context import Context
+from greyhorse.app.contexts import Context
 
 
 class DataStorageEngine(ABC):
