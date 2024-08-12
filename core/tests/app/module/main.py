@@ -1,7 +1,7 @@
 from greyhorse.app.schemas.components import ProvidersConf, ComponentConf, ModuleConf
 from greyhorse.app.schemas.elements import CtrlConf, SvcConf
 
-from ..common.functional import DictCtxOperator, DictMutCtxOperator, FunctionalOpProvider, FunctionalOperator
+from ..common.functional import FunctionalOpProvider, FunctionalOperator
 from ..common.resources import DictCtxProvider, DictMutCtxProvider, DictResContext, MutDictResContext
 from ..components.functional import DictOperatorCtrl, DictOperatorService
 from ..components.resources import DictResourceCtrl, DictProviderService
@@ -65,9 +65,6 @@ def __init__():
                 controllers=[
                     CtrlConf(
                         type=DictOperatorCtrl,
-                        operators=[
-                            DictCtxOperator, DictMutCtxOperator,
-                        ],
                     )
                 ],
                 services=[

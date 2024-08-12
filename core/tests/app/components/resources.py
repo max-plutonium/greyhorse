@@ -3,9 +3,10 @@ from typing import override, Any
 from greyhorse.app.abc.collectors import Collector, MutCollector
 from greyhorse.app.abc.controllers import ControllerError
 from greyhorse.app.abc.operators import Operator
-from greyhorse.app.abc.providers import BorrowError, BorrowMutError, SharedProvider, MutProvider, Provider
+from greyhorse.app.abc.providers import SharedProvider, MutProvider, Provider
 from greyhorse.app.abc.selectors import Selector
-from greyhorse.app.contexts import ContextBuilder, SyncContext, SyncMutContext
+from greyhorse.app.boxes import SyncContextOwnerResourceBox
+from greyhorse.app.contexts import SyncContext, SyncMutContext
 from greyhorse.app.entities.controllers import SyncController
 from greyhorse.app.entities.services import SyncService, provider
 from greyhorse.maybe import Maybe, Just
@@ -26,31 +27,6 @@ class MutDictResContextImpl(SyncMutContext[DictResource]):
     def _apply(self, instance: DictResource):
         self._orig_dict.clear()
         self._orig_dict.update(instance)
-
-
-class DictProviderImpl(SharedProvider[DictResContext], MutProvider[MutDictResContext]):
-    def __init__(self, orig_dict: dict[str, Any]):
-        self._orig_dict = orig_dict
-
-    @override
-    def borrow(self) -> Result[DictResContext, BorrowError]:
-        ctx_builder = ContextBuilder[DictResContextImpl, DictResource](self._orig_dict.copy)
-        return Ok(ctx_builder.build())
-
-    @override
-    def reclaim(self, instance: DictResContext):
-        del instance
-
-    @override
-    def acquire(self) -> Result[MutDictResContext, BorrowMutError]:
-        ctx_builder = ContextBuilder[MutDictResContextImpl, DictResource](
-            self._orig_dict.copy, orig_dict=self._orig_dict,
-        )
-        return Ok(ctx_builder.build())
-
-    @override
-    def release(self, instance: MutDictResContext):
-        del instance
 
 
 class DictResourceCtrl(SyncController, Operator[DictResource]):
@@ -83,17 +59,22 @@ class DictResourceCtrl(SyncController, Operator[DictResource]):
         return Ok(res)
 
 
+class DictResourceBox(SyncContextOwnerResourceBox[DictResource]):
+    allow_borrow_when_acquired = True
+    allow_acq_when_borrowed = True
+    allow_multiple_acquisition = False
+
+
 class DictProviderService(SyncService):
     def __init__(self, operator: Operator[DictResource]):
         super().__init__()
-        self._dict: dict[str, Any] = {}
-        self._provider = DictProviderImpl(self._dict)
+        self._box = DictResourceBox({})
         self._operator = operator
 
     @provider(SharedProvider[DictResContext])
     def create_dict(self):
-        return self._provider
+        return self._box
 
     @provider(MutProvider[MutDictResContext])
     def create_mut_dict(self):
-        return Ok(self._provider)
+        return Ok(self._box)
