@@ -5,28 +5,13 @@ from greyhorse.app.abc.controllers import ControllerError
 from greyhorse.app.abc.operators import Operator
 from greyhorse.app.abc.providers import SharedProvider, MutProvider, Provider
 from greyhorse.app.abc.selectors import Selector
-from greyhorse.app.boxes import SyncContextOwnerResourceBox
-from greyhorse.app.contexts import SyncContext, SyncMutContext
+from greyhorse.app.boxes import OwnerCtxRefBox
+from greyhorse.app.contexts import SyncContext, SyncMutContextWithCallbacks
 from greyhorse.app.entities.controllers import SyncController
 from greyhorse.app.entities.services import SyncService, provider
 from greyhorse.maybe import Maybe, Just
 from greyhorse.result import Result, Ok
 from ..common.resources import DictResContext, MutDictResContext, DictResource
-
-
-class DictResContextImpl(SyncContext[DictResource]):
-    ...
-
-
-class MutDictResContextImpl(SyncMutContext[DictResource]):
-    def __init__(self, orig_dict: DictResource, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._orig_dict = orig_dict
-
-    @override
-    def _apply(self, instance: DictResource):
-        self._orig_dict.clear()
-        self._orig_dict.update(instance)
 
 
 class DictResourceCtrl(SyncController, Operator[DictResource]):
@@ -59,7 +44,7 @@ class DictResourceCtrl(SyncController, Operator[DictResource]):
         return Ok(res)
 
 
-class DictResourceBox(SyncContextOwnerResourceBox[DictResource]):
+class DictResourceBox(OwnerCtxRefBox[DictResource, DictResource]):
     allow_borrow_when_acquired = True
     allow_acq_when_borrowed = True
     allow_multiple_acquisition = False
@@ -68,8 +53,17 @@ class DictResourceBox(SyncContextOwnerResourceBox[DictResource]):
 class DictProviderService(SyncService):
     def __init__(self, operator: Operator[DictResource]):
         super().__init__()
-        self._box = DictResourceBox({})
+        self._value = {}
+        self._box = DictResourceBox(
+            SyncContext, SyncMutContextWithCallbacks,
+            lambda: Just(self._value), lambda: Just(self._value),
+            mut_params=dict(on_apply=self._setter),
+        )
         self._operator = operator
+
+    def _setter(self, value: DictResource):
+        self._value.clear()
+        self._value.update(value)
 
     @provider(SharedProvider[DictResContext])
     def create_dict(self):
