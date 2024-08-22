@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "greyhorse"
-version = "0.4.8"
+version = "0.4.9"
 description = "Greyhorse library"
 license = "MIT"
 repository = "https://gitlab.com/max-plutonium/greyhorse"
