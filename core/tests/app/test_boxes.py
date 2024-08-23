@@ -1,14 +1,15 @@
+from copy import deepcopy
+from functools import partial
+
 from greyhorse.app.abc.providers import BorrowError, BorrowMutError, ForwardError
 from greyhorse.app.boxes import SharedRefBox, MutRefBox, OwnerRefBox, SharedCtxRefBox, MutCtxRefBox, OwnerCtxRefBox, \
     ForwardBox
-from greyhorse.app.contexts import SyncContext, SyncMutContext, SyncMutContextWithCallbacks
+from greyhorse.app.contexts import SyncContext, SyncMutContext, SyncMutContextWithCallbacks, MutCtxCallbacks
 from greyhorse.maybe import Just
 
 
 def test_shared():
-    value = Just(123)
-
-    instance = SharedRefBox[int](lambda: value)
+    instance = SharedRefBox[int](lambda: 123)
 
     res = instance.borrow()
     assert res.is_ok()
@@ -22,9 +23,7 @@ def test_shared():
 
 
 def test_mut():
-    value = Just(123)
-
-    instance = MutRefBox[int](lambda: value)
+    instance = MutRefBox[int](lambda: 123)
 
     res = instance.acquire()
     assert res.is_ok()
@@ -43,10 +42,7 @@ def test_mut():
 
 
 def test_owner():
-    value = Just(123)
-    mut_value = Just('123')
-
-    instance = OwnerRefBox[int, str](lambda: value, lambda: mut_value)
+    instance = OwnerRefBox[int, str](lambda: 123, lambda: '123')
 
     res = instance.borrow()
     assert res.is_ok()
@@ -84,9 +80,7 @@ def test_owner():
 
 
 def test_shared_context():
-    value = Just(123)
-
-    instance = SharedCtxRefBox[int](SyncContext, lambda: value)
+    instance = SharedCtxRefBox[int](SyncContext, lambda: 123)
 
     res = instance.borrow()
     assert res.is_ok()
@@ -102,9 +96,7 @@ def test_shared_context():
 
 
 def test_mut_context():
-    value = Just(123)
-
-    instance = MutCtxRefBox[int](SyncMutContext, lambda: value)
+    instance = MutCtxRefBox[int](SyncMutContext, lambda: 123)
 
     res = instance.acquire()
     assert res.is_ok()
@@ -127,10 +119,7 @@ def test_mut_context():
 
 
 def test_owner_context():
-    value = Just(123)
-    mut_value = Just('123')
-
-    instance = OwnerCtxRefBox[int, str](SyncContext, SyncMutContext, lambda: value, lambda: mut_value)
+    instance = OwnerCtxRefBox[int, str](SyncContext, SyncMutContext, lambda: 123, lambda: '123')
 
     res = instance.borrow()
     assert res.is_ok()
@@ -181,8 +170,8 @@ def test_owning_context_read_write():
 
     instance = OwnerCtxRefBox[dict, dict](
         SyncContext, SyncMutContextWithCallbacks,
-        lambda: Just(value), lambda: Just(value),
-        mut_params=dict(on_apply=lambda v: value.update(v)),
+        partial(deepcopy, value), partial(deepcopy, value),
+        mut_params=dict(callbacks=MutCtxCallbacks(on_apply=Just(lambda v: value.update(v)))),
     )
 
     res = instance.borrow()

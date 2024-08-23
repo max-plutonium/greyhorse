@@ -636,50 +636,182 @@ class AsyncMutContext[T](AsyncContext[T], MutContext):
             await self.apply()
 
 
-class SyncMutContextWithCallbacks[T](SyncMutContext[T]):
-    __slots__ = ('_on_apply', '_on_cancel')
+@dataclass
+class CtxCallbacks:
+    before_create: Maybe[Callable[[...], Any | Awaitable[Any]]] = Nothing
+    after_create: Maybe[Callable[[...], Any | Awaitable[Any]]] = Nothing
+    before_destroy: Maybe[Callable[[...], Any | Awaitable[Any]]] = Nothing
+    after_destroy: Maybe[Callable[[], Any | Awaitable[Any]]] = Nothing
+    on_enter: Maybe[Callable[[...], Any | Awaitable[Any]]] = Nothing
+    on_exit: Maybe[Callable[[...], Any | Awaitable[Any]]] = Nothing
+    on_nested_enter: Maybe[Callable[[...], Any | Awaitable[Any]]] = Nothing
+    on_nested_exit: Maybe[Callable[[...], Any | Awaitable[Any]]] = Nothing
 
-    def __init__(
-        self, on_apply: Callable[[T], Any | Awaitable[Any]] | None = None,
-        on_cancel: Callable[[T], Any | Awaitable[Any]] | None = None,
-        *args, **kwargs,
-    ):
+
+@dataclass
+class MutCtxCallbacks(CtxCallbacks):
+    on_apply: Maybe[Callable[[...], Any | Awaitable[Any]]] = Nothing
+    on_cancel: Maybe[Callable[[...], Any | Awaitable[Any]]] = Nothing
+
+
+class SyncContextWithCallbacks[T](SyncContext[T]):
+    __slots__ = ('_callbacks',)
+
+    def __init__(self, callbacks: CtxCallbacks, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._on_apply = on_apply
-        self._on_cancel = on_cancel
+        self._callbacks = callbacks
+
+    @override
+    def _create(self, **kwargs) -> T:
+        self._callbacks.before_create.map(lambda f: invoke_sync(f, **kwargs))
+        res = self._data.factory(**kwargs)
+        self._callbacks.after_create.map(lambda f: invoke_sync(f, **kwargs))
+        return res
+
+    @override
+    def _destroy(self, instance: T):
+        self._callbacks.before_destroy.map(lambda f: invoke_sync(f, instance))
+        del instance
+        self._callbacks.after_destroy.map(lambda f: invoke_sync(f))
+
+    @override
+    def _enter(self, instance: T):
+        self._callbacks.on_enter.map(lambda f: invoke_sync(f, instance))
+
+    @override
+    def _exit(self, instance: T, exc_type, exc_value, traceback):
+        self._callbacks.on_exit.map(lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback))
+
+    @override
+    def _nested_enter(self, instance: T):
+        self._callbacks.on_nested_enter.map(lambda f: invoke_sync(f, instance))
+
+    @override
+    def _nested_exit(self, instance: T, exc_type, exc_value, traceback):
+        self._callbacks.on_nested_exit.map(lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback))
+
+
+class SyncMutContextWithCallbacks[T](SyncMutContext[T]):
+    def __init__(self, callbacks: MutCtxCallbacks, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._callbacks = callbacks
+
+    @override
+    def _create(self, **kwargs) -> T:
+        self._callbacks.before_create.map(lambda f: invoke_sync(f, **kwargs))
+        res = self._data.factory(**kwargs)
+        self._callbacks.after_create.map(lambda f: invoke_sync(f, **kwargs))
+        return res
+
+    @override
+    def _destroy(self, instance: T):
+        self._callbacks.before_destroy.map(lambda f: invoke_sync(f, instance))
+        del instance
+        self._callbacks.after_destroy.map(lambda f: invoke_sync(f))
+
+    @override
+    def _enter(self, instance: T):
+        self._callbacks.on_enter.map(lambda f: invoke_sync(f, instance))
+
+    @override
+    def _exit(self, instance: T, exc_type, exc_value, traceback):
+        self._callbacks.on_exit.map(lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback))
+
+    @override
+    def _nested_enter(self, instance: T):
+        self._callbacks.on_nested_enter.map(lambda f: invoke_sync(f, instance))
+
+    @override
+    def _nested_exit(self, instance: T, exc_type, exc_value, traceback):
+        self._callbacks.on_nested_exit.map(lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback))
 
     @override
     def _apply(self, instance: T):
-        if self._on_apply:
-            invoke_sync(self._on_apply, instance)
+        self._callbacks.on_apply.map(lambda f: invoke_sync(f, instance))
 
     @override
     def _cancel(self, instance: T):
-        if self._on_cancel:
-            invoke_sync(self._on_cancel, instance)
+        self._callbacks.on_cancel.map(lambda f: invoke_sync(f, instance))
+
+
+class AsyncContextWithCallbacks[T](AsyncContext[T]):
+    __slots__ = ('_callbacks',)
+
+    def __init__(self, callbacks: CtxCallbacks, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._callbacks = callbacks
+
+    @override
+    async def _create(self, **kwargs) -> T:
+        await self._callbacks.before_create.map_async(lambda f: invoke_async(f, **kwargs))
+        res = self._data.factory(**kwargs)
+        await self._callbacks.after_create.map_async(lambda f: invoke_async(f, **kwargs))
+        return res
+
+    @override
+    async def _destroy(self, instance: T):
+        await self._callbacks.before_destroy.map_async(lambda f: invoke_async(f, instance))
+        del instance
+        await self._callbacks.after_destroy.map_async(lambda f: invoke_async(f))
+
+    @override
+    async def _enter(self, instance: T):
+        await self._callbacks.on_enter.map_async(lambda f: invoke_async(f, instance))
+
+    @override
+    async def _exit(self, instance: T, exc_type, exc_value, traceback):
+        await self._callbacks.on_exit.map_async(lambda f: invoke_async(f, instance, exc_type, exc_value, traceback))
+
+    @override
+    async def _nested_enter(self, instance: T):
+        await self._callbacks.on_nested_enter.map_async(lambda f: invoke_async(f, instance))
+
+    @override
+    async def _nested_exit(self, instance: T, exc_type, exc_value, traceback):
+        await self._callbacks.on_nested_exit.map_async(lambda f: invoke_async(f, instance, exc_type, exc_value, traceback))
 
 
 class AsyncMutContextWithCallbacks[T](AsyncMutContext[T]):
-    __slots__ = ('_on_apply', '_on_cancel')
-
-    def __init__(
-        self, on_apply: Callable[[T], Any | Awaitable[Any]] | None = None,
-        on_cancel: Callable[[T], Any | Awaitable[Any]] | None = None,
-        *args, **kwargs,
-    ):
+    def __init__(self, callbacks: MutCtxCallbacks, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._on_apply = on_apply
-        self._on_cancel = on_cancel
+        self._callbacks = callbacks
+
+    @override
+    async def _create(self, **kwargs) -> T:
+        await self._callbacks.before_create.map_async(lambda f: invoke_async(f, **kwargs))
+        res = self._data.factory(**kwargs)
+        await self._callbacks.after_create.map_async(lambda f: invoke_async(f, **kwargs))
+        return res
+
+    @override
+    async def _destroy(self, instance: T):
+        await self._callbacks.before_destroy.map_async(lambda f: invoke_async(f, instance))
+        del instance
+        await self._callbacks.after_destroy.map_async(lambda f: invoke_async(f))
+
+    @override
+    async def _enter(self, instance: T):
+        await self._callbacks.on_enter.map_async(lambda f: invoke_async(f, instance))
+
+    @override
+    async def _exit(self, instance: T, exc_type, exc_value, traceback):
+        await self._callbacks.on_exit.map_async(lambda f: invoke_async(f, instance, exc_type, exc_value, traceback))
+
+    @override
+    async def _nested_enter(self, instance: T):
+        await self._callbacks.on_nested_enter.map_async(lambda f: invoke_async(f, instance))
+
+    @override
+    async def _nested_exit(self, instance: T, exc_type, exc_value, traceback):
+        await self._callbacks.on_nested_exit.map_async(lambda f: invoke_async(f, instance, exc_type, exc_value, traceback))
 
     @override
     async def _apply(self, instance: T):
-        if self._on_apply:
-            await invoke_async(self._on_apply, instance)
+        await self._callbacks.on_apply.map_async(lambda f: invoke_async(f, instance))
 
     @override
     async def _cancel(self, instance: T):
-        if self._on_cancel:
-            await invoke_async(self._on_cancel, instance)
+        await self._callbacks.on_cancel.map_async(lambda f: invoke_async(f, instance))
 
 
 class ContextBuilder[T](TypeWrapper[T]):
