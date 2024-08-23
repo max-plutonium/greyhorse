@@ -139,7 +139,7 @@ class Maybe[T](Enum):
             case Maybe.Just(v): return v
             case Maybe.Nothing: return f()
 
-    def unwrap_or_raise(self, exc: type[ExcType]) -> T:
+    def unwrap_or_raise(self, exc: Callable[[], ExcType]) -> T:
         """
         Returns the contained `Just` value or raise the provided exception.
         """

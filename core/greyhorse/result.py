@@ -189,7 +189,7 @@ class Result[T, E](Enum):
             case Result.Ok(v): return v
             case Result.Err(e): return f(e)
 
-    def unwrap_or_raise(self, exc: type[ExcType]) -> T:
+    def unwrap_or_raise(self, exc: Callable[[], ExcType]) -> T:
         """
         Returns the contained `Ok` value or raise the provided exception.
         """
