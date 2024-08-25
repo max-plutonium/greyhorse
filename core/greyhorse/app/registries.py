@@ -50,18 +50,21 @@ class DictRegistry[K, T](Collector[K, T], ListSelector[K, T]):
 
 class MutDictRegistry[K, T](MutCollector[K, T], DictRegistry[K, T]):
     @override
-    def remove(self, key: K, instance: T) -> bool:
+    def remove(self, key: K, instance: T | None = None) -> bool:
         if key not in self._storage:
             return False
 
         values = self._storage[key]
-        if instance not in values:
-            return False
 
-        values.remove(instance)
-
-        if len(values) == 0:
+        if instance is None:
             del self._storage[key]
+
+        else:
+            if instance not in values:
+                return False
+            values.remove(instance)
+            if len(values) == 0:
+                del self._storage[key]
 
         return True
 
@@ -140,6 +143,6 @@ class ScopedMutDictRegistry[K, T](MutDictRegistry[K, T]):
         return registry.items(filter_fn)
 
     @override
-    def remove(self, key: K, instance: T) -> bool:
+    def remove(self, key: K, instance: T | None = None) -> bool:
         registry = self._get_registry()
         return registry.remove(key, instance)

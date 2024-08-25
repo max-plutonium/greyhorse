@@ -2,9 +2,10 @@ from abc import ABC, abstractmethod
 from typing import Callable
 
 from greyhorse.maybe import Maybe
+from greyhorse.utils.types import TypeWrapper
 
 
-class Selector[K, T](ABC):
+class Selector[K, T](TypeWrapper[K, T], ABC):
     @abstractmethod
     def has(self, key: K) -> bool:
         ...
