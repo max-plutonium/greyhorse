@@ -261,3 +261,15 @@ class ForwardBox[T](Operator[T], ForwardProvider[T]):
     @override
     def __bool__(self) -> bool:
         return self._value.is_just()
+
+
+class PermanentForwardBox[T](ForwardBox[T]):
+    @override
+    def take(self) -> Result[T, ForwardError]:
+        return self._value.map(Ok).unwrap_or(
+            ForwardError.Empty(name=self.wrapped_type.__name__).to_result()
+        )
+
+    @override
+    def drop(self, instance: T):
+        pass
