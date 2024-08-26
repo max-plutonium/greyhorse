@@ -232,8 +232,8 @@ class OwnerCtxRefBox[TS, TM](_BasicRefBox, SharedProvider[TS], MutProvider[TM]):
 class ForwardBox[T](Operator[T], ForwardProvider[T]):
     __slots__ = ('_value',)
 
-    def __init__(self, value: Maybe[T] = Nothing):
-        self._value = value
+    def __init__(self, value: T | None = None):
+        self._value = Maybe(value)
 
     @override
     def accept(self, value: T) -> bool:
