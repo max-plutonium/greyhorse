@@ -1,12 +1,10 @@
-from greyhorse.app.abc.operators import Operator
 from greyhorse.app.builders.loader import ModuleLoader
 from greyhorse.app.entities.components import Component, ModuleComponent
 from greyhorse.app.entities.module import Module
-from greyhorse.app.registries import MutDictRegistry
-from greyhorse.app.schemas.components import ModuleConf, ComponentConf, ModuleComponentConf
+from greyhorse.app.schemas.components import ComponentConf, ModuleComponentConf, ModuleConf
 from greyhorse.error import Error, ErrorCase
 from greyhorse.logging import logger
-from greyhorse.result import Result, Ok, Err
+from greyhorse.result import Err, Ok, Result
 
 
 class ModuleBuildError(Error):
@@ -14,20 +12,19 @@ class ModuleBuildError(Error):
 
     Disabled = ErrorCase(msg='Module is disabled: "{path}"', path=str)
     Factory = ErrorCase(
-        msg='Module factory error: "{path}", details: "{details}"',
-        path=str, details=str,
+        msg='Module factory error: "{path}", details: "{details}"', path=str, details=str,
     )
     LoadError = ErrorCase(
-        msg='Load error in component: "{path}", details: "{details}"',
-        path=str, details=str,
+        msg='Load error in component: "{path}", details: "{details}"', path=str, details=str,
     )
     UnloadError = ErrorCase(
-        msg='Unload error in component: "{path}", details: "{details}"',
-        path=str, details=str,
+        msg='Unload error in component: "{path}", details: "{details}"', path=str, details=str,
     )
     ComponentError = ErrorCase(
         msg='Component error in module: "{path}" "{name}", details: "{details}"',
-        path=str, name=str, details=str,
+        path=str,
+        name=str,
+        details=str,
     )
 
 
@@ -37,16 +34,20 @@ class ComponentBuildError(Error):
     Disabled = ErrorCase(msg='Component is disabled: "{path}" "{name}"', path=str, name=str)
     Factory = ErrorCase(
         msg='Component factory error: "{path}" "{name}", details: "{details}"',
-        path=str, name=str, details=str,
+        path=str,
+        name=str,
+        details=str,
     )
     Submodule = ErrorCase(
         msg='Component submodule error: "{path}" "{name}", details: "{details}"',
-        path=str, name=str, details=str,
+        path=str,
+        name=str,
+        details=str,
     )
 
 
 class ModuleBuilder:
-    def __init__(self, conf: ModuleConf, path: str):
+    def __init__(self, conf: ModuleConf, path: str) -> None:
         self._conf = conf
         self._path = path
 
@@ -56,18 +57,13 @@ class ModuleBuilder:
 
         logger.info('{path}: Module create'.format(path=self._path))
 
-        operator_reg = MutDictRegistry[type, Operator]()
-
-        if not (res := self._create_components(operator_reg)):
+        if not (res := self._create_components()):
             return res
 
         components = res.unwrap()
 
         try:
-            instance = Module(
-                path=self._path, conf=self._conf,
-                components=components, operator_reg=operator_reg,
-            )
+            instance = Module(path=self._path, conf=self._conf, components=components)
 
         except Exception as e:
             error = ModuleBuildError.Factory(path=self._path, details=str(e))
@@ -90,79 +86,71 @@ class ModuleBuilder:
         return Ok(None)
 
     def _create_component(
-        self, conf: ComponentConf, operator_reg: MutDictRegistry[type, Operator],
+        self, name: str, conf: ComponentConf,
     ) -> Result[Component, ComponentBuildError]:
         if not conf.enabled:
-            return ComponentBuildError.Disabled(path=self._path, name=conf.name).to_result()
+            return ComponentBuildError.Disabled(path=self._path, name=name).to_result()
 
-        logger.info(
-            '{path}: Component "{name}" creation'
-            .format(path=self._path, name=conf.name)
-        )
+        logger.info('{path}: Component "{name}" creation'.format(path=self._path, name=name))
 
         try:
-            instance = Component(
-                name=conf.name, path=self._path,
-                conf=conf, operator_reg=operator_reg,
-            )
+            instance = Component(name=name, path=self._path, conf=conf)
 
         except Exception as e:
-            error = ComponentBuildError.Factory(path=self._path, name=conf.name, details=str(e))
+            error = ComponentBuildError.Factory(path=self._path, name=name, details=str(e))
             logger.error(error.message)
             return error.to_result()
 
         logger.info(
-            '{path}: Component "{name}" created successfully'
-            .format(path=self._path, name=conf.name)
+            '{path}: Component "{name}" created successfully'.format(path=self._path, name=name),
         )
 
         return Ok(instance)
 
     def _create_module_component(
-        self, conf: ModuleComponentConf,
+        self, name: str, conf: ModuleComponentConf,
     ) -> Result[ModuleComponent, ComponentBuildError]:
         if not conf.enabled:
-            return ComponentBuildError.Disabled(path=self._path, name=conf.name).to_result()
+            return ComponentBuildError.Disabled(path=self._path, name=name).to_result()
 
         logger.info(
-            '{path}: Module component "{name}" create'
-            .format(path=self._path, name=conf.name)
+            '{path}: Module component "{name}" create'.format(path=self._path, name=name),
         )
 
-        if not (res := load_module(f'{self._path}.{conf.name}', conf).map_err(
-            lambda e: ComponentBuildError.Submodule(path=self._path, name=conf.name, details=e.message)
-        )):
+        if not (
+            res := load_module(f'{self._path}.{name}', conf).map_err(
+                lambda e: ComponentBuildError.Submodule(
+                    path=self._path, name=name, details=e.message,
+                ),
+            )
+        ):
             return res
 
         module = res.unwrap()
 
         try:
-            instance = ModuleComponent(
-                name=conf.name, path=self._path,
-                conf=conf, module=module,
-            )
+            instance = ModuleComponent(name=name, path=self._path, conf=conf, module=module)
 
         except Exception as e:
-            error = ComponentBuildError.Factory(path=self._path, name=conf.name, details=str(e))
+            error = ComponentBuildError.Factory(path=self._path, name=name, details=str(e))
             logger.error(error.message)
             return error.to_result()
 
         logger.info(
-            '{path}: Module component "{name}" created successfully'
-            .format(path=self._path, name=conf.name)
+            '{path}: Module component "{name}" created successfully'.format(
+                path=self._path, name=name,
+            ),
         )
 
         return Ok(instance)
 
-    def _create_components(
-        self, operator_reg: MutDictRegistry[type, Operator],
-    ) -> Result[list[Component], ModuleBuildError]:
+    def _create_components(self) -> Result[list[Component], ModuleBuildError]:
         result = []
 
-        for conf in self._conf.components:
+        for name, conf in self._conf.components.items():
             match conf:
-                case ComponentConf() as conf:
-                    match self._create_component(conf, operator_reg):
+                case ModuleComponentConf() as conf:
+                    match self._create_module_component(name, conf):
                         case Ok(component):
                             result.append(component)
 
@@ -172,13 +160,13 @@ class ModuleBuilder:
                                     logger.info(e.message)
                                 case _:
                                     error = ModuleBuildError.ComponentError(
-                                        path=self._path, name=conf.name, details=e.message,
+                                        path=self._path, name=name, details=e.message,
                                     )
                                     logger.error(error.message)
                                     return error.to_result()
 
-                case ModuleComponentConf() as conf:
-                    match self._create_module_component(conf):
+                case ComponentConf() as conf:
+                    match self._create_component(name, conf):
                         case Ok(component):
                             result.append(component)
 
@@ -188,7 +176,7 @@ class ModuleBuilder:
                                     logger.info(e.message)
                                 case _:
                                     error = ModuleBuildError.ComponentError(
-                                        path=self._path, name=conf.name, details=e.message,
+                                        path=self._path, name=name, details=e.message,
                                     )
                                     logger.error(error.message)
                                     return error.to_result()
@@ -196,9 +184,9 @@ class ModuleBuilder:
         return Ok(result)
 
     def _destroy_components(self) -> Result[None, ModuleBuildError]:
-        for conf in reversed(self._conf.components):
+        for name, conf in reversed(self._conf.components.items()):
             if not conf.enabled:
-                return ComponentBuildError.Disabled(path=self._path, name=conf.name).to_result()
+                return ComponentBuildError.Disabled(path=self._path, name=name).to_result()
 
             match conf:
                 case ComponentConf():
@@ -206,31 +194,37 @@ class ModuleBuilder:
 
                 case ModuleComponentConf() as conf:
                     logger.info(
-                        '{path}: Module component "{name}" destroy'
-                        .format(path=self._path, name=conf.name)
+                        '{path}: Module component "{name}" destroy'.format(
+                            path=self._path, name=name,
+                        ),
                     )
 
-                    if not (res := unload_module(f'{self._path}.{conf.name}', conf).map_err(
-                        lambda e: ModuleBuildError.UnloadError(path=self._path, details=e.message)
-                    )):
+                    if not (
+                        res := unload_module(f'{self._path}.{name}', conf).map_err(
+                            lambda e: ModuleBuildError.UnloadError(
+                                path=self._path, details=e.message,
+                            ),
+                        )
+                    ):
                         return res
 
                     logger.info(
-                        '{path}: Module component "{name}" destroyed successfully'
-                        .format(path=self._path, name=conf.name)
+                        '{path}: Module component "{name}" destroyed successfully'.format(
+                            path=self._path, name=name,
+                        ),
                     )
 
         return Ok(None)
 
 
-def load_module(
-    path: str, conf: ModuleComponentConf,
-) -> Result[Module, ModuleBuildError]:
+def load_module(path: str, conf: ModuleComponentConf) -> Result[Module, ModuleBuildError]:
     loader = ModuleLoader()
 
-    if not (res := loader.load_pass(conf).map_err(
-        lambda e: ModuleBuildError.LoadError(path=conf.path, details=e.message)
-    )):
+    if not (
+        res := loader.load_pass(conf).map_err(
+            lambda e: ModuleBuildError.LoadError(path=conf.path, details=e.message),
+        )
+    ):
         return res
 
     module_conf = res.unwrap()
@@ -243,9 +237,7 @@ def load_module(
     return Ok(module)
 
 
-def unload_module(
-    path: str, conf: ModuleComponentConf,
-) -> Result[None, ModuleBuildError]:
+def unload_module(path: str, conf: ModuleComponentConf) -> Result[None, ModuleBuildError]:
     builder = ModuleBuilder(conf._conf, path)
 
     if not (res := builder.destroy_pass()):
@@ -254,5 +246,5 @@ def unload_module(
     loader = ModuleLoader()
 
     return loader.unload_pass(conf).map_err(
-        lambda e: ModuleBuildError.UnloadError(path=conf.path, details=e.message)
+        lambda e: ModuleBuildError.UnloadError(path=conf.path, details=e.message),
     )

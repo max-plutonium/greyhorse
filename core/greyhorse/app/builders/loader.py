@@ -5,7 +5,7 @@ import pydantic
 from greyhorse.app.schemas.components import ModuleComponentConf, ModuleConf
 from greyhorse.error import Error, ErrorCase
 from greyhorse.logging import logger
-from greyhorse.result import Result, Ok
+from greyhorse.result import Ok, Result
 from greyhorse.utils.imports import import_path
 from greyhorse.utils.injectors import ParamsInjector
 from greyhorse.utils.invoke import invoke_sync
@@ -16,9 +16,15 @@ class ModuleLoadError(Error):
 
     Disabled = ErrorCase(msg='Module is disabled: "{path}"', path=str)
     AlreadyLoaded = ErrorCase(msg='Module already loaded: "{path}"', path=str)
-    WrongImport = ErrorCase(msg='Module import error: "{path}", details: "{details}"', path=str, details=str)
-    Validation = ErrorCase(msg='Module validation error: "{path}", details: "{details}"', path=str, details=str)
-    Unexpected = ErrorCase(msg='Module unexpected error: "{path}", details: "{details}"', path=str, details=str)
+    WrongImport = ErrorCase(
+        msg='Module import error: "{path}", details: "{details}"', path=str, details=str,
+    )
+    Validation = ErrorCase(
+        msg='Module validation error: "{path}", details: "{details}"', path=str, details=str,
+    )
+    Unexpected = ErrorCase(
+        msg='Module unexpected error: "{path}", details: "{details}"', path=str, details=str,
+    )
     InvalidConf = ErrorCase(msg='Module conf is invalid: "{path}"', path=str)
 
 
@@ -27,11 +33,13 @@ class ModuleUnloadError(Error):
 
     Disabled = ErrorCase(msg='Module is disabled: "{path}"', path=str)
     AlreadyUnloaded = ErrorCase(msg='Module already unloaded: "{path}"', path=str)
-    Unexpected = ErrorCase(msg='Module unexpected error: "{path}", details: "{details}"', path=str, details=str)
+    Unexpected = ErrorCase(
+        msg='Module unexpected error: "{path}", details: "{details}"', path=str, details=str,
+    )
 
 
 class ModuleLoader:
-    def __init__(self):
+    def __init__(self) -> None:
         self._injector = ParamsInjector()
 
     # noinspection PyProtectedMember
@@ -69,16 +77,16 @@ class ModuleLoader:
         dots_count = 0
 
         for c in path[1:]:
-            if '.' == c:
+            if c == '.':
                 dots_count += 1
             else:
-                path = path[dots_count + 1:]
+                path = path[dots_count + 1 :]
                 break
 
         init_path = conf._init_path
         dots_count = min(dots_count, len(init_path))
-        init_path = init_path[0:len(init_path) - dots_count]
-        return '.'.join(init_path + [path])
+        init_path = init_path[0 : len(init_path) - dots_count]
+        return '.'.join([*init_path, path])
 
     def _load_module(self, conf: ModuleComponentConf) -> Result[ModuleConf, ModuleLoadError]:
         module_path = self._get_module_package(conf)
@@ -111,7 +119,9 @@ class ModuleLoader:
             logger.error(error.message)
             return error.to_result()
 
-        logger.info('ModuleLoader: Module "{path}" loaded successfully'.format(path=module_path))
+        logger.info(
+            'ModuleLoader: Module "{path}" loaded successfully'.format(path=module_path),
+        )
         return Ok(res)
 
     # noinspection PyProtectedMember
@@ -139,5 +149,7 @@ class ModuleLoader:
         del conf
         del sys.modules[module_path]
 
-        logger.info('ModuleLoader: Module "{path}" unloaded successfully'.format(path=module_path))
+        logger.info(
+            'ModuleLoader: Module "{path}" unloaded successfully'.format(path=module_path),
+        )
         return Ok(None)
