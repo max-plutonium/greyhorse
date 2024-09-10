@@ -1,23 +1,23 @@
 from abc import ABC, abstractmethod
 from functools import partial
-from typing import Awaitable, override, Union, Any, Literal, Callable
+from typing import Any, Awaitable, Callable, Literal, Union, override
 
-from greyhorse.maybe import Maybe, Just, Nothing
+from greyhorse.maybe import Just, Maybe, Nothing
 from greyhorse.utils.types import TypeWrapper
 
 
 class Operator[T](TypeWrapper[T], ABC):
     @abstractmethod
-    def accept(self, instance: T) -> Union[bool, Awaitable[bool]]:
-        ...
+    def accept(self, instance: T) -> Union[bool, Awaitable[bool]]: ...
 
     @abstractmethod
-    def revoke(self) -> Maybe[T] | Awaitable[Maybe[T]]:
-        ...
+    def revoke(self) -> Maybe[T] | Awaitable[Maybe[T]]: ...
 
 
 class AssignOperator[T](Operator[T]):
-    def __init__(self, getter: Callable[[], Maybe[T]], setter: Callable[[Maybe[T]], Any]):
+    def __init__(
+        self, getter: Callable[[], Maybe[T]], setter: Callable[[Maybe[T]], Any],
+    ) -> None:
         super().__init__()
         self._getter = getter
         self._setter = setter
@@ -40,8 +40,8 @@ class AssignOperator[T](Operator[T]):
 
 
 class AttrOperator[T](AssignOperator[T]):
-    def __init__(self, instance: object, attr: str):
+    def __init__(self, instance: object, attr: str) -> None:
         if hasattr(instance, attr):
             super().__init__(partial(getattr, instance, attr), partial(setattr, instance, attr))
         else:
-            raise ValueError(f'Instance {repr(instance)} has no attribute "{attr}"')
+            raise ValueError(f'Instance {instance!r} has no attribute "{attr}"')

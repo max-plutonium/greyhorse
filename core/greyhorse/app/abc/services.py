@@ -1,12 +1,14 @@
 import asyncio
+import inspect
 import threading
 from abc import ABC, abstractmethod
-from typing import Awaitable, Callable
+from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import Any, Awaitable, Callable
 
-from greyhorse.enum import Enum, Unit, Tuple, Struct
+from greyhorse.enum import Enum, Struct, Tuple, Unit
 from greyhorse.error import Error, ErrorCase
 from greyhorse.result import Result
-from .collectors import Collector, MutCollector
 from .operators import Operator
 from .providers import Provider
 from .selectors import ListSelector
@@ -26,8 +28,12 @@ class ServiceError(Error):
     namespace = 'greyhorse.app'
 
     Factory = ErrorCase(msg='Service factory error: "{details}"', details=str)
-    AutoProvision = ErrorCase(msg='Service error occurred during setup resources: "{details}"', details=str)
-    Collect = ErrorCase(msg='Service error occurred during collect providers: "{details}"', details=str)
+    AutoProvision = ErrorCase(
+        msg='Service error occurred during setup resources: "{details}"', details=str,
+    )
+    Collect = ErrorCase(
+        msg='Service error occurred during collect providers: "{details}"', details=str,
+    )
 
 
 type ServiceFactoryFn = Callable[[...], Service | Result[Service, ServiceError]]
@@ -39,7 +45,8 @@ class ProvisionError(Error):
 
     WrongState = ErrorCase(
         msg='Cannot create provider "{type_}" because service is in wrong state: "{state}"',
-        name=str, state=str,
+        name=str,
+        state=str,
     )
 
     InsufficientDeps = ErrorCase(
@@ -51,9 +58,39 @@ class ProvisionError(Error):
     Provision = ErrorCase(msg='Provision error occurred: "{details}"', details=str)
 
 
+@dataclass(slots=True, frozen=True)
+class ProviderMember:
+    class_name: str
+    method_name: str
+    resource_type: type
+    provider_type: type[Provider]
+    method: classmethod
+    params: dict[str, type] = field(default_factory=dict)
+    ret_type: type | None = None
+
+
+def _is_provider_member(member: classmethod) -> bool:
+    return hasattr(member, '__provider__')
+
+
 class Service(ABC):
-    def __init__(self):
+    def __init__(self) -> None:
         self._state = ServiceState.Idle
+        self._providers: dict[type, list[type[Provider]]] = defaultdict(list)
+        self._provider_members: dict[type[Provider], ProviderMember] = {}
+        self._init_provider_members()
+
+    def _init_provider_members(self) -> None:
+        provider_members = inspect.getmembers(self, _is_provider_member)
+
+        for _, member in provider_members:
+            member = member.__provider__
+            self._providers[member.resource_type].append(member.provider_type)
+            self._provider_members[member.provider_type] = member
+
+    def inspect(self, callback: Callable[[ProviderMember], Any]) -> None:
+        for member in self._provider_members.values():
+            callback(member)
 
     @property
     def state(self) -> ServiceState:
@@ -61,49 +98,33 @@ class Service(ABC):
 
     @property
     @abstractmethod
-    def waiter(self) -> ServiceWaiter:
-        ...
+    def waiter(self) -> ServiceWaiter: ...
 
     @abstractmethod
     def setup(
-        self, selector: ListSelector[type, Operator],
-        collector: Collector[type[Provider], Provider],
-    ) -> Result[ServiceState, ServiceError] | Awaitable[Result[ServiceState, ServiceError]]:
-        ...
+        self, operators: ListSelector[type, Operator],
+    ) -> Result[ServiceState, ServiceError] | Awaitable[Result[ServiceState, ServiceError]]: ...
 
     @abstractmethod
     def teardown(
-        self, selector: ListSelector[type, Operator],
-        collector: MutCollector[type[Provider], Provider],
-    ) -> Result[ServiceState, ServiceError] | Awaitable[Result[ServiceState, ServiceError]]:
-        ...
+        self, operators: ListSelector[type, Operator],
+    ) -> Result[ServiceState, ServiceError] | Awaitable[Result[ServiceState, ServiceError]]: ...
 
-    @abstractmethod
     def can_provide(self, resource_type: type) -> bool:
-        ...
+        if resource_type not in self._providers:
+            return False
+        return len(self._providers[resource_type]) > 0
 
-    @abstractmethod
     def get_resource_types(self) -> list[type]:
-        ...
+        return list(self._providers.keys())
 
-    @abstractmethod
     def get_provider_types(self, resource_type: type) -> list[type[Provider]]:
-        ...
+        if resource_type not in self._providers:
+            return []
+        return self._providers[resource_type].copy()
 
-    @abstractmethod
-    def setup_resource(
-        self, prov_type: type[Provider], operator: Operator, *args, **kwargs,
-    ) -> Result[None, ProvisionError] | Awaitable[Result[None, ProvisionError]]:
-        ...
-
-    @abstractmethod
-    def teardown_resource[T](
-        self, prov_type: type[Provider], operator: Operator,
-    ) -> Result[None, ProvisionError] | Awaitable[Result[None, ProvisionError]]:
-        ...
-
-    def _switch_to_idle(self):
+    def _switch_to_idle(self) -> None:
         self._state = ServiceState.Idle
 
-    def _switch_to_active(self, started: bool = False):
+    def _switch_to_active(self, started: bool = False) -> None:
         self._state = ServiceState.Active(started=started)
