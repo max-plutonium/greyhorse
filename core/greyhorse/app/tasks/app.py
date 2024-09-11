@@ -1,11 +1,11 @@
-from ..entities.application import Application
 from ...logging import logger
 from ...utils.imports import import_path
 from ...utils.injectors import ParamsInjector
 from ...utils.invoke import invoke_sync
+from ..entities.application import Application
 
 
-def load_packages(app: Application, key: str, **kwargs):
+def load_packages(app: Application, key: str, **kwargs) -> None:
     from tomlkit import parse
 
     packages = {}

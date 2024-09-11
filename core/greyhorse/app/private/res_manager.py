@@ -3,7 +3,10 @@ from functools import partial
 
 import networkx as nx
 
-from .mappers import SyncResourceMapper
+from ...error import Error, ErrorCase
+from ...result import Err, Ok, Result
+from ...utils.injectors import ParamsInjector
+from ...utils.invoke import invoke_sync
 from ..abc.controllers import Controller, OperatorMember
 from ..abc.operators import Operator
 from ..abc.providers import (
@@ -16,10 +19,7 @@ from ..abc.providers import (
 from ..abc.selectors import Selector
 from ..abc.services import ProviderMember, Service
 from ..registries import MutDictRegistry
-from ...error import Error, ErrorCase
-from ...result import Err, Ok, Result
-from ...utils.injectors import ParamsInjector
-from ...utils.invoke import invoke_sync
+from .mappers import SyncResourceMapper
 
 
 class ResourceError(Error):

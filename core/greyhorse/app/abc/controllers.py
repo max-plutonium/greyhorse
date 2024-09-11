@@ -5,10 +5,11 @@ from typing import Any, Awaitable, Callable, Union
 
 from greyhorse.error import Error, ErrorCase
 from greyhorse.result import Result
+
+from ...utils.types import TypeWrapper
 from .collectors import Collector, MutCollector
 from .providers import Provider
 from .selectors import ListSelector
-from ...utils.types import TypeWrapper
 
 
 class ControllerError(Error):

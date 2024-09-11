@@ -1,18 +1,18 @@
 from collections import defaultdict
-from typing import override, Callable
+from typing import Callable, override
 
 from greyhorse.app.abc.collectors import Collector, MutCollector
 from greyhorse.app.abc.selectors import ListSelector
-from greyhorse.maybe import Nothing, Maybe, Just
+from greyhorse.maybe import Just, Maybe, Nothing
 
 
 class DictRegistry[K, T](Collector[K, T], ListSelector[K, T]):
     __slots__ = ('_storage',)
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._storage: dict[K, list[T]] = defaultdict(list)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._storage)
 
     @override
@@ -72,7 +72,7 @@ class MutDictRegistry[K, T](MutCollector[K, T], DictRegistry[K, T]):
 class ScopedDictRegistry[K, T](DictRegistry[K, T]):
     def __init__(
         self, factory: Callable[[], DictRegistry[K, T]], scope_func: Callable[[], str],
-    ):
+    ) -> None:
         super().__init__()
         self._scope_func = scope_func
         self._storage: dict[str, DictRegistry[K, T]] = defaultdict(factory)
@@ -81,7 +81,7 @@ class ScopedDictRegistry[K, T](DictRegistry[K, T]):
         key = self._scope_func()
         return self._storage[key]
 
-    def __len__(self):
+    def __len__(self) -> int:
         registry = self._get_registry()
         return registry.__len__()
 
@@ -109,7 +109,7 @@ class ScopedDictRegistry[K, T](DictRegistry[K, T]):
 class ScopedMutDictRegistry[K, T](MutDictRegistry[K, T]):
     def __init__(
         self, factory: Callable[[], MutDictRegistry[K, T]], scope_func: Callable[[], str],
-    ):
+    ) -> None:
         super().__init__()
         self._scope_func = scope_func
         self._storage: dict[str, MutDictRegistry[K, T]] = defaultdict(factory)
@@ -118,7 +118,7 @@ class ScopedMutDictRegistry[K, T](MutDictRegistry[K, T]):
         key = self._scope_func()
         return self._storage[key]
 
-    def __len__(self):
+    def __len__(self) -> int:
         registry = self._get_registry()
         return registry.__len__()
 

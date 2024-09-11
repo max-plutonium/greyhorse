@@ -3,6 +3,7 @@ import threading
 from typing import get_type_hints, override
 
 from greyhorse.result import Ok, Result
+
 from ..abc.operators import Operator
 from ..abc.providers import Provider
 from ..abc.selectors import ListSelector

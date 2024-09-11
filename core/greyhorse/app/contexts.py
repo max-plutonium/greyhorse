@@ -4,28 +4,52 @@ import asyncio
 import threading
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from contextlib import AbstractAsyncContextManager, AbstractContextManager, AsyncExitStack, ExitStack
+from contextlib import (
+    AbstractAsyncContextManager,
+    AbstractContextManager,
+    AsyncExitStack,
+    ExitStack,
+    suppress,
+)
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import Any, AsyncContextManager, Awaitable, Callable, ContextManager, Mapping, override
+from typing import (
+    Any,
+    AsyncContextManager,
+    Awaitable,
+    Callable,
+    ContextManager,
+    Mapping,
+    override,
+)
 from uuid import uuid4
 
 from greyhorse.enum import Enum, Struct, Unit
-from greyhorse.maybe import Maybe, Nothing, Just
-from greyhorse.utils.invoke import get_asyncio_loop, invoke_async, invoke_sync, is_like_sync_context_manager, \
-    is_like_async_context_manager
+from greyhorse.maybe import Just, Maybe, Nothing
+from greyhorse.utils.invoke import (
+    get_asyncio_loop,
+    invoke_async,
+    invoke_sync,
+    is_like_async_context_manager,
+    is_like_sync_context_manager,
+)
 from greyhorse.utils.types import TypeWrapper
 
 type FieldFactory[T] = (
-    T | Callable[[], Awaitable[T] | T] |
-    AbstractContextManager[T] | AbstractAsyncContextManager[T] |
-    Callable[[], AbstractContextManager[T]] | Callable[[], AbstractAsyncContextManager[T]]
+    T
+    | Callable[[], Awaitable[T] | T]
+    | AbstractContextManager[T]
+    | AbstractAsyncContextManager[T]
+    | Callable[[], AbstractContextManager[T]]
+    | Callable[[], AbstractAsyncContextManager[T]]
 )
 
 
 type ContextManagerLike[T] = (
-    AbstractContextManager[T] | AbstractAsyncContextManager[T] |
-    Callable[[], AbstractContextManager[T]] | Callable[[], AbstractAsyncContextManager[T]]
+    AbstractContextManager[T]
+    | AbstractAsyncContextManager[T]
+    | Callable[[], AbstractContextManager[T]]
+    | Callable[[], AbstractAsyncContextManager[T]]
 )
 
 
@@ -48,18 +72,18 @@ class InvalidContextState(RuntimeError):
     pass
 
 
-class Context(object):
+class Context:
     __slots__ = ('_state', '_data', '_parent', '_prev')
 
     def __init__(
-        self, factory: Callable[[...], Any],
+        self,
+        factory: Callable[[...], Any],
         fields: Mapping[str, FieldFactory[Any]] | None = None,
         finalizers: list[Callable[[], Awaitable[None] | None]] | None = None,
-    ):
+    ) -> None:
         self._state = ContextState[Any].Idle
         self._data = ContextData(
-            factory=factory, field_factories=fields or {},
-            finalizers=finalizers or [],
+            factory=factory, field_factories=fields or {}, finalizers=finalizers or [],
         )
         self._parent: Maybe[Context] = Nothing
         self._prev: Maybe[Context] = Nothing
@@ -86,28 +110,25 @@ class Context(object):
 
 class MutContext(Context, ABC):
     @abstractmethod
-    def apply(self) -> Awaitable[None] | None:
-        ...
+    def apply(self) -> Awaitable[None] | None: ...
 
     @abstractmethod
-    def cancel(self) -> Awaitable[None] | None:
-        ...
+    def cancel(self) -> Awaitable[None] | None: ...
 
     @abstractmethod
-    def mutable_children(self) -> list[MutContext]:
-        ...
+    def mutable_children(self) -> list[MutContext]: ...
 
 
 class _ContextStorage(threading.local):
     __slots__ = ('_storage',)
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._storage: dict[type, list[Context]] = defaultdict(list)
 
-    def add(self, kind: type, instance: Context):
+    def add(self, kind: type, instance: Context) -> None:
         self._storage[kind].append(instance)
 
-    def remove(self, kind: type, instance: Context):
+    def remove(self, kind: type, instance: Context) -> None:
         self._storage[kind].remove(instance)
 
     def get_last(self, kind: type) -> Maybe[Context]:
@@ -123,35 +144,31 @@ _context_storage = _ContextStorage()
 def current_context(kind: type | None = None) -> Maybe[Context]:
     if kind is None:
         return Maybe(_current_context.get(None))
-    else:
-        return _context_storage.get_last(kind)
+    return _context_storage.get_last(kind)
 
 
 def current_scope_id(kind: type | None = None) -> str:
     if kind is None:
         if ctx := _current_context.get(None):
             return ctx.ident
-    else:
-        if ctx := _context_storage.get_last(kind):
-            return ctx.unwrap().ident
+    elif ctx := _context_storage.get_last(kind):
+        return ctx.unwrap().ident
 
     if loop := get_asyncio_loop():
         return f'asyncio:{id(asyncio.current_task(loop))}'
-    else:
-        return f'thread:{threading.current_thread().ident}'
+    return f'thread:{threading.current_thread().ident}'
 
 
 class SyncContext[T](Context, TypeWrapper[T], ContextManager):
-    __slots__ = (
-        '_sync_stack', '_context_managers', '_children', '_lock',
-    )
+    __slots__ = ('_sync_stack', '_context_managers', '_children', '_lock')
 
     def __init__(
-        self, factory: Callable[[...], T],
+        self,
+        factory: Callable[[...], T],
         fields: dict[str, FieldFactory[T]] | None = None,
         finalizers: list[Callable[[], Awaitable[None] | None]] | None = None,
         contexts: list[ContextManagerLike[T]] | None = None,
-    ):
+    ) -> None:
         fields = fields.copy() if fields else {}
         children: list[SyncContext] = []
         context_managers: list[tuple[ContextManagerLike, str | None]] = []
@@ -193,9 +210,8 @@ class SyncContext[T](Context, TypeWrapper[T], ContextManager):
         for ctx, field in self._context_managers:
             if callable(ctx):
                 ctx = ctx()
-            if value := self._sync_stack.enter_context(ctx):
-                if field is not None:
-                    kwargs[field] = value
+            if (value := self._sync_stack.enter_context(ctx)) and field is not None:
+                kwargs[field] = value
 
         for name, value in self._data.field_factories.items():
             if callable(value):
@@ -210,24 +226,18 @@ class SyncContext[T](Context, TypeWrapper[T], ContextManager):
 
         return instance
 
-    def _switch_to_idle(self, instance: T, exc_type, exc_value, traceback):
+    def _switch_to_idle(self, instance: T, exc_type, exc_value, traceback) -> None:
         _context_storage.remove(type(instance), self)
 
-        try:
+        with suppress(Exception):
             self._destroy(instance)
-        except Exception:
-            pass
 
-        try:
+        with suppress(Exception):
             self._sync_stack.__exit__(exc_type, exc_value, traceback)
-        except Exception:
-            pass
 
         for finalizer in self._data.finalizers:
-            try:
+            with suppress(Exception):
                 invoke_sync(finalizer)
-            except Exception:
-                pass
 
         _current_context.set(self._prev.unwrap_or_none())
         self._prev = self._parent = Nothing
@@ -235,19 +245,19 @@ class SyncContext[T](Context, TypeWrapper[T], ContextManager):
     def _create(self, **kwargs) -> T:
         return self._data.factory(**kwargs)
 
-    def _destroy(self, instance: T):
+    def _destroy(self, instance: T) -> None:
         del instance
 
-    def _enter(self, instance: T):
+    def _enter(self, instance: T) -> None:
         pass
 
-    def _exit(self, instance: T, exc_type, exc_value, traceback):
+    def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:
         pass
 
-    def _nested_enter(self, instance: T):
+    def _nested_enter(self, instance: T) -> None:
         pass
 
-    def _nested_exit(self, instance: T, exc_type, exc_value, traceback):
+    def _nested_exit(self, instance: T, exc_type, exc_value, traceback) -> None:
         pass
 
     @override
@@ -282,9 +292,11 @@ class SyncContext[T](Context, TypeWrapper[T], ContextManager):
                 case ContextState.Idle:
                     raise InvalidContextState('Context exit on idle state')
 
-                case ContextState.InUse(count, value) \
-                        | ContextState.Applied(count, value) \
-                        | ContextState.Cancelled(count, value):
+                case (
+                    ContextState.InUse(count, value)
+                    | ContextState.Applied(count, value)
+                    | ContextState.Cancelled(count, value)
+                ):
                     if count > 1:
                         self._nested_exit(value, exc_type, exc_value, traceback)
                         self._state = self._state.__class__(count=count - 1, value=value)
@@ -295,17 +307,17 @@ class SyncContext[T](Context, TypeWrapper[T], ContextManager):
 
 
 class SyncMutContext[T](SyncContext[T], MutContext):
-    __slots__ = (
-        '_mut_children', '_force_rollback', '_auto_apply',
-    )
+    __slots__ = ('_mut_children', '_force_rollback', '_auto_apply')
 
     def __init__(
-        self, factory: Callable[[...], T],
+        self,
+        factory: Callable[[...], T],
         fields: dict[str, FieldFactory[T]] | None = None,
         finalizers: list[Callable[[], Awaitable[None] | None]] | None = None,
         contexts: list[ContextManagerLike[T]] | None = None,
-        force_rollback: bool = False, auto_apply: bool = False,
-    ):
+        force_rollback: bool = False,
+        auto_apply: bool = False,
+    ) -> None:
         super().__init__(factory, fields, finalizers, contexts)
         self._mut_children = []
         self._force_rollback = force_rollback
@@ -319,10 +331,10 @@ class SyncMutContext[T](SyncContext[T], MutContext):
     def mutable_children(self) -> list[MutContext]:
         return self._mut_children.copy()
 
-    def _apply(self, instance: T):
+    def _apply(self, instance: T) -> None:
         pass
 
-    def _cancel(self, instance: T):
+    def _cancel(self, instance: T) -> None:
         pass
 
     @override
@@ -364,7 +376,7 @@ class SyncMutContext[T](SyncContext[T], MutContext):
                     pass
 
     @override
-    def _exit(self, instance: T, exc_type, exc_value, traceback):
+    def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:
         if self._force_rollback or exc_type is not None:
             self.cancel()
         elif self._auto_apply:
@@ -373,17 +385,22 @@ class SyncMutContext[T](SyncContext[T], MutContext):
 
 class AsyncContext[T](Context, TypeWrapper[T], AsyncContextManager):
     __slots__ = (
-        '_sync_stack', '_async_stack',
-        '_sync_sub_contexts', '_async_sub_contexts',
-        '_sync_children', '_async_children', '_lock',
+        '_sync_stack',
+        '_async_stack',
+        '_sync_sub_contexts',
+        '_async_sub_contexts',
+        '_sync_children',
+        '_async_children',
+        '_lock',
     )
 
     def __init__(
-        self, factory: Callable[[...], T],
+        self,
+        factory: Callable[[...], T],
         fields: dict[str, FieldFactory[T]] | None = None,
         finalizers: list[Callable[[], Awaitable[None] | None]] | None = None,
         contexts: list[ContextManagerLike[T]] | None = None,
-    ):
+    ) -> None:
         fields = fields.copy() if fields else {}
         sync_children: list[SyncContext] = []
         async_children: list[AsyncContext] = []
@@ -437,9 +454,8 @@ class AsyncContext[T](Context, TypeWrapper[T], AsyncContextManager):
         for ctx, field in self._sync_sub_contexts:
             if callable(ctx):
                 ctx = ctx()
-            if value := self._sync_stack.enter_context(ctx):
-                if field is not None:
-                    kwargs[field] = value
+            if (value := self._sync_stack.enter_context(ctx)) and field is not None:
+                kwargs[field] = value
 
         for ctx, field in self._async_sub_contexts:
             if callable(ctx):
@@ -461,29 +477,21 @@ class AsyncContext[T](Context, TypeWrapper[T], AsyncContextManager):
 
         return instance
 
-    async def _switch_to_idle(self, instance: T, exc_type, exc_value, traceback):
+    async def _switch_to_idle(self, instance: T, exc_type, exc_value, traceback) -> None:
         _context_storage.remove(type(instance), self)
 
-        try:
+        with suppress(Exception):
             await self._destroy(instance)
-        except Exception:
-            pass
 
-        try:
+        with suppress(Exception):
             await self._async_stack.__aexit__(exc_type, exc_value, traceback)
-        except Exception:
-            pass
 
-        try:
+        with suppress(Exception):
             self._sync_stack.__exit__(exc_type, exc_value, traceback)
-        except Exception:
-            pass
 
         for finalizer in self._data.finalizers:
-            try:
+            with suppress(Exception):
                 await invoke_async(finalizer)
-            except Exception:
-                pass
 
         _current_context.set(self._prev.unwrap_or_none())
         self._prev = self._parent = Nothing
@@ -491,19 +499,19 @@ class AsyncContext[T](Context, TypeWrapper[T], AsyncContextManager):
     async def _create(self, **kwargs) -> T:
         return self._data.factory(**kwargs)
 
-    async def _destroy(self, instance: T):
+    async def _destroy(self, instance: T) -> None:
         del instance
 
-    async def _enter(self, instance: T):
+    async def _enter(self, instance: T) -> None:
         pass
 
-    async def _exit(self, instance: T, exc_type, exc_value, traceback):
+    async def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:
         pass
 
-    async def _nested_enter(self, instance: T):
+    async def _nested_enter(self, instance: T) -> None:
         pass
 
-    async def _nested_exit(self, instance: T, exc_type, exc_value, traceback):
+    async def _nested_exit(self, instance: T, exc_type, exc_value, traceback) -> None:
         pass
 
     @override
@@ -538,9 +546,11 @@ class AsyncContext[T](Context, TypeWrapper[T], AsyncContextManager):
                 case ContextState.Idle:
                     raise InvalidContextState('Context exit on idle state')
 
-                case ContextState.InUse(count, value) \
-                        | ContextState.Applied(count, value) \
-                        | ContextState.Cancelled(count, value):
+                case (
+                    ContextState.InUse(count, value)
+                    | ContextState.Applied(count, value)
+                    | ContextState.Cancelled(count, value)
+                ):
                     if count > 1:
                         await self._nested_exit(value, exc_type, exc_value, traceback)
                         self._state = self._state.__class__(count=count - 1, value=value)
@@ -551,17 +561,17 @@ class AsyncContext[T](Context, TypeWrapper[T], AsyncContextManager):
 
 
 class AsyncMutContext[T](AsyncContext[T], MutContext):
-    __slots__ = (
-        '_sync_mut_children', '_async_mut_children', '_force_rollback', '_auto_apply',
-    )
+    __slots__ = ('_sync_mut_children', '_async_mut_children', '_force_rollback', '_auto_apply')
 
     def __init__(
-        self, factory: Callable[[...], T],
+        self,
+        factory: Callable[[...], T],
         fields: dict[str, FieldFactory[T]] | None = None,
         finalizers: list[Callable[[], Awaitable[None] | None]] | None = None,
         contexts: list[ContextManagerLike[T]] | None = None,
-        force_rollback: bool = False, auto_apply: bool = False,
-    ):
+        force_rollback: bool = False,
+        auto_apply: bool = False,
+    ) -> None:
         super().__init__(factory, fields, finalizers, contexts)
         self._sync_mut_children = []
         self._async_mut_children = []
@@ -580,10 +590,10 @@ class AsyncMutContext[T](AsyncContext[T], MutContext):
     def mutable_children(self) -> list[MutContext]:
         return self._sync_mut_children.copy() + self._async_mut_children.copy()
 
-    async def _apply(self, instance: T):
+    async def _apply(self, instance: T) -> None:
         pass
 
-    async def _cancel(self, instance: T):
+    async def _cancel(self, instance: T) -> None:
         pass
 
     @override
@@ -629,7 +639,7 @@ class AsyncMutContext[T](AsyncContext[T], MutContext):
                     pass
 
     @override
-    async def _exit(self, instance: T, exc_type, exc_value, traceback):
+    async def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:
         if self._force_rollback or exc_type is not None:
             await self.cancel()
         elif self._auto_apply:
@@ -640,8 +650,7 @@ class AsyncMutContext[T](AsyncContext[T], MutContext):
 class CtxCallbacks:
     before_create: Maybe[Callable[[...], Any | Awaitable[Any]]] = Nothing
     after_create: Maybe[Callable[[...], Any | Awaitable[Any]]] = Nothing
-    before_destroy: Maybe[Callable[[...], Any | Awaitable[Any]]] = Nothing
-    after_destroy: Maybe[Callable[[], Any | Awaitable[Any]]] = Nothing
+    on_destroy: Maybe[Callable[[], Any | Awaitable[Any]]] = Nothing
     on_enter: Maybe[Callable[[...], Any | Awaitable[Any]]] = Nothing
     on_exit: Maybe[Callable[[...], Any | Awaitable[Any]]] = Nothing
     on_nested_enter: Maybe[Callable[[...], Any | Awaitable[Any]]] = Nothing
@@ -657,7 +666,7 @@ class MutCtxCallbacks(CtxCallbacks):
 class SyncContextWithCallbacks[T](SyncContext[T]):
     __slots__ = ('_callbacks',)
 
-    def __init__(self, callbacks: CtxCallbacks, *args, **kwargs):
+    def __init__(self, callbacks: CtxCallbacks, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._callbacks = callbacks
 
@@ -665,34 +674,37 @@ class SyncContextWithCallbacks[T](SyncContext[T]):
     def _create(self, **kwargs) -> T:
         self._callbacks.before_create.map(lambda f: invoke_sync(f, **kwargs))
         res = self._data.factory(**kwargs)
-        self._callbacks.after_create.map(lambda f: invoke_sync(f, **kwargs))
+        self._callbacks.after_create.map(lambda f: invoke_sync(f, res))
         return res
 
     @override
-    def _destroy(self, instance: T):
-        self._callbacks.before_destroy.map(lambda f: invoke_sync(f, instance))
+    def _destroy(self, instance: T) -> None:
+        self._callbacks.on_destroy.map(lambda f: invoke_sync(f, instance))  # noqa: F821
         del instance
-        self._callbacks.after_destroy.map(lambda f: invoke_sync(f))
 
     @override
-    def _enter(self, instance: T):
+    def _enter(self, instance: T) -> None:
         self._callbacks.on_enter.map(lambda f: invoke_sync(f, instance))
 
     @override
-    def _exit(self, instance: T, exc_type, exc_value, traceback):
-        self._callbacks.on_exit.map(lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback))
+    def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:
+        self._callbacks.on_exit.map(
+            lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback),
+        )
 
     @override
-    def _nested_enter(self, instance: T):
+    def _nested_enter(self, instance: T) -> None:
         self._callbacks.on_nested_enter.map(lambda f: invoke_sync(f, instance))
 
     @override
-    def _nested_exit(self, instance: T, exc_type, exc_value, traceback):
-        self._callbacks.on_nested_exit.map(lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback))
+    def _nested_exit(self, instance: T, exc_type, exc_value, traceback) -> None:
+        self._callbacks.on_nested_exit.map(
+            lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback),
+        )
 
 
 class SyncMutContextWithCallbacks[T](SyncMutContext[T]):
-    def __init__(self, callbacks: MutCtxCallbacks, *args, **kwargs):
+    def __init__(self, callbacks: MutCtxCallbacks, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._callbacks = callbacks
 
@@ -700,44 +712,47 @@ class SyncMutContextWithCallbacks[T](SyncMutContext[T]):
     def _create(self, **kwargs) -> T:
         self._callbacks.before_create.map(lambda f: invoke_sync(f, **kwargs))
         res = self._data.factory(**kwargs)
-        self._callbacks.after_create.map(lambda f: invoke_sync(f, **kwargs))
+        self._callbacks.after_create.map(lambda f: invoke_sync(res))
         return res
 
     @override
-    def _destroy(self, instance: T):
-        self._callbacks.before_destroy.map(lambda f: invoke_sync(f, instance))
+    def _destroy(self, instance: T) -> None:
+        self._callbacks.on_destroy.map(lambda f: invoke_sync(f, instance))  # noqa: F821
         del instance
-        self._callbacks.after_destroy.map(lambda f: invoke_sync(f))
 
     @override
-    def _enter(self, instance: T):
+    def _enter(self, instance: T) -> None:
         self._callbacks.on_enter.map(lambda f: invoke_sync(f, instance))
 
     @override
-    def _exit(self, instance: T, exc_type, exc_value, traceback):
-        self._callbacks.on_exit.map(lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback))
+    def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:
+        self._callbacks.on_exit.map(
+            lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback),
+        )
 
     @override
-    def _nested_enter(self, instance: T):
+    def _nested_enter(self, instance: T) -> None:
         self._callbacks.on_nested_enter.map(lambda f: invoke_sync(f, instance))
 
     @override
-    def _nested_exit(self, instance: T, exc_type, exc_value, traceback):
-        self._callbacks.on_nested_exit.map(lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback))
+    def _nested_exit(self, instance: T, exc_type, exc_value, traceback) -> None:
+        self._callbacks.on_nested_exit.map(
+            lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback),
+        )
 
     @override
-    def _apply(self, instance: T):
+    def _apply(self, instance: T) -> None:
         self._callbacks.on_apply.map(lambda f: invoke_sync(f, instance))
 
     @override
-    def _cancel(self, instance: T):
+    def _cancel(self, instance: T) -> None:
         self._callbacks.on_cancel.map(lambda f: invoke_sync(f, instance))
 
 
 class AsyncContextWithCallbacks[T](AsyncContext[T]):
     __slots__ = ('_callbacks',)
 
-    def __init__(self, callbacks: CtxCallbacks, *args, **kwargs):
+    def __init__(self, callbacks: CtxCallbacks, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._callbacks = callbacks
 
@@ -749,30 +764,33 @@ class AsyncContextWithCallbacks[T](AsyncContext[T]):
         return res
 
     @override
-    async def _destroy(self, instance: T):
-        await self._callbacks.before_destroy.map_async(lambda f: invoke_async(f, instance))
+    async def _destroy(self, instance: T) -> None:
+        await self._callbacks.on_destroy.map_async(lambda f: invoke_async(f, instance))  # noqa: F821
         del instance
-        await self._callbacks.after_destroy.map_async(lambda f: invoke_async(f))
 
     @override
-    async def _enter(self, instance: T):
+    async def _enter(self, instance: T) -> None:
         await self._callbacks.on_enter.map_async(lambda f: invoke_async(f, instance))
 
     @override
-    async def _exit(self, instance: T, exc_type, exc_value, traceback):
-        await self._callbacks.on_exit.map_async(lambda f: invoke_async(f, instance, exc_type, exc_value, traceback))
+    async def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:
+        await self._callbacks.on_exit.map_async(
+            lambda f: invoke_async(f, instance, exc_type, exc_value, traceback),
+        )
 
     @override
-    async def _nested_enter(self, instance: T):
+    async def _nested_enter(self, instance: T) -> None:
         await self._callbacks.on_nested_enter.map_async(lambda f: invoke_async(f, instance))
 
     @override
-    async def _nested_exit(self, instance: T, exc_type, exc_value, traceback):
-        await self._callbacks.on_nested_exit.map_async(lambda f: invoke_async(f, instance, exc_type, exc_value, traceback))
+    async def _nested_exit(self, instance: T, exc_type, exc_value, traceback) -> None:
+        await self._callbacks.on_nested_exit.map_async(
+            lambda f: invoke_async(f, instance, exc_type, exc_value, traceback),
+        )
 
 
 class AsyncMutContextWithCallbacks[T](AsyncMutContext[T]):
-    def __init__(self, callbacks: MutCtxCallbacks, *args, **kwargs):
+    def __init__(self, callbacks: MutCtxCallbacks, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._callbacks = callbacks
 
@@ -784,62 +802,67 @@ class AsyncMutContextWithCallbacks[T](AsyncMutContext[T]):
         return res
 
     @override
-    async def _destroy(self, instance: T):
-        await self._callbacks.before_destroy.map_async(lambda f: invoke_async(f, instance))
+    async def _destroy(self, instance: T) -> None:
+        await self._callbacks.on_destroy.map_async(lambda f: invoke_async(f, instance))  # noqa: F821
         del instance
-        await self._callbacks.after_destroy.map_async(lambda f: invoke_async(f))
 
     @override
-    async def _enter(self, instance: T):
+    async def _enter(self, instance: T) -> None:
         await self._callbacks.on_enter.map_async(lambda f: invoke_async(f, instance))
 
     @override
-    async def _exit(self, instance: T, exc_type, exc_value, traceback):
-        await self._callbacks.on_exit.map_async(lambda f: invoke_async(f, instance, exc_type, exc_value, traceback))
+    async def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:
+        await self._callbacks.on_exit.map_async(
+            lambda f: invoke_async(f, instance, exc_type, exc_value, traceback),
+        )
 
     @override
-    async def _nested_enter(self, instance: T):
+    async def _nested_enter(self, instance: T) -> None:
         await self._callbacks.on_nested_enter.map_async(lambda f: invoke_async(f, instance))
 
     @override
-    async def _nested_exit(self, instance: T, exc_type, exc_value, traceback):
-        await self._callbacks.on_nested_exit.map_async(lambda f: invoke_async(f, instance, exc_type, exc_value, traceback))
+    async def _nested_exit(self, instance: T, exc_type, exc_value, traceback) -> None:
+        await self._callbacks.on_nested_exit.map_async(
+            lambda f: invoke_async(f, instance, exc_type, exc_value, traceback),
+        )
 
     @override
-    async def _apply(self, instance: T):
+    async def _apply(self, instance: T) -> None:
         await self._callbacks.on_apply.map_async(lambda f: invoke_async(f, instance))
 
     @override
-    async def _cancel(self, instance: T):
+    async def _cancel(self, instance: T) -> None:
         await self._callbacks.on_cancel.map_async(lambda f: invoke_async(f, instance))
 
 
 class ContextBuilder[T](TypeWrapper[T]):
-    def __init__[**P](self, factory: Callable[P, T], **kwargs):
+    def __init__[**P](self, factory: Callable[P, T], **kwargs) -> None:
         self._factory = factory
         self._fields = {}
         self._finalizers = []
         self._contexts = []
         self._kwargs = kwargs
 
-    def add_param(self, name: str, value: FieldFactory[T]):
+    def add_param(self, name: str, value: FieldFactory[T]) -> None:
         self._fields[name] = value
 
-    def add_context(self, context: ContextManagerLike[T]):
+    def add_context(self, context: ContextManagerLike[T]) -> None:
         self._contexts.append(context)
 
-    def add_finalizer(self, finalizer: Callable[[], Awaitable[None] | None]):
+    def add_finalizer(self, finalizer: Callable[[], Awaitable[None] | None]) -> None:
         self._finalizers.append(finalizer)
 
     def build(self):
         return self.wrapped_type(
-            factory=self._factory, fields=self._fields,
-            finalizers=self._finalizers, contexts=self._contexts,
+            factory=self._factory,
+            fields=self._fields,
+            finalizers=self._finalizers,
+            contexts=self._contexts,
             **self._kwargs,
         )
 
     def __class_getitem__[C: SyncContext | AsyncContext | SyncMutContext | AsyncMutContext](
-        cls, args: tuple[type[C], type[T]]
+        cls, args: tuple[type[C], type[T]],
     ) -> ContextBuilder:
         class_, type_ = args
-        return super(ContextBuilder, cls).__class_getitem__(class_[type_])
+        return super().__class_getitem__(class_[type_])

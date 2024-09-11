@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel, Field, model_validator, AliasChoices
+from pydantic import AliasChoices, BaseModel, Field, model_validator
 
 from ..abc.controllers import Controller
 from ..abc.operators import Operator
