@@ -1,6 +1,7 @@
 import asyncio
 import inspect
-from asyncio import Future, get_running_loop, iscoroutine, iscoroutinefunction, run as run_main
+from asyncio import Future, get_running_loop, iscoroutine, iscoroutinefunction
+from asyncio import run as run_main
 from functools import partial
 from typing import Callable
 
@@ -12,16 +13,14 @@ def is_awaitable(f):
 
 
 def is_like_sync_context_manager(instance) -> bool:
-    if callable(instance):
-        if inspect.isgeneratorfunction(inspect.unwrap(instance)):
-            instance = instance()
+    if callable(instance) and inspect.isgeneratorfunction(inspect.unwrap(instance)):
+        instance = instance()
     return hasattr(instance, '__enter__') and hasattr(instance, '__exit__')
 
 
 def is_like_async_context_manager(instance) -> bool:
-    if callable(instance):
-        if inspect.isasyncgenfunction(inspect.unwrap(instance)):
-            instance = instance()
+    if callable(instance) and inspect.isasyncgenfunction(inspect.unwrap(instance)):
+        instance = instance()
     return hasattr(instance, '__aenter__') and hasattr(instance, '__aexit__')
 
 
@@ -36,12 +35,10 @@ def invoke_sync[T, **P](func: Callable[P, T], *args: P.args, **kwargs: P.kwargs)
     if is_awaitable(func):
         if loop := get_asyncio_loop():
             return loop.run_until_complete(func(*args, **kwargs))
-        else:
-            return run_main(func(*args, **kwargs))
-    elif callable(func):
+        return run_main(func(*args, **kwargs))
+    if callable(func):
         return func(*args, **kwargs)
-    else:
-        return func
+    return func
 
 
 async def invoke_async[T, **P](
@@ -51,15 +48,13 @@ async def invoke_async[T, **P](
         if iscoroutine(func):
             return await func
         return await func(*args, **kwargs)
-    elif callable(func):
+    if callable(func):
         if to_thread:
             return await asyncio.to_thread(func, *args, **kwargs)
-        else:
-            return func(*args, **kwargs)
-    else:
-        future = Future()
-        future.set_result(func)
-        return future
+        return func(*args, **kwargs)
+    future = Future()
+    future.set_result(func)
+    return future
 
 
 def caller_path(depth: int) -> list[str]:
@@ -70,5 +65,4 @@ def caller_path(depth: int) -> list[str]:
     for _ in range(depth, 0, -1):
         frame = frame.f_back
 
-    path = inspect.getmodule(frame).__name__.split('.')
-    return path
+    return inspect.getmodule(frame).__name__.split('.')

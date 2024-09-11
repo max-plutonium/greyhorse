@@ -15,8 +15,7 @@ class TypeWrapper[T]:
 
     @classmethod
     def __generate_typename__(
-        cls, types: type | TypeVar | tuple[type | TypeVar, ...],
-        include_base_name: bool = True,
+        cls, types: type | TypeVar | tuple[type | TypeVar, ...], include_base_name: bool = True,
     ) -> str:
         if isinstance(types, tuple):
             type_args = [cls.__generate_typename__(a, False) for a in types]
@@ -47,7 +46,7 @@ class TypeWrapper[T]:
     def __class_getitem__(cls, types: type | TypeVar | tuple[type | TypeVar, ...]):
         if isinstance(types, TypeVar):
             # noinspection PyUnresolvedReferences
-            return super(TypeWrapper, cls).__class_getitem__(types)
+            return super().__class_getitem__(types)
 
         type_name = cls.__generate_typename__(types)
 
@@ -59,7 +58,7 @@ class TypeWrapper[T]:
         if not isinstance(types, tuple) and hasattr(types, '__base__'):
             base_type_name = '~' + cls.__generate_typename__(types.__base__)
             if base_class := _TYPES_CACHE.get(base_type_name):
-                bases = [base_class] + bases
+                bases = [base_class, *bases]
 
         if hasattr(cls, '__slots__'):
             cls.__slots__ = (*cls.__slots__, '__wrapped_type__')

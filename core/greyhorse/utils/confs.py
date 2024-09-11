@@ -5,6 +5,7 @@ from typing import Any, Mapping
 def default_value(type_: type):
     def getter(value: Any, default: Any):
         return type_(value) if value is not None else default
+
     return getter
 
 

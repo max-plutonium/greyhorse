@@ -29,7 +29,7 @@ def prepare_enum_keys(enum_class: type[Enum]):
     return [snake2kebab(str(e.value).lower()) for e in enum_class]
 
 
-def to_human_size(num: int | float, suffix: str = 'B'):
+def to_human_size(num: int | float, suffix: str = 'B') -> str:
     for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
         if abs(num) < 1024.0:
             return f'{num:3.1f}{unit}{suffix}'

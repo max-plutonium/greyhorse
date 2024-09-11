@@ -21,11 +21,15 @@ def import_path(dotted_path: str, package: str | None = None):
 
 def lazy_import(dotted_path: str, callable: bool = False, as_partial: bool = False):
     if callable:
+
         def inner(*args, **kwargs):
             if as_partial:
                 return partial(import_path(dotted_path), *args, **kwargs)
             return import_path(dotted_path)(*args, **kwargs)
+
     else:
+
         def inner():
             return import_path(dotted_path)
+
     return inner

@@ -9,8 +9,10 @@ def parse_timeout(value: str, default: str = '30 secs') -> timedelta:
 
 
 def calc_next_interval(
-    initial_period: timedelta, iteration: int,
-    iteration_divisor: int = 1, max_seconds: float = 3600,
+    initial_period: timedelta,
+    iteration: int,
+    iteration_divisor: int = 1,
+    max_seconds: float = 3600,
 ) -> float:
     """
     The function counts the next time interval in seconds with progressive increase
@@ -20,6 +22,7 @@ def calc_next_interval(
     iteration_divisor: Iteration divider, for the ability to change the interval not every iteration, but after several.
     max_seconds: Maximum period duration in seconds.
     """
+
     def calc_interval(initial: float, iterations: int):
         f = initial
         for i in range(iterations):
@@ -27,5 +30,6 @@ def calc_next_interval(
         return f
 
     initial_period = initial_period.total_seconds()
-    next_interval = min(calc_interval(initial_period, floor(iteration / iteration_divisor)), max_seconds)
-    return next_interval
+    return min(
+        calc_interval(initial_period, floor(iteration / iteration_divisor)), max_seconds,
+    )
