@@ -11,7 +11,7 @@ from greyhorse.error import Error, ErrorCase
 from greyhorse.logging import logger
 from greyhorse.result import Err, Ok, Result
 from greyhorse.utils.injectors import ParamsInjector
-from ..private.component import ResourceManager
+from ..private.res_manager import ResourceManager
 from ...maybe import Just, Maybe, Nothing
 
 if TYPE_CHECKING:

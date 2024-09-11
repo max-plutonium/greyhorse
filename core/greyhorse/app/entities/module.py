@@ -1,7 +1,7 @@
 from greyhorse.app.abc.operators import Operator
 from greyhorse.app.abc.providers import Provider
 from greyhorse.app.entities.components import Component
-from greyhorse.app.private.component import ResourceManager
+from greyhorse.app.private.res_manager import ResourceManager
 from greyhorse.app.registries import MutDictRegistry
 from greyhorse.app.schemas.components import ModuleConf
 from greyhorse.error import Error, ErrorCase
