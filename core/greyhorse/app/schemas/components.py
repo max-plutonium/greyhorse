@@ -12,32 +12,15 @@ from greyhorse.utils.invoke import caller_path
 
 class ProvidersConf(BaseModel, frozen=True):
     resource: type
-    types: list[type[Provider]] = Field(default_factory=list)
+    providers: list[type[Provider]] = Field(default_factory=list)
 
 
-class OperatorsConf(BaseModel, frozen=True):
-    resource: type
-    types: list[type[Operator]] = Field(default_factory=list)
-
-
-class BasicComponentConf(BaseModel):
-    name: str = Field(frozen=True)
+class ComponentConf(BaseModel):
     enabled: bool = Field(default=True)
 
     provider_grants: list[ProvidersConf] = Field(default_factory=list)
     provider_imports: list[ProvidersConf] = Field(default_factory=list)
 
-
-class ModuleConf(BaseModel):
-    enabled: bool = Field(default=True)
-
-    provider_claims: list[ProvidersConf] = Field(default_factory=list)
-    provider_exports: list[ProvidersConf] = Field(default_factory=list)
-
-    components: list[BasicComponentConf] = Field(default_factory=list)
-
-
-class ComponentConf(BasicComponentConf):
     controllers: list[CtrlConf] = Field(default_factory=list)
     services: list[SvcConf] = Field(default_factory=list)
 
@@ -45,7 +28,16 @@ class ComponentConf(BasicComponentConf):
     service_factories: ServiceFactories = Field(default_factory=dict)
 
 
-class ModuleComponentConf(BasicComponentConf):
+class ModuleConf(BaseModel):
+    enabled: bool = Field(default=True)
+
+    provider_claims: list[ProvidersConf] = Field(default_factory=list)
+    can_provide: list[type] = Field(default_factory=list)
+
+    components: dict[str, ComponentConf] = Field(default_factory=dict)
+
+
+class ModuleComponentConf(ComponentConf):
     path: str = Field(frozen=True)
     args: dict[str, Any] = Field(default_factory=dict, frozen=True)
     _init_path: list[str] = PrivateAttr(default_factory=lambda: caller_path(5))

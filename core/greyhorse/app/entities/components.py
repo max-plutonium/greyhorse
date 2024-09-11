@@ -118,21 +118,20 @@ class Component:
             injector.add_type_provider(type(svc), svc)
             self.add_service(svc)
 
-        for svc in self._services:
-            if not (
-                res := svc.setup(self._private_operators).map_err(
-                    lambda e: ComponentError.Service(
-                        path=self._path, name=self.name, details=e.message,
-                    ),
-                )
-            ):
-                return res
-
         if not (res := self._create_controllers(injector)):
             return res
 
         for ctrl in res.unwrap():
             self.add_controller(ctrl)
+
+        if not (
+            res := self._rm.setup(self._private_providers).map_err(
+                lambda e: ComponentError.Resource(
+                    path=self._path, name=self.name, details=e.message,
+                ),
+            )
+        ):
+            return res
 
         for ctrl in self._controllers:
             if not (
@@ -144,14 +143,15 @@ class Component:
             ):
                 return res
 
-        if not (
-            res := self._rm.setup(self._private_providers).map_err(
-                lambda e: ComponentError.Resource(
-                    path=self._path, name=self.name, details=e.message,
-                ),
-            )
-        ):
-            return res
+        for svc in self._services:
+            if not (
+                res := svc.setup(self._private_operators).map_err(
+                    lambda e: ComponentError.Service(
+                        path=self._path, name=self.name, details=e.message,
+                    ),
+                )
+            ):
+                return res
 
         logger.info(
             '{path}: Component "{name}" setup successful'.format(
