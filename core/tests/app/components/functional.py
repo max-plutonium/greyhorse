@@ -1,17 +1,24 @@
 from typing import override
 
-from greyhorse.app.abc.providers import FactoryProvider, FactoryError
+from greyhorse.app.abc.operators import AssignOperator
+from greyhorse.app.abc.providers import FactoryError, FactoryProvider
 from greyhorse.app.abc.services import ProvisionError
-from greyhorse.app.entities.controllers import SyncController
+from greyhorse.app.entities.controllers import SyncController, operator
 from greyhorse.app.entities.services import SyncService, provider
-from greyhorse.maybe import Maybe
-from greyhorse.result import Result, Ok, Err, do
+from greyhorse.maybe import Maybe, Nothing
+from greyhorse.result import Err, Ok, Result, do
+
 from ..common.functional import FunctionalOperator, FunctionalOpProvider
-from ..common.resources import DictResContext, MutDictResContext, DictCtxProvider, DictMutCtxProvider
+from ..common.resources import (
+    DictCtxProvider,
+    DictMutCtxProvider,
+    DictResContext,
+    MutDictResContext,
+)
 
 
 class FunctionalOperatorImpl(FunctionalOperator):
-    def __init__(self, ctx: DictResContext, mut_ctx: MutDictResContext):
+    def __init__(self, ctx: DictResContext, mut_ctx: MutDictResContext) -> None:
         self.ctx = ctx
         self.mut_ctx = mut_ctx
 
@@ -40,7 +47,7 @@ class FunctionalOperatorImpl(FunctionalOperator):
 
 
 class FunctionalOpProviderImpl(FactoryProvider[FunctionalOperator]):
-    def __init__(self, ctx_prov: DictCtxProvider, mut_ctx_prov: DictMutCtxProvider):
+    def __init__(self, ctx_prov: DictCtxProvider, mut_ctx_prov: DictMutCtxProvider) -> None:
         self._ctx_prov = ctx_prov
         self._mut_ctx_prov = mut_ctx_prov
 
@@ -56,34 +63,35 @@ class FunctionalOpProviderImpl(FactoryProvider[FunctionalOperator]):
             case Ok((ctx, mut_ctx)):
                 return Ok(FunctionalOperatorImpl(ctx, mut_ctx))
             case Err(e):
-                return FactoryError.Internal(
-                    name='FunctionalOperator', details=e,
-                ).to_result()
+                return FactoryError.Internal(name='FunctionalOperator', details=e).to_result()
 
         return FactoryError.Internal(
             name='FunctionalOperator', details='Unexpected return',
         ).to_result()
 
     @override
-    def destroy(self, instance: FunctionalOperatorImpl):
+    def destroy(self, instance: FunctionalOperatorImpl) -> None:
         self._mut_ctx_prov.release(instance.mut_ctx)
         self._ctx_prov.reclaim(instance.ctx)
         del instance
 
 
-class DictOperatorCtrl(SyncController):
-    def __init__(self, ctx_prov: DictCtxProvider, mut_ctx_prov: DictMutCtxProvider):
-        self._provider = FunctionalOpProviderImpl(ctx_prov, mut_ctx_prov)
-
-    def get_provider(self):
-        return self._provider
-
-
 class DictOperatorService(SyncService):
-    def __init__(self, ctx_prov: DictCtxProvider, mut_ctx_prov: DictMutCtxProvider):
-        super().__init__()
-        self._provider = FunctionalOpProviderImpl(ctx_prov, mut_ctx_prov)
-
     @provider(FunctionalOpProvider)
-    def create_op(self) -> Result[FunctionalOpProvider, ProvisionError]:
-        return Ok(self._provider)
+    def create_prov(
+        self, ctx_prov: DictCtxProvider, mut_ctx_prov: DictMutCtxProvider,
+    ) -> Result[FunctionalOpProvider, ProvisionError]:
+        return Ok(FunctionalOpProviderImpl(ctx_prov, mut_ctx_prov))
+
+
+class DictOperatorCtrl(SyncController):
+    def __init__(self) -> None:
+        super().__init__()
+        self._a = Nothing
+
+    def _setter(self, value) -> None:
+        self._a = value
+
+    @operator(DictResContext)
+    def create_op(self):
+        return AssignOperator[DictResContext](lambda: self._a, self._setter)

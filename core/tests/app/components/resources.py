@@ -1,49 +1,14 @@
 from copy import deepcopy
 from functools import partial
-from typing import override, Any
 
-from greyhorse.app.abc.collectors import Collector, MutCollector
-from greyhorse.app.abc.controllers import ControllerError
-from greyhorse.app.abc.operators import Operator
-from greyhorse.app.abc.providers import SharedProvider, MutProvider, Provider
-from greyhorse.app.abc.selectors import Selector
+from greyhorse.app.abc.providers import MutProvider, SharedProvider
 from greyhorse.app.boxes import OwnerCtxRefBox
-from greyhorse.app.contexts import SyncContext, SyncMutContextWithCallbacks, MutCtxCallbacks
-from greyhorse.app.entities.controllers import SyncController
+from greyhorse.app.contexts import MutCtxCallbacks, SyncContext, SyncMutContextWithCallbacks
 from greyhorse.app.entities.services import SyncService, provider
-from greyhorse.maybe import Maybe, Just
-from greyhorse.result import Result, Ok
-from ..common.resources import DictResContext, MutDictResContext, DictResource
+from greyhorse.maybe import Just
+from greyhorse.result import Ok
 
-
-class DictResourceCtrl(SyncController, Operator[DictResource]):
-    def __init__(self):
-        self._dict: dict[str, Any] = {}
-
-    @override
-    def accept(self, instance: DictResource) -> bool:
-        self._dict.update(instance)
-        return True
-
-    @override
-    def revoke(self) -> Maybe[DictResource]:
-        return Just(self._dict)
-
-    @override
-    def setup(
-        self, selector: Selector[type[Provider], Provider],
-        collector: Collector[type, Operator],
-    ) -> Result[bool, ControllerError]:
-        res = collector.add(DictResource, self)
-        return Ok(res)
-
-    @override
-    def teardown(
-        self, selector: Selector[type[Provider], Provider],
-        collector: MutCollector[type, Operator],
-    ) -> Result[bool, ControllerError]:
-        res = collector.remove(DictResource, self)
-        return Ok(res)
+from ..common.resources import DictResContext, DictResource, MutDictResContext
 
 
 class DictResourceBox(OwnerCtxRefBox[DictResource, DictResource]):
@@ -53,17 +18,18 @@ class DictResourceBox(OwnerCtxRefBox[DictResource, DictResource]):
 
 
 class DictProviderService(SyncService):
-    def __init__(self, operator: Operator[DictResource]):
+    def __init__(self) -> None:
         super().__init__()
         self._value = {}
         self._box = DictResourceBox(
-            SyncContext, SyncMutContextWithCallbacks,
-            partial(deepcopy, self._value), partial(deepcopy, self._value),
+            SyncContext,
+            SyncMutContextWithCallbacks,
+            partial(deepcopy, self._value),
+            partial(deepcopy, self._value),
             mut_params=dict(callbacks=MutCtxCallbacks(on_apply=Just(self._setter))),
         )
-        self._operator = operator
 
-    def _setter(self, value: DictResource):
+    def _setter(self, value: DictResource) -> None:
         self._value.clear()
         self._value.update(value)
 

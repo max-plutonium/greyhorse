@@ -4,14 +4,23 @@ import pytest
 
 from greyhorse.error import Error, ErrorCase
 from greyhorse.maybe import Just, Nothing
-from greyhorse.result import ResultUnwrapError, Ok, Err, as_result_sync, as_result_async, Result, do, do_async
+from greyhorse.result import (
+    Err,
+    Ok,
+    Result,
+    ResultUnwrapError,
+    as_result_async,
+    as_result_sync,
+    do,
+    do_async,
+)
 
 
 class TestError(Error):
     Unexpected = ErrorCase(msg='Unexpected error')
 
 
-def test_result():
+def test_result() -> None:
     result_ok = Result(123)
     result_err = Result(TestError.Unexpected())
 
@@ -66,7 +75,7 @@ def test_result():
 
     inspect_mock.assert_called_once_with('err')
 
-    assert 123 == result_ok.expect('exception')
+    assert result_ok.expect('exception') == 123
 
     with pytest.raises(ResultUnwrapError) as excinfo:
         result_err.expect('exception')
@@ -80,9 +89,9 @@ def test_result():
     assert str(excinfo.value) == 'exception'
     assert excinfo.value.value == 123
 
-    assert 'err' == result_err.expect_err('exception')
+    assert result_err.expect_err('exception') == 'err'
 
-    assert 123 == result_ok.unwrap()
+    assert result_ok.unwrap() == 123
 
     with pytest.raises(ResultUnwrapError):
         result_err.unwrap()
@@ -90,21 +99,21 @@ def test_result():
     with pytest.raises(ResultUnwrapError):
         result_ok.unwrap_err()
 
-    assert 'err' == result_err.unwrap_err()
+    assert result_err.unwrap_err() == 'err'
 
-    assert 123 == result_ok.unwrap_or(456)
-    assert 456 == result_err.unwrap_or(456)
+    assert result_ok.unwrap_or(456) == 123
+    assert result_err.unwrap_or(456) == 456
 
-    assert 123 == result_ok.unwrap_or_none()
+    assert result_ok.unwrap_or_none() == 123
     assert None is result_err.unwrap_or_none()
 
     assert None is result_ok.unwrap_err_or_none()
-    assert 'err' == result_err.unwrap_err_or_none()
+    assert result_err.unwrap_err_or_none() == 'err'
 
-    assert 123 == result_ok.unwrap_or_else(lambda e: 789)
-    assert 789 == result_err.unwrap_or_else(lambda e: 789)
+    assert result_ok.unwrap_or_else(lambda e: 789) == 123
+    assert result_err.unwrap_or_else(lambda e: 789) == 789
 
-    assert 123 == result_ok.unwrap_or_raise(Exception)
+    assert result_ok.unwrap_or_raise(Exception) == 123
 
     with pytest.raises(Exception):
         result_err.unwrap_or_raise(Exception)
@@ -112,11 +121,11 @@ def test_result():
     assert Ok(134) == result_ok.map(lambda i: i + 11)
     assert Err('err') == result_err.map(lambda i: i + 11)
 
-    assert 124 == result_ok.map_or(234, lambda i: i + 1)
-    assert 234 == result_err.map_or(234, lambda i: i + 1)
+    assert result_ok.map_or(234, lambda i: i + 1) == 124
+    assert result_err.map_or(234, lambda i: i + 1) == 234
 
-    assert 125 == result_ok.map_or_else(lambda e: 235, lambda i: i + 2)
-    assert 235 == result_err.map_or_else(lambda e: 235, lambda i: i + 2)
+    assert result_ok.map_or_else(lambda e: 235, lambda i: i + 2) == 125
+    assert result_err.map_or_else(lambda e: 235, lambda i: i + 2) == 235
 
     assert Ok(123) == result_ok.map_err(lambda e: e.upper())
     assert Err('ERR') == result_err.map_err(lambda e: e.upper())
@@ -148,17 +157,16 @@ def test_result():
     assert Nothing is Ok(Nothing).to_maybe()
 
 
-def test_as_result_sync():
+def test_as_result_sync() -> None:
     @as_result_sync(ValueError, IndexError)
     def f(value: int) -> int:
         if value == 0:
             raise ValueError  # becomes Err
-        elif value == 1:
+        if value == 1:
             raise IndexError  # becomes Err
-        elif value == 2:
+        if value == 2:
             raise KeyError  # raises Exception
-        else:
-            return value  # becomes Ok
+        return value  # becomes Ok
 
     assert isinstance(f(0).unwrap_err(), ValueError)
     assert isinstance(f(1).unwrap_err(), IndexError)
@@ -170,17 +178,16 @@ def test_as_result_sync():
 
 
 @pytest.mark.asyncio
-async def test_as_result_async():
+async def test_as_result_async() -> None:
     @as_result_async(ValueError, IndexError)
     async def f(value: int) -> int:
         if value == 0:
             raise ValueError  # becomes Err
-        elif value == 1:
+        if value == 1:
             raise IndexError  # becomes Err
-        elif value == 2:
+        if value == 2:
             raise KeyError  # raises Exception
-        else:
-            return value  # becomes Ok
+        return value  # becomes Ok
 
     assert isinstance((await f(0)).unwrap_err(), ValueError)
     assert isinstance((await f(1)).unwrap_err(), IndexError)
@@ -191,41 +198,32 @@ async def test_as_result_async():
     assert Ok(3) == await f(3)
 
 
-def test_do_sync():
+def test_do_sync() -> None:
     def get_result(i: int = 1):
         if i < 3:
             return Ok(i)
         return Err(i)
 
-    final_result: Result[int, str] = do(
-        Ok(x + y)
-        for x in get_result(1)
-        for y in get_result(2)
-    )
+    final_result: Result[int, str] = do(Ok(x + y) for x in get_result(1) for y in get_result(2))
 
     assert Ok(3) == final_result
 
     final_result: Result[int, str] = do(
-        Ok(x + y + z)
-        for x in get_result(1)
-        for y in get_result(2)
-        for z in get_result(10)
+        Ok(x + y + z) for x in get_result(1) for y in get_result(2) for z in get_result(10)
     )
 
     assert Err(10) == final_result
 
 
 @pytest.mark.asyncio
-async def test_do_async():
+async def test_do_async() -> None:
     async def get_result(i: int = 1):
         if i < 3:
             return Ok(i)
         return Err(i)
 
     final_result: Result[int, str] = await do_async(
-        Ok(x + y)
-        for x in await get_result(1)
-        for y in await get_result(2)
+        Ok(x + y) for x in await get_result(1) for y in await get_result(2)
     )
 
     assert Ok(3) == final_result

@@ -1,14 +1,14 @@
 import contextlib
 from dataclasses import dataclass
 from datetime import datetime
-from unittest.mock import Mock, MagicMock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from greyhorse.app.contexts import SyncContext, AsyncContext, ContextBuilder
+from greyhorse.app.contexts import AsyncContext, ContextBuilder, SyncContext
 
 
-def test_sync_context_scalar():
+def test_sync_context_scalar() -> None:
     ctx_builder = ContextBuilder[SyncContext, int](lambda: 123)
 
     mock_context = MagicMock(spec=contextlib.AbstractContextManager)
@@ -40,7 +40,7 @@ class ContextData:
     timestamp: datetime
 
 
-def test_sync_context_complex():
+def test_sync_context_complex() -> None:
     ctx_builder = ContextBuilder[SyncContext, ContextData](ContextData)
 
     mock_context = MagicMock(spec=contextlib.AbstractContextManager)
@@ -63,7 +63,9 @@ def test_sync_context_complex():
     with ctx as data:
         assert data.id == 123
         assert data.name == 'name'
-        assert data.timestamp.replace(second=0, microsecond=0) == datetime.now().replace(second=0, microsecond=0)
+        assert data.timestamp.replace(second=0, microsecond=0) == datetime.now().replace(
+            second=0, microsecond=0,
+        )
 
     mock_context.__enter__.assert_called_once()
     mock_context.__exit__.assert_called_once()
@@ -71,7 +73,7 @@ def test_sync_context_complex():
 
 
 @pytest.mark.asyncio
-async def test_async_context_scalar():
+async def test_async_context_scalar() -> None:
     ctx_builder = ContextBuilder[AsyncContext, int](lambda: 123)
 
     mock_context = MagicMock(spec=contextlib.AbstractAsyncContextManager)
@@ -97,7 +99,7 @@ async def test_async_context_scalar():
 
 
 @pytest.mark.asyncio
-async def test_async_context_complex():
+async def test_async_context_complex() -> None:
     ctx_builder = ContextBuilder[AsyncContext, ContextData](ContextData)
 
     mock_context = MagicMock(spec=contextlib.AbstractAsyncContextManager)
@@ -107,7 +109,7 @@ async def test_async_context_complex():
         async with mock_context:
             yield
 
-    async def _get_name():
+    async def _get_name() -> str:
         return 'name'
 
     mock_finalizer = Mock()
@@ -123,7 +125,9 @@ async def test_async_context_complex():
     async with ctx as data:
         assert data.id == 123
         assert data.name == 'name'
-        assert data.timestamp.replace(second=0, microsecond=0) == datetime.now().replace(second=0, microsecond=0)
+        assert data.timestamp.replace(second=0, microsecond=0) == datetime.now().replace(
+            second=0, microsecond=0,
+        )
 
     mock_context.__aenter__.assert_called_once()
     mock_context.__aexit__.assert_called_once()

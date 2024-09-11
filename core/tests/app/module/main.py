@@ -1,40 +1,27 @@
-from greyhorse.app.schemas.components import ProvidersConf, ComponentConf, ModuleConf
+from greyhorse.app.schemas.components import ComponentConf, ModuleConf, ProvidersConf
 from greyhorse.app.schemas.elements import CtrlConf, SvcConf
 
-from ..common.functional import FunctionalOpProvider, FunctionalOperator
-from ..common.resources import DictCtxProvider, DictMutCtxProvider, DictResContext, MutDictResContext
+from ..common.functional import FunctionalOperator, FunctionalOpProvider
+from ..common.resources import (
+    DictCtxProvider,
+    DictMutCtxProvider,
+    DictResContext,
+    MutDictResContext,
+)
 from ..components.functional import DictOperatorCtrl, DictOperatorService
-from ..components.resources import DictResourceCtrl, DictProviderService
+from ..components.resources import DictProviderService
 
 
 def __init__():
     return ModuleConf(
         enabled=True,
-        provider_exports=[
-            ProvidersConf(
-                resource=FunctionalOperator,
-                types=[FunctionalOpProvider],
-            ),
-        ],
-        components=[
-            ComponentConf(
-                name='domain',
+        can_provide=[FunctionalOperator],
+        components={
+            'domain': ComponentConf(
                 enabled=True,
                 provider_imports=[
-                    ProvidersConf(
-                        resource=DictResContext,
-                        types=[DictCtxProvider],
-                    ),
-                    ProvidersConf(
-                        resource=MutDictResContext,
-                        types=[DictMutCtxProvider],
-                    ),
-                ],
-                controllers=[
-                    CtrlConf(
-                        type=DictResourceCtrl,
-                        operators=[],
-                    )
+                    ProvidersConf(resource=DictResContext, providers=[DictCtxProvider]),
+                    ProvidersConf(resource=MutDictResContext, providers=[DictMutCtxProvider]),
                 ],
                 services=[
                     SvcConf(
@@ -43,36 +30,17 @@ def __init__():
                     ),
                 ],
             ),
-            ComponentConf(
-                name='app',
+            'app': ComponentConf(
                 enabled=True,
                 provider_grants=[
-                    ProvidersConf(
-                        resource=DictResContext,
-                        types=[DictCtxProvider],
-                    ),
-                    ProvidersConf(
-                        resource=MutDictResContext,
-                        types=[DictMutCtxProvider],
-                    ),
+                    ProvidersConf(resource=DictResContext, providers=[DictCtxProvider]),
+                    ProvidersConf(resource=MutDictResContext, providers=[DictMutCtxProvider]),
                 ],
                 provider_imports=[
-                    ProvidersConf(
-                        resource=FunctionalOperator,
-                        types=[FunctionalOpProvider],
-                    ),
+                    ProvidersConf(resource=FunctionalOperator, providers=[FunctionalOpProvider]),
                 ],
-                controllers=[
-                    CtrlConf(
-                        type=DictOperatorCtrl,
-                    )
-                ],
-                services=[
-                    SvcConf(
-                        type=DictOperatorService,
-                        providers=[FunctionalOpProvider],
-                    ),
-                ],
+                services=[SvcConf(type=DictOperatorService, providers=[FunctionalOpProvider])],
+                controllers=[CtrlConf(type=DictOperatorCtrl, operators=[])],
             ),
-        ],
+        },
     )

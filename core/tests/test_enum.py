@@ -1,6 +1,6 @@
 import pytest
 
-from greyhorse.enum import Tuple, Struct, Unit, Enum
+from greyhorse.enum import Enum, Struct, Tuple, Unit
 
 
 class Result[T, E](Enum):
@@ -14,7 +14,7 @@ class ResultAllowInit[T, E](Enum, allow_init=True):
     pass
 
 
-def test_enum():
+def test_enum() -> None:
     with pytest.raises(NotImplementedError):
         Result()
 

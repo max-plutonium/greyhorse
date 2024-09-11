@@ -2,11 +2,11 @@ from unittest import mock
 
 import pytest
 
-from greyhorse.maybe import MaybeUnwrapError, Just, Nothing, Maybe
-from greyhorse.result import Ok, Err
+from greyhorse.maybe import Just, Maybe, MaybeUnwrapError, Nothing
+from greyhorse.result import Err, Ok
 
 
-def test_maybe():
+def test_maybe() -> None:
     maybe_just = Maybe(123)
     maybe_none = Maybe(None)
 
@@ -49,28 +49,28 @@ def test_maybe():
 
     inspect_mock.assert_called_once_with(123)
 
-    assert 123 == maybe_just.expect('exception')
+    assert maybe_just.expect('exception') == 123
 
     with pytest.raises(MaybeUnwrapError) as excinfo:
         maybe_none.expect('exception')
 
     assert str(excinfo.value) == 'exception'
 
-    assert 123 == maybe_just.unwrap()
+    assert maybe_just.unwrap() == 123
 
     with pytest.raises(MaybeUnwrapError):
         maybe_none.unwrap()
 
-    assert 123 == maybe_just.unwrap_or(456)
-    assert 456 == maybe_none.unwrap_or(456)
+    assert maybe_just.unwrap_or(456) == 123
+    assert maybe_none.unwrap_or(456) == 456
 
-    assert 123 == maybe_just.unwrap_or_none()
+    assert maybe_just.unwrap_or_none() == 123
     assert None is maybe_none.unwrap_or_none()
 
-    assert 123 == maybe_just.unwrap_or_else(lambda: 789)
-    assert 789 == maybe_none.unwrap_or_else(lambda: 789)
+    assert maybe_just.unwrap_or_else(lambda: 789) == 123
+    assert maybe_none.unwrap_or_else(lambda: 789) == 789
 
-    assert 123 == maybe_just.unwrap_or_raise(Exception)
+    assert maybe_just.unwrap_or_raise(Exception) == 123
 
     with pytest.raises(Exception):
         maybe_none.unwrap_or_raise(Exception)
@@ -78,11 +78,11 @@ def test_maybe():
     assert Just(134) == maybe_just.map(lambda i: i + 11)
     assert Nothing is maybe_none.map(lambda i: i + 11)
 
-    assert 124 == maybe_just.map_or(234, lambda i: i + 1)
-    assert 234 == maybe_none.map_or(234, lambda i: i + 1)
+    assert maybe_just.map_or(234, lambda i: i + 1) == 124
+    assert maybe_none.map_or(234, lambda i: i + 1) == 234
 
-    assert 125 == maybe_just.map_or_else(lambda: 235, lambda i: i + 2)
-    assert 235 == maybe_none.map_or_else(lambda: 235, lambda i: i + 2)
+    assert maybe_just.map_or_else(lambda: 235, lambda i: i + 2) == 125
+    assert maybe_none.map_or_else(lambda: 235, lambda i: i + 2) == 235
 
     assert maybe_just is maybe_just.and_(maybe_just)
     assert maybe_none is maybe_just.and_(maybe_none)

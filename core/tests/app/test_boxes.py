@@ -2,13 +2,25 @@ from copy import deepcopy
 from functools import partial
 
 from greyhorse.app.abc.providers import BorrowError, BorrowMutError, ForwardError
-from greyhorse.app.boxes import SharedRefBox, MutRefBox, OwnerRefBox, SharedCtxRefBox, MutCtxRefBox, OwnerCtxRefBox, \
-    ForwardBox
-from greyhorse.app.contexts import SyncContext, SyncMutContext, SyncMutContextWithCallbacks, MutCtxCallbacks
+from greyhorse.app.boxes import (
+    ForwardBox,
+    MutCtxRefBox,
+    MutRefBox,
+    OwnerCtxRefBox,
+    OwnerRefBox,
+    SharedCtxRefBox,
+    SharedRefBox,
+)
+from greyhorse.app.contexts import (
+    MutCtxCallbacks,
+    SyncContext,
+    SyncMutContext,
+    SyncMutContextWithCallbacks,
+)
 from greyhorse.maybe import Just
 
 
-def test_shared():
+def test_shared() -> None:
     instance = SharedRefBox[int](lambda: 123)
 
     res = instance.borrow()
@@ -22,7 +34,7 @@ def test_shared():
     instance.reclaim(unwrapped)
 
 
-def test_mut():
+def test_mut() -> None:
     instance = MutRefBox[int](lambda: 123)
 
     res = instance.acquire()
@@ -41,7 +53,7 @@ def test_mut():
     assert res.unwrap() == 123
 
 
-def test_owner():
+def test_owner() -> None:
     instance = OwnerRefBox[int, str](lambda: 123, lambda: '123')
 
     res = instance.borrow()
@@ -79,7 +91,7 @@ def test_owner():
     assert unwrapped == 123
 
 
-def test_shared_context():
+def test_shared_context() -> None:
     instance = SharedCtxRefBox[int](SyncContext, lambda: 123)
 
     res = instance.borrow()
@@ -95,7 +107,7 @@ def test_shared_context():
         assert data == 123
 
 
-def test_mut_context():
+def test_mut_context() -> None:
     instance = MutCtxRefBox[int](SyncMutContext, lambda: 123)
 
     res = instance.acquire()
@@ -118,7 +130,7 @@ def test_mut_context():
         assert data == 123
 
 
-def test_owner_context():
+def test_owner_context() -> None:
     instance = OwnerCtxRefBox[int, str](SyncContext, SyncMutContext, lambda: 123, lambda: '123')
 
     res = instance.borrow()
@@ -165,12 +177,14 @@ def test_owner_context():
         assert data == 123
 
 
-def test_owning_context_read_write():
+def test_owning_context_read_write() -> None:
     value = {'counter': 1}
 
     instance = OwnerCtxRefBox[dict, dict](
-        SyncContext, SyncMutContextWithCallbacks,
-        partial(deepcopy, value), partial(deepcopy, value),
+        SyncContext,
+        SyncMutContextWithCallbacks,
+        partial(deepcopy, value),
+        partial(deepcopy, value),
         mut_params=dict(callbacks=MutCtxCallbacks(on_apply=Just(lambda v: value.update(v)))),
     )
 
@@ -231,7 +245,7 @@ def test_owning_context_read_write():
         assert data == {'counter': 2}
 
 
-def test_forward():
+def test_forward() -> None:
     instance = ForwardBox[int]()
 
     assert not instance

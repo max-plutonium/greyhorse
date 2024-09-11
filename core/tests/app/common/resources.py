@@ -1,6 +1,6 @@
 from typing import Any
 
-from greyhorse.app.abc.providers import SharedProvider, MutProvider
+from greyhorse.app.abc.providers import MutProvider, SharedProvider
 from greyhorse.app.contexts import SyncContext, SyncMutContext
 
 DictResource = dict[str, Any]

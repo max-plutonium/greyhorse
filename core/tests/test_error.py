@@ -14,7 +14,7 @@ class TestError(Error, tr=tr):
     Unexpected = ErrorCase(msg='Unexpected error: "{details}"', details=str)
 
 
-def test_error():
+def test_error() -> None:
     e1 = TestError.FirstError(value=123)
     e2 = TestError.SecondError(value='qwer')
     e3 = TestError.TranslatedError(value='error value')
@@ -22,10 +22,10 @@ def test_error():
 
     tr.load_file('tests/translations.toml', namespace='tests')
 
-    assert 'First Error: "123"' == e1.message
-    assert 'Second Error: "qwer"' == e2.message
-    assert 'Error: \'error value\'' == e3.message
-    assert 'Unexpected error: "Unexpected"' == e4.message
+    assert e1.message == 'First Error: "123"'
+    assert e2.message == 'Second Error: "qwer"'
+    assert e3.message == "Error: 'error value'"
+    assert e4.message == 'Unexpected error: "Unexpected"'
 
     tr.unload('tests')
 
