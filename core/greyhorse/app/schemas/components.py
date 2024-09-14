@@ -3,7 +3,6 @@ from typing import Any
 from pydantic import BaseModel, Field, PrivateAttr
 
 from greyhorse.app.abc.controllers import ControllerFactories
-from greyhorse.app.abc.operators import Operator
 from greyhorse.app.abc.providers import Provider
 from greyhorse.app.abc.services import ServiceFactories
 from greyhorse.app.schemas.elements import CtrlConf, SvcConf

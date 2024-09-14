@@ -1,7 +1,6 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from greyhorse.app.abc.controllers import Controller, ControllerError, ControllerFactoryFn
-from greyhorse.app.abc.operators import Operator
 from greyhorse.app.abc.providers import Provider
 from greyhorse.app.abc.services import Service, ServiceError, ServiceFactoryFn
 from greyhorse.app.registries import MutDictRegistry
@@ -59,7 +58,7 @@ class Component:
         self._services: list[Service] = []
 
         self._private_providers = MutDictRegistry[type[Provider], Provider]()
-        self._private_operators = MutDictRegistry[type, Operator]()  # TODO remove
+        self._resources = MutDictRegistry[type, Any]()
 
     @property
     def name(self) -> str:
@@ -121,6 +120,9 @@ class Component:
         if not (res := self._create_controllers(injector)):
             return res
 
+        for svc in self._services:
+            injector.remove_type_provider(type(svc))
+
         for ctrl in res.unwrap():
             self.add_controller(ctrl)
 
@@ -133,9 +135,9 @@ class Component:
         ):
             return res
 
-        for ctrl in self._controllers:
+        for ctrl, _ctrl_conf in zip(self._controllers, self._conf.controllers):
             if not (
-                res := ctrl.setup(self._private_providers).map_err(
+                res := ctrl.setup(self._resources).map_err(
                     lambda e: ComponentError.Ctrl(
                         path=self._path, name=self.name, details=e.message,
                     ),
@@ -143,15 +145,23 @@ class Component:
             ):
                 return res
 
-        for svc in self._services:
+        for svc, svc_conf in zip(self._services, self._conf.services):
+            for res_type in svc_conf.resources:
+                injector.add_type_provider(Maybe[res_type], self._resources.get(res_type))
+
+            injected_args = injector(svc.setup)
+
             if not (
-                res := svc.setup(self._private_operators).map_err(
+                res := svc.setup(*injected_args.args, **injected_args.kwargs).map_err(
                     lambda e: ComponentError.Service(
                         path=self._path, name=self.name, details=e.message,
                     ),
                 )
             ):
                 return res
+
+            for res_type in svc_conf.resources:
+                injector.remove_type_provider(Maybe[res_type])
 
         logger.info(
             '{path}: Component "{name}" setup successful'.format(
@@ -162,9 +172,41 @@ class Component:
         return Ok(None)
 
     def teardown(self) -> Result[None, ComponentError]:
+        injector = ParamsInjector()
+
         logger.info(
             '{path}: Component "{name}" teardown'.format(path=self._path, name=self.name),
         )
+
+        for svc, svc_conf in zip(reversed(self._services), reversed(self._conf.services)):
+            for res_type in svc_conf.resources:
+                injector.add_type_provider(Maybe[res_type], self._resources.get(res_type))
+
+            injected_args = injector(svc.setup)
+
+            if not (
+                res := svc.teardown(*injected_args.args, **injected_args.kwargs).map_err(
+                    lambda e: ComponentError.Service(
+                        path=self._path, name=self.name, details=e.message,
+                    ),
+                )
+            ):
+                return res
+
+            for res_type in svc_conf.resources:
+                injector.remove_type_provider(Maybe[res_type])
+
+        for ctrl, _ctrl_conf in zip(
+            reversed(self._controllers), reversed(self._conf.controllers),
+        ):
+            if not (
+                res := ctrl.teardown(self._resources).map_err(
+                    lambda e: ComponentError.Ctrl(
+                        path=self._path, name=self.name, details=e.message,
+                    ),
+                )
+            ):
+                return res
 
         if not (
             res := self._rm.teardown().map_err(
@@ -176,31 +218,12 @@ class Component:
             return res
 
         while ctrl := next(reversed(self._controllers), None):
-            if not (
-                res := ctrl.teardown(self._private_providers).map_err(
-                    lambda e: ComponentError.Ctrl(
-                        path=self._path, name=self.name, details=e.message,
-                    ),
-                )
-            ):
-                return res
-
             self.remove_controller(ctrl)
 
-        assert not self._controllers
-
         while svc := next(reversed(self._services), None):
-            if not (
-                res := svc.teardown(self._private_operators).map_err(
-                    lambda e: ComponentError.Service(
-                        path=self._path, name=self.name, details=e.message,
-                    ),
-                )
-            ):
-                return res
-
             self.remove_service(svc)
 
+        assert not self._controllers
         assert not self._services
 
         logger.info(
@@ -333,6 +356,9 @@ class ModuleComponent(Component):
         for op in self._rm.get_operators():
             self._module.add_operator(op)
 
+        for prov_type, prov in self._private_providers.items():
+            self._module.add_provider(prov_type, prov)
+
         if not (
             res := self._module.setup().map_err(
                 lambda e: ComponentError.Module(
@@ -354,10 +380,10 @@ class ModuleComponent(Component):
         ):
             return res
 
+        for prov_type, prov in self._private_providers.items():
+            self._module.remove_provider(prov_type, prov)
+
         for op in self._rm.get_operators():
             self._module.remove_operator(op)
 
         return super().teardown()
-
-
-13

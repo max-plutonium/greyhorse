@@ -1,22 +1,19 @@
 import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, Union
+from typing import Any, Awaitable, Callable
 
 from greyhorse.error import Error, ErrorCase
 from greyhorse.result import Result
 
-from ...utils.types import TypeWrapper
 from .collectors import Collector, MutCollector
-from .providers import Provider
-from .selectors import ListSelector
 
 
 class ControllerError(Error):
     namespace = 'greyhorse.app'
 
     Factory = ErrorCase(msg='Controller factory error: "{details}"', details=str)
-    Deps = ErrorCase(msg='Dependency error occurred: "{details}"', details=str)
+    NoSuchResource = ErrorCase(msg='Resource "{name}" is not set', name=str)
 
 
 type ControllerFactoryFn = Callable[[...], Controller | Result[Controller, ControllerError]]
@@ -55,18 +52,10 @@ class Controller(ABC):
 
     @abstractmethod
     def setup(
-        self, providers: ListSelector[type[Provider], Provider],
+        self, collector: Collector[type, Any],
     ) -> Result[bool, ControllerError] | Awaitable[Result[bool, ControllerError]]: ...
 
     @abstractmethod
     def teardown(
-        self, providers: ListSelector[type[Provider], Provider],
+        self, collector: MutCollector[type, Any],
     ) -> Result[bool, ControllerError] | Awaitable[Result[bool, ControllerError]]: ...
-
-
-class CollectorController[K, T](TypeWrapper[K, T], ABC):
-    @abstractmethod
-    def setup(self, collector: Collector[K, T]) -> Union[bool, Awaitable[bool]]: ...
-
-    @abstractmethod
-    def teardown(self, collector: MutCollector[K, T]) -> Union[bool, Awaitable[bool]]: ...

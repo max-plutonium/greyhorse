@@ -1,10 +1,9 @@
-from typing import get_type_hints, override
+from typing import Any, get_type_hints, override
 
 from greyhorse.result import Ok, Result
 
+from ..abc.collectors import Collector, MutCollector
 from ..abc.controllers import Controller, ControllerError, OperatorMember
-from ..abc.providers import Provider
-from ..abc.selectors import ListSelector
 
 
 def operator(resource_type: type):
@@ -22,27 +21,21 @@ def operator(resource_type: type):
 
 class SyncController(Controller):
     @override
-    def setup(
-        self, providers: ListSelector[type[Provider], Provider],
-    ) -> Result[bool, ControllerError]:
+    def setup(self, collector: Collector[type, Any]) -> Result[bool, ControllerError]:
         return Ok(True)
 
     @override
-    def teardown(
-        self, providers: ListSelector[type[Provider], Provider],
-    ) -> Result[bool, ControllerError]:
+    def teardown(self, collector: MutCollector[type, Any]) -> Result[bool, ControllerError]:
         return Ok(True)
 
 
 class AsyncController(Controller):
     @override
-    async def setup(
-        self, providers: ListSelector[type[Provider], Provider],
-    ) -> Result[bool, ControllerError]:
+    async def setup(self, collector: Collector[type, Any]) -> Result[bool, ControllerError]:
         return Ok(True)
 
     @override
     async def teardown(
-        self, providers: ListSelector[type[Provider], Provider],
+        self, collector: MutCollector[type, Any],
     ) -> Result[bool, ControllerError]:
         return Ok(True)

@@ -4,9 +4,7 @@ from typing import get_type_hints, override
 
 from greyhorse.result import Ok, Result
 
-from ..abc.operators import Operator
 from ..abc.providers import Provider
-from ..abc.selectors import ListSelector
 from ..abc.services import ProviderMember, Service, ServiceError, ServiceState, ServiceWaiter
 
 
@@ -41,9 +39,7 @@ class SyncService(Service):
         return ServiceWaiter.Sync(self._waiter)
 
     @override
-    def setup(
-        self, operators: ListSelector[type, Operator],
-    ) -> Result[ServiceState, ServiceError]:
+    def setup(self, *args, **kwargs) -> Result[ServiceState, ServiceError]:
         if self.state == ServiceState.Active:
             return Ok(self.state)
 
@@ -51,9 +47,7 @@ class SyncService(Service):
         return Ok(self.state)
 
     @override
-    def teardown(
-        self, operators: ListSelector[type, Operator],
-    ) -> Result[ServiceState, ServiceError]:
+    def teardown(self, *args, **kwargs) -> Result[ServiceState, ServiceError]:
         if self.state == ServiceState.Idle:
             return Ok(self.state)
 
@@ -86,9 +80,7 @@ class AsyncService(Service):
         return ServiceWaiter.Async(self._waiter)
 
     @override
-    async def setup(
-        self, operators: ListSelector[type, Operator],
-    ) -> Result[ServiceState, ServiceError]:
+    async def setup(self, *args, **kwargs) -> Result[ServiceState, ServiceError]:
         if self.state == ServiceState.Active:
             return Ok(self.state)
 
@@ -96,9 +88,7 @@ class AsyncService(Service):
         return Ok(self.state)
 
     @override
-    async def teardown(
-        self, operators: ListSelector[type, Operator],
-    ) -> Result[ServiceState, ServiceError]:
+    async def teardown(self, *args, **kwargs) -> Result[ServiceState, ServiceError]:
         if self.state == ServiceState.Idle:
             return Ok(self.state)
 

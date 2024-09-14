@@ -23,12 +23,7 @@ def __init__():
                     ProvidersConf(resource=DictResContext, providers=[DictCtxProvider]),
                     ProvidersConf(resource=MutDictResContext, providers=[DictMutCtxProvider]),
                 ],
-                services=[
-                    SvcConf(
-                        type=DictProviderService,
-                        providers=[DictCtxProvider, DictMutCtxProvider],
-                    ),
-                ],
+                services=[SvcConf(type=DictProviderService)],
             ),
             'app': ComponentConf(
                 enabled=True,
@@ -39,8 +34,8 @@ def __init__():
                 provider_imports=[
                     ProvidersConf(resource=FunctionalOperator, providers=[FunctionalOpProvider]),
                 ],
-                services=[SvcConf(type=DictOperatorService, providers=[FunctionalOpProvider])],
-                controllers=[CtrlConf(type=DictOperatorCtrl, operators=[])],
+                services=[SvcConf(type=DictOperatorService, resources=[DictResContext])],
+                controllers=[CtrlConf(type=DictOperatorCtrl)],
             ),
         },
     )

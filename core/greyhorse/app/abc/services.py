@@ -10,9 +10,7 @@ from greyhorse.enum import Enum, Struct, Tuple, Unit
 from greyhorse.error import Error, ErrorCase
 from greyhorse.result import Result
 
-from .operators import Operator
 from .providers import Provider
-from .selectors import ListSelector
 
 
 class ServiceState(Enum):
@@ -29,12 +27,7 @@ class ServiceError(Error):
     namespace = 'greyhorse.app'
 
     Factory = ErrorCase(msg='Service factory error: "{details}"', details=str)
-    AutoProvision = ErrorCase(
-        msg='Service error occurred during setup resources: "{details}"', details=str,
-    )
-    Collect = ErrorCase(
-        msg='Service error occurred during collect providers: "{details}"', details=str,
-    )
+    NoSuchResource = ErrorCase(msg='Resource "{name}" is not found', name=str)
 
 
 type ServiceFactoryFn = Callable[[...], Service | Result[Service, ServiceError]]
@@ -45,18 +38,15 @@ class ProvisionError(Error):
     namespace = 'greyhorse.app'
 
     WrongState = ErrorCase(
-        msg='Cannot create provider "{type_}" because service is in wrong state: "{state}"',
+        msg='Cannot create provider "{name}" because service is in wrong state: "{state}"',
         name=str,
         state=str,
     )
 
     InsufficientDeps = ErrorCase(
-        msg='Cannot create provider "{type_}" because dependencies are not enough to satisfy',
+        msg='Cannot create provider "{name}" because dependencies are not enough to satisfy',
         name=str,
     )
-
-    NoSuchProvider = ErrorCase(msg='No such provider: "{type_}"', type_=str)
-    Provision = ErrorCase(msg='Provision error occurred: "{details}"', details=str)
 
 
 @dataclass(slots=True, frozen=True)
@@ -103,12 +93,12 @@ class Service(ABC):
 
     @abstractmethod
     def setup(
-        self, operators: ListSelector[type, Operator],
+        self, *args, **kwargs,
     ) -> Result[ServiceState, ServiceError] | Awaitable[Result[ServiceState, ServiceError]]: ...
 
     @abstractmethod
     def teardown(
-        self, operators: ListSelector[type, Operator],
+        self, *args, **kwargs,
     ) -> Result[ServiceState, ServiceError] | Awaitable[Result[ServiceState, ServiceError]]: ...
 
     def can_provide(self, resource_type: type) -> bool:

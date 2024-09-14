@@ -1,8 +1,10 @@
-from typing import override
+from typing import Any, override
 
+from greyhorse.app.abc.collectors import Collector, MutCollector
+from greyhorse.app.abc.controllers import ControllerError
 from greyhorse.app.abc.operators import AssignOperator
 from greyhorse.app.abc.providers import FactoryError, FactoryProvider
-from greyhorse.app.abc.services import ProvisionError
+from greyhorse.app.abc.services import ProvisionError, ServiceError, ServiceState
 from greyhorse.app.entities.controllers import SyncController, operator
 from greyhorse.app.entities.services import SyncService, provider
 from greyhorse.maybe import Maybe, Nothing
@@ -77,6 +79,18 @@ class FunctionalOpProviderImpl(FactoryProvider[FunctionalOperator]):
 
 
 class DictOperatorService(SyncService):
+    @override
+    def setup(self, res: Maybe[DictResContext]) -> Result[ServiceState, ServiceError]:
+        if not res:
+            return ServiceError.NoSuchResource(name='DictResContext').to_result()
+        return super().setup()
+
+    @override
+    def teardown(self, res: Maybe[DictResContext]) -> Result[ServiceState, ServiceError]:
+        if not res:
+            return ServiceError.NoSuchResource(name='DictResContext').to_result()
+        return super().teardown()
+
     @provider(FunctionalOpProvider)
     def create_prov(
         self, ctx_prov: DictCtxProvider, mut_ctx_prov: DictMutCtxProvider,
@@ -91,6 +105,20 @@ class DictOperatorCtrl(SyncController):
 
     def _setter(self, value) -> None:
         self._a = value
+
+    @override
+    def setup(self, collector: Collector[type, Any]) -> Result[bool, ControllerError]:
+        if not self._a:
+            return ControllerError.NoSuchResource(name='DictResContext').to_result()
+        collector.add(DictResContext, self._a.unwrap())
+        return super().setup(collector)
+
+    @override
+    def teardown(self, collector: MutCollector[type, Any]) -> Result[bool, ControllerError]:
+        if not self._a:
+            return ControllerError.NoSuchResource(name='DictResContext').to_result()
+        collector.remove(DictResContext, self._a.unwrap())
+        return super().teardown(collector)
 
     @operator(DictResContext)
     def create_op(self):
