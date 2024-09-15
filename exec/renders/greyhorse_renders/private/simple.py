@@ -1,9 +1,8 @@
 from pathlib import Path
 from typing import override
 
-from greyhorse.result import Result
-from ..abc import AsyncRender, SyncRender
-from ..errors import TemplateFileNotFound
+from greyhorse.result import Result, Ok
+from ..abc import AsyncRender, SyncRender, RenderError
 
 
 class SimpleSyncRender(SyncRender):
@@ -11,7 +10,7 @@ class SimpleSyncRender(SyncRender):
         super().__init__(templates_dirs)
 
     @override
-    def __call__(self, template: str | Path, **kwargs) -> Result[str]:
+    def __call__(self, template: str | Path, **kwargs) -> Result[str, RenderError]:
         if isinstance(template, str):
             template = Path(template)
 
@@ -23,11 +22,10 @@ class SimpleSyncRender(SyncRender):
                     break
 
         if not template.exists() or not template.is_file():
-            error = TemplateFileNotFound(template=template)
-            return Result.from_error(error)
+            return RenderError.TemplateFileNotFound(file=template).to_result()
 
         content = template.read_text('utf-8')
-        return Result.from_ok(content)
+        return Ok(content)
 
 
 class SimpleAsyncRender(AsyncRender):
@@ -35,7 +33,7 @@ class SimpleAsyncRender(AsyncRender):
         super().__init__(templates_dirs)
 
     @override
-    async def __call__(self, template: str | Path, **kwargs) -> Result[str]:
+    async def __call__(self, template: str | Path, **kwargs) -> Result[str, RenderError]:
         if isinstance(template, str):
             template = Path(template)
 
@@ -47,8 +45,7 @@ class SimpleAsyncRender(AsyncRender):
                     break
 
         if not template.exists() or not template.is_file():
-            error = TemplateFileNotFound(template=template)
-            return Result.from_error(error)
+            return RenderError.TemplateFileNotFound(file=template).to_result()
 
         content = template.read_text('utf-8')
-        return Result.from_ok(content)
+        return Ok(content)

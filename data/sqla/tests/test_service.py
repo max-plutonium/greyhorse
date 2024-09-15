@@ -1,9 +1,9 @@
 import pytest
 from sqlalchemy import text
 
-from greyhorse.app.context import AsyncContext, SyncContext
+from greyhorse.app.contexts import AsyncContext, SyncContext
 from greyhorse_sqla.config import EngineConf, SqlEngineType
-from greyhorse_sqla.contexts import SqlaAsyncContextProvider, SqlaSyncContextProvider
+from greyhorse_sqla.contexts import SqlaAsyncConnProvider, SqlaSyncConnProvider
 from greyhorse_sqla.service import AsyncSqlaService, SyncSqlaService
 from .conf import MYSQL_URI, POSTGRES_URI, SQLITE_URI
 
@@ -32,11 +32,11 @@ def test_sync_service(param):
 
     srv.start()
 
-    factory = srv.provider_factories.get(SqlaSyncContextProvider)
+    factory = srv.provider_factories.get(SqlaSyncConnProvider)
     assert factory
     provider = factory()
     assert provider
-    assert isinstance(provider, SqlaSyncContextProvider)
+    assert isinstance(provider, SqlaSyncConnProvider)
 
     conn_ctx = provider.get()
     assert conn_ctx
@@ -77,11 +77,11 @@ async def test_async_service(param):
 
     await srv.start()
 
-    factory = srv.provider_factories.get(SqlaAsyncContextProvider)
+    factory = srv.provider_factories.get(SqlaAsyncConnProvider)
     assert factory
     provider = factory()
     assert provider
-    assert isinstance(provider, SqlaAsyncContextProvider)
+    assert isinstance(provider, SqlaAsyncConnProvider)
 
     conn_ctx = provider.get()
     assert conn_ctx

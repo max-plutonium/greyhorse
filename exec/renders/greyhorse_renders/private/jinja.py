@@ -5,10 +5,9 @@ from typing import override, cast
 import yaml
 from jinja2 import Environment, FileSystemLoader, exceptions
 
-from greyhorse.result import Result
+from greyhorse.result import Result, Ok
 from greyhorse.utils import json
-from ..abc import AsyncRender, SyncRender
-from ..errors import TemplateFileNotFound, TemplateSyntaxError
+from ..abc import AsyncRender, SyncRender, RenderError
 
 
 class JinjaBasicRender:
@@ -24,22 +23,22 @@ class JinjaBasicRender:
         self._templates_env.globals['readBinary'] = self.read_binary
 
     @staticmethod
-    def to_yaml(data: dict, indent: int = 0):
+    def to_yaml(data: dict, indent: int = 0) -> str:
         dump = yaml.safe_dump(data)
-        res = list()
+        res = []
         for line in dump.splitlines():
             res.append(' ' * indent + line)
         return '\n'.join(res)
 
     @staticmethod
-    def to_json(data: dict, indent: int = 0):
+    def to_json(data: dict, indent: int = 0) -> str:
         dump = json.dumps(data, use_indent=True).decode('utf-8')
-        res = list()
+        res = []
         for line in dump.splitlines():
             res.append(' ' * indent + line)
         return '\n'.join(res)
 
-    def read_binary(self, path: str):
+    def read_binary(self, path: str) -> str:
         loader = cast(FileSystemLoader, self._templates_env.loader)
 
         for template_dir in loader.searchpath:
@@ -58,11 +57,11 @@ class JinjaSyncRender(SyncRender, JinjaBasicRender):
         JinjaBasicRender.__init__(self, templates_dirs, enable_async=False)
 
     @override
-    def __call__(self, template: str | Path, **kwargs) -> Result[str]:
+    def __call__(self, template: str | Path, **kwargs) -> Result[str, RenderError]:
         if isinstance(template, Path):
             if not template.exists() or not template.is_file():
-                error = TemplateFileNotFound(template=template)
-                return Result.from_error(error)
+                return RenderError.TemplateFileNotFound(file=template).to_result()
+
             template = str(template)
 
         try:
@@ -70,17 +69,17 @@ class JinjaSyncRender(SyncRender, JinjaBasicRender):
             rendered = template.render(**kwargs)
 
         except exceptions.TemplateNotFound:
-            error = TemplateFileNotFound(template=template)
-            return Result.from_error(error)
+            return RenderError.TemplateFileNotFound(file=template).to_result()
         except exceptions.TemplateSyntaxError as e:
-            error = TemplateSyntaxError(detail=e.message, filename=e.filename, lineno=e.lineno)
-            return Result.from_error(error)
+            return RenderError.TemplateSyntaxError(
+                filename=e.filename, lineno=e.lineno, details=e.message,
+            ).to_result()
 
-        return Result.from_ok(rendered)
+        return Ok(rendered)
 
     # noinspection PyProtectedMember
     @override
-    def eval_string(self, source: str, **kwargs) -> Result[str]:
+    def eval_string(self, source: str, **kwargs) -> Result[str, RenderError]:
         try:
             tmpl = self._templates_env.compile_expression(source)
             context = tmpl._template.new_context(kwargs)
@@ -88,10 +87,11 @@ class JinjaSyncRender(SyncRender, JinjaBasicRender):
                 pass
 
         except exceptions.TemplateSyntaxError as e:
-            error = TemplateSyntaxError(detail=e.message, filename=e.filename, lineno=e.lineno)
-            return Result.from_error(error)
+            return RenderError.TemplateSyntaxError(
+                filename=e.filename, lineno=e.lineno, details=e.message,
+            ).to_result()
 
-        return Result.from_ok(context.vars['result'])
+        return Ok(context.vars['result'])
 
 
 class JinjaAsyncRender(AsyncRender, JinjaBasicRender):
@@ -100,11 +100,11 @@ class JinjaAsyncRender(AsyncRender, JinjaBasicRender):
         JinjaBasicRender.__init__(self, templates_dirs, enable_async=True)
 
     @override
-    async def __call__(self, template: str | Path, **kwargs) -> Result[str]:
+    async def __call__(self, template: str | Path, **kwargs) -> Result[str, RenderError]:
         if isinstance(template, Path):
             if not template.exists() or not template.is_file():
-                error = TemplateFileNotFound(template=template)
-                return Result.from_error(error)
+                return RenderError.TemplateFileNotFound(file=template).to_result()
+
             template = str(template)
 
         try:
@@ -112,17 +112,17 @@ class JinjaAsyncRender(AsyncRender, JinjaBasicRender):
             rendered = await template.render_async(**kwargs)
 
         except exceptions.TemplateNotFound:
-            error = TemplateFileNotFound(template=template)
-            return Result.from_error(error)
+            return RenderError.TemplateFileNotFound(file=template).to_result()
         except exceptions.TemplateSyntaxError as e:
-            error = TemplateSyntaxError(detail=e.message, filename=e.filename, lineno=e.lineno)
-            return Result.from_error(error)
+            return RenderError.TemplateSyntaxError(
+                filename=e.filename, lineno=e.lineno, details=e.message,
+            ).to_result()
 
-        return Result.from_ok(rendered)
+        return Ok(rendered)
 
     # noinspection PyProtectedMember
     @override
-    async def eval_string(self, source: str, **kwargs) -> Result[str]:
+    async def eval_string(self, source: str, **kwargs) -> Result[str, RenderError]:
         try:
             tmpl = self._templates_env.compile_expression(source)
             context = tmpl._template.new_context(kwargs)
@@ -131,7 +131,8 @@ class JinjaAsyncRender(AsyncRender, JinjaBasicRender):
                 pass
 
         except exceptions.TemplateSyntaxError as e:
-            error = TemplateSyntaxError(detail=e.message, filename=e.filename, lineno=e.lineno)
-            return Result.from_error(error)
+            return RenderError.TemplateSyntaxError(
+                filename=e.filename, lineno=e.lineno, details=e.message,
+            ).to_result()
 
-        return Result.from_ok(context.vars['result'])
+        return Ok(context.vars['result'])

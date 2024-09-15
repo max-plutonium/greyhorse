@@ -10,7 +10,7 @@ from .config import SqlEngineType
 
 
 @dataclass(slots=True, frozen=True)
-class SqlaSyncContext:
+class SqlaSyncConnContext:
     name: str
     type: SqlEngineType
     connection: SyncConnection
@@ -24,7 +24,7 @@ class SqlaSyncSessionContext:
 
 
 @dataclass(slots=True, frozen=True)
-class SqlaAsyncContext:
+class SqlaAsyncConnContext:
     name: str
     type: SqlEngineType
     connection: AsyncConnection
@@ -37,7 +37,7 @@ class SqlaAsyncSessionContext:
     session: AsyncSession
 
 
-class SqlaSyncContextProvider(SyncContextProvider[SqlaSyncContext]):
+class SqlaSyncConnProvider(SyncContextProvider[SqlaSyncConnContext]):
     pass
 
 
@@ -45,7 +45,7 @@ class SqlaSyncSessionProvider(SyncContextProvider[SqlaSyncSessionContext]):
     pass
 
 
-class SqlaAsyncContextProvider(AsyncContextProvider[SqlaAsyncContext]):
+class SqlaAsyncConnProvider(AsyncContextProvider[SqlaAsyncConnContext]):
     pass
 
 

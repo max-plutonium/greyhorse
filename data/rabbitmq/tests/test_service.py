@@ -1,6 +1,6 @@
 import pytest
 
-from greyhorse.app.context import AsyncContext
+from greyhorse.app.contexts import AsyncContext
 from greyhorse_rmq.config import EngineConf
 from greyhorse_rmq.contexts import RmqAsyncContextProvider
 from greyhorse_rmq.service import RmqAsyncService

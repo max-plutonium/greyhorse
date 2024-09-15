@@ -12,6 +12,7 @@ from greyhorse.result import Err, Ok, Result
 from greyhorse.utils.injectors import ParamsInjector
 
 from ...maybe import Just, Maybe, Nothing
+from ...utils.invoke import invoke_sync
 from ..private.res_manager import ResourceManager
 
 if TYPE_CHECKING:
@@ -105,6 +106,12 @@ class Component:
     def remove_provider[T](self, prov_type: type[Provider[T]]) -> bool:
         return self._private_providers.remove(prov_type)
 
+    def add_resource(self, res_type: type, resource: Any) -> bool:
+        return self._resources.add(res_type, resource)
+
+    def remove_resource(self, res_type: type) -> bool:
+        return self._resources.remove(res_type)
+
     def setup(self) -> Result[None, ComponentError]:
         injector = ParamsInjector()
 
@@ -137,7 +144,7 @@ class Component:
 
         for ctrl, _ctrl_conf in zip(self._controllers, self._conf.controllers):
             if not (
-                res := ctrl.setup(self._resources).map_err(
+                res := invoke_sync(ctrl.setup, self._resources).map_err(
                     lambda e: ComponentError.Ctrl(
                         path=self._path, name=self.name, details=e.message,
                     ),
@@ -152,7 +159,9 @@ class Component:
             injected_args = injector(svc.setup)
 
             if not (
-                res := svc.setup(*injected_args.args, **injected_args.kwargs).map_err(
+                res := invoke_sync(
+                    svc.setup, *injected_args.args, **injected_args.kwargs,
+                ).map_err(
                     lambda e: ComponentError.Service(
                         path=self._path, name=self.name, details=e.message,
                     ),
@@ -185,7 +194,9 @@ class Component:
             injected_args = injector(svc.setup)
 
             if not (
-                res := svc.teardown(*injected_args.args, **injected_args.kwargs).map_err(
+                res := invoke_sync(
+                    svc.teardown, *injected_args.args, **injected_args.kwargs,
+                ).map_err(
                     lambda e: ComponentError.Service(
                         path=self._path, name=self.name, details=e.message,
                     ),
@@ -200,7 +211,7 @@ class Component:
             reversed(self._controllers), reversed(self._conf.controllers),
         ):
             if not (
-                res := ctrl.teardown(self._resources).map_err(
+                res := invoke_sync(ctrl.teardown, self._resources).map_err(
                     lambda e: ComponentError.Ctrl(
                         path=self._path, name=self.name, details=e.message,
                     ),
@@ -356,6 +367,9 @@ class ModuleComponent(Component):
         for op in self._rm.get_operators():
             self._module.add_operator(op)
 
+        for res_type, res in self._resources.items():
+            self._module.add_resource(res_type, res)
+
         for prov_type, prov in self._private_providers.items():
             self._module.add_provider(prov_type, prov)
 
@@ -380,8 +394,11 @@ class ModuleComponent(Component):
         ):
             return res
 
-        for prov_type, prov in self._private_providers.items():
-            self._module.remove_provider(prov_type, prov)
+        for prov_type, _ in self._private_providers.items():
+            self._module.remove_provider(prov_type)
+
+        for res_type, _ in self._resources.items():
+            self._module.remove_resource(res_type)
 
         for op in self._rm.get_operators():
             self._module.remove_operator(op)

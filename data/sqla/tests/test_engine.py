@@ -1,9 +1,9 @@
 import pytest
 from sqlalchemy import text
 
-from greyhorse.app.context import AsyncContext, SyncContext
+from greyhorse.app.contexts import AsyncContext, SyncContext
 from greyhorse_sqla.config import EngineConf, SqlEngineType
-from greyhorse_sqla.contexts import SqlaAsyncContext, SqlaAsyncSessionContext, SqlaSyncContext, SqlaSyncSessionContext
+from greyhorse_sqla.contexts import SqlaAsyncConnContext, SqlaAsyncSessionContext, SqlaSyncConnContext, SqlaSyncSessionContext
 from greyhorse_sqla.engine import SqlaAsyncEngine, SqlaSyncEngine
 from greyhorse_sqla.factory import SqlaAsyncEngineFactory, SqlaSyncEngineFactory
 from .conf import MYSQL_URI, POSTGRES_URI, SQLITE_URI
@@ -78,7 +78,7 @@ def test_sync_connection(param):
     engine.start()
     assert engine.active
 
-    conn_ctx = engine.get_context(SqlaSyncContext)
+    conn_ctx = engine.get_context(SqlaSyncConnContext)
     assert conn_ctx
     assert isinstance(conn_ctx, SyncContext)
 
@@ -112,7 +112,7 @@ def test_sync_connection(param):
     ids=('SQLite', 'PostgreSQL', 'MySQL'),
 )
 @pytest.mark.asyncio
-async def test_sqlite_async_connection(param):
+async def test_async_connection(param):
     config = EngineConf(
         dsn=param[0], type=param[1],
         pool_min_size=1, pool_max_size=2,
@@ -126,7 +126,7 @@ async def test_sqlite_async_connection(param):
     await engine.start()
     assert engine.active
 
-    conn_ctx = engine.get_context(SqlaAsyncContext)
+    conn_ctx = engine.get_context(SqlaAsyncConnContext)
     assert conn_ctx
     assert isinstance(conn_ctx, AsyncContext)
 

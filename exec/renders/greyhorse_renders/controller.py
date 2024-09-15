@@ -1,8 +1,6 @@
 from pathlib import Path
 from typing import override
 
-from greyhorse.app.entities.controller import Controller
-from greyhorse.app.errors import DependencyCreationFailure
 from greyhorse.logging import logger
 from greyhorse.result import Result
 from greyhorse.utils.imports import import_path

@@ -1,3 +1,5 @@
+from typing import Any
+
 from greyhorse.app.abc.operators import Operator
 from greyhorse.app.abc.providers import Provider
 from greyhorse.app.entities.components import Component
@@ -29,7 +31,8 @@ class Module:
 
         self._operators: list[Operator] = []
 
-        self._private_providers = MutDictRegistry[type[Provider], Provider]()
+        self._resources = MutDictRegistry[type, Any]()
+        self._providers = MutDictRegistry[type[Provider], Provider]()
         self._components: dict[str, Component] = {c.name: c for c in components}
 
     @property
@@ -39,13 +42,23 @@ class Module:
     def add_provider[T](self, prov_type: type[Provider[T]], provider: Provider[T]) -> bool:
         for prov_claim in self._conf.provider_claims:
             if prov_type in prov_claim.providers:
-                return self._private_providers.add(prov_type, provider)
+                return self._providers.add(prov_type, provider)
         return False
 
     def remove_provider[T](self, prov_type: type[Provider[T]]) -> bool:
         for prov_claim in self._conf.provider_claims:
             if prov_type in prov_claim.providers:
-                return self._private_providers.remove(prov_type)
+                return self._providers.remove(prov_type)
+        return False
+
+    def add_resource(self, res_type: type, resource: Any) -> bool:
+        if res_type in self._conf.resource_claims:
+            return self._resources.add(res_type, resource)
+        return False
+
+    def remove_resource(self, res_type: type) -> bool:
+        if res_type in self._conf.resource_claims:
+            return self._resources.remove(res_type)
         return False
 
     def add_operator[T](self, operator: Operator[T]) -> bool:
@@ -68,9 +81,13 @@ class Module:
         for component in self._components.values():
             comp_conf = self._conf.components[component.name]
 
+            for res_type in comp_conf.resource_grants:
+                if res := self._resources.get(res_type).unwrap_or_none():
+                    component.add_resource(res_type, res)
+
             for prov_conf in comp_conf.provider_grants:
                 for prov_type in prov_conf.providers:
-                    for _, prov in self._private_providers.items(
+                    for _, prov in self._providers.items(
                         lambda t, pt=prov_type: issubclass(t, pt),
                     ):
                         component.add_provider(prov_type, prov)
@@ -85,11 +102,11 @@ class Module:
             for prov_conf in comp_conf.provider_imports:
                 for prov_type in prov_conf.providers:
                     if prov := component.get_provider(prov_type).unwrap_or_none():
-                        self._private_providers.add(prov_type, prov)
+                        self._providers.add(prov_type, prov)
 
         for op in self._operators:
             if not (
-                res := self._rm.setup_resource(op, self._private_providers).map_err(
+                res := self._rm.setup_resource(op, self._providers).map_err(
                     lambda e: ModuleError.Resource(path=self._path, details=e.message),
                 )
             ):
@@ -114,7 +131,7 @@ class Module:
             for prov_conf in reversed(comp_conf.provider_imports):
                 for prov_type in reversed(prov_conf.providers):
                     if prov := component.get_provider(prov_type).unwrap_or_none():
-                        self._private_providers.remove(prov_type, prov)
+                        self._providers.remove(prov_type, prov)
 
             if not (
                 res := component.teardown().map_err(
@@ -126,6 +143,9 @@ class Module:
             for prov_conf in reversed(comp_conf.provider_grants):
                 for prov_type in reversed(prov_conf.providers):
                     component.remove_provider(prov_type)
+
+            for res_type in reversed(comp_conf.resource_grants):
+                component.remove_resource(res_type)
 
         logger.info('{path}: Module teardown successful'.format(path=self._path))
         return Ok(None)

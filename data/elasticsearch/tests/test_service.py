@@ -1,6 +1,6 @@
 import pytest
 
-from greyhorse.app.context import AsyncContext
+from greyhorse.app.contexts import AsyncContext
 from greyhorse_elasticsearch.config import EngineConf
 from greyhorse_elasticsearch.contexts import ElasticSearchContextProvider
 from greyhorse_elasticsearch.service import ElasticSearchService

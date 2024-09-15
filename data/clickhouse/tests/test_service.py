@@ -1,6 +1,6 @@
 import pytest
 
-from greyhorse.app.context import AsyncContext
+from greyhorse.app.contexts import AsyncContext
 from greyhorse_clickhouse.config import EngineConf
 from greyhorse_clickhouse.contexts import ClickHouseContextProvider
 from greyhorse_clickhouse.service import ClickHouseService

@@ -5,7 +5,7 @@ from typing import Literal, Annotated, Union
 import pytest
 from pydantic import AnyHttpUrl, BaseModel, Field, IPvAnyAddress
 
-from greyhorse.app.context import SyncContext, AsyncContext
+from greyhorse.app.contexts import SyncContext, AsyncContext
 from greyhorse_renders.abc import SyncRenderFactory, AsyncRenderFactory
 from greyhorse_renders.conf.loader import SyncDictLoader, AsyncDictLoader, SyncPydanticLoader, AsyncPydanticLoader
 from greyhorse_renders.controller import RendersController

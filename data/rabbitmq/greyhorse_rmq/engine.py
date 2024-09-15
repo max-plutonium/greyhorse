@@ -5,7 +5,7 @@ from typing import override
 import aio_pika
 from aio_pika.pool import Pool
 
-from greyhorse.app.context import AsyncContextBuilder, Context
+from greyhorse.app.contexts import AsyncContextBuilder, Context
 from greyhorse.data.storage import DataStorageEngine
 from greyhorse.i18n import tr
 from greyhorse.logging import logger

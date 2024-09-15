@@ -9,13 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session, async_ses
 from sqlalchemy.ext.asyncio.engine import AsyncConnection, AsyncEngine
 from sqlalchemy.orm import Session as SyncSession, scoped_session, sessionmaker
 
-from greyhorse.app.context import AsyncContextBuilder, Context, SyncContextBuilder, current_scope_id
-from greyhorse.app.utils.registry import DictRegistry, ScopedRegistry
+from greyhorse.app.contexts import AsyncContextBuilder, Context, SyncContextBuilder, current_scope_id
+from greyhorse.app.utils.registry import DictRegistry, ScopedMutableRegistry
 from greyhorse.data.storage import DataStorageEngine
 from greyhorse.i18n import tr
 from greyhorse.logging import logger
 from .config import EngineConf
-from .contexts import SqlaAsyncContext, SqlaAsyncSessionContext, SqlaSyncContext, SqlaSyncSessionContext
+from .contexts import SqlaAsyncConnContext, SqlaAsyncSessionContext, SqlaSyncConnContext, SqlaSyncSessionContext
 
 type SyncChannel = SyncSession
 type AsyncChannel = AsyncSession
@@ -29,7 +29,7 @@ class SqlaSyncEngine(DataStorageEngine):
         self._lock = threading.Lock()
         self._engine = engine
 
-        self._registry = ScopedRegistry[type, Any](
+        self._registry = ScopedMutableRegistry[type, Any](
             factory=lambda: DictRegistry(),
             scope_func=lambda: str(threading.current_thread().ident),
         )
@@ -71,7 +71,7 @@ class SqlaSyncEngine(DataStorageEngine):
                     bind=instance, autoflush=False, expire_on_commit=False,
                     join_transaction_mode='create_savepoint',
                 ),
-                scopefunc=lambda: current_scope_id(SqlaSyncContext),
+                scopefunc=lambda: current_scope_id(SqlaSyncConnContext),
             )
             self._registry.set(scoped_session, session_maker)
 
@@ -120,8 +120,8 @@ class SqlaSyncEngine(DataStorageEngine):
 
     @override
     def get_context[T: Context](self, kind: type[Context]) -> T | None:
-        if kind is SqlaSyncContext:
-            builder = SyncContextBuilder[SqlaSyncContext](kind)
+        if kind is SqlaSyncConnContext:
+            builder = SyncContextBuilder[SqlaSyncConnContext](kind)
             builder.add_param('name', self.name)
             builder.add_param('type', self._config.type)
             builder.add_param('connection', self.connection)
@@ -144,7 +144,7 @@ class SqlaAsyncEngine(DataStorageEngine):
         self._lock = asyncio.Lock()
         self._engine = engine
 
-        self._registry = ScopedRegistry[type, Any](
+        self._registry = ScopedMutableRegistry[type, Any](
             factory=lambda: DictRegistry(),
             scope_func=lambda: str(id(asyncio.current_task())),
         )
@@ -186,7 +186,7 @@ class SqlaAsyncEngine(DataStorageEngine):
                     bind=instance, autoflush=False, expire_on_commit=False,
                     join_transaction_mode='create_savepoint',
                 ),
-                scopefunc=lambda: current_scope_id(SqlaAsyncContext),
+                scopefunc=lambda: current_scope_id(SqlaAsyncConnContext),
             )
             self._registry.set(async_scoped_session, session_maker)
 
@@ -235,8 +235,8 @@ class SqlaAsyncEngine(DataStorageEngine):
 
     @override
     def get_context[T: Context](self, kind: type[Context]) -> T | None:
-        if kind is SqlaAsyncContext:
-            builder = AsyncContextBuilder[SqlaAsyncContext](kind)
+        if kind is SqlaAsyncConnContext:
+            builder = AsyncContextBuilder[SqlaAsyncConnContext](kind)
             builder.add_param('name', self.name)
             builder.add_param('type', self._config.type)
             builder.add_param('connection', self.connection)

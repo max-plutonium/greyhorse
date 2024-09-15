@@ -3,7 +3,7 @@ from typing import override
 
 from elasticsearch import AsyncElasticsearch
 
-from greyhorse.app.context import AsyncContextBuilder, Context
+from greyhorse.app.contexts import AsyncContextBuilder, Context
 from greyhorse.data.storage import DataStorageEngine
 from greyhorse.i18n import tr
 from greyhorse.logging import logger

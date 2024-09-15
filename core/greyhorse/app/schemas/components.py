@@ -17,6 +17,7 @@ class ProvidersConf(BaseModel, frozen=True):
 class ComponentConf(BaseModel):
     enabled: bool = Field(default=True)
 
+    resource_grants: list[type] = Field(default_factory=list)
     provider_grants: list[ProvidersConf] = Field(default_factory=list)
     provider_imports: list[ProvidersConf] = Field(default_factory=list)
 
@@ -30,6 +31,7 @@ class ComponentConf(BaseModel):
 class ModuleConf(BaseModel):
     enabled: bool = Field(default=True)
 
+    resource_claims: list[type] = Field(default_factory=list)
     provider_claims: list[ProvidersConf] = Field(default_factory=list)
     can_provide: list[type] = Field(default_factory=list)
 

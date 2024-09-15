@@ -2,14 +2,14 @@ import asyncio
 import threading
 from typing import Any, Mapping
 
-from greyhorse.app.context import current_scope_id
+from greyhorse.app.contexts import current_scope_id
 from greyhorse.app.entities.service import Service
-from greyhorse.app.utils.registry import DictRegistry, ScopedRegistry
+from greyhorse.app.utils.registry import DictRegistry, ScopedMutableRegistry
 from greyhorse.result import Result
 from .config import EngineConf
 from .contexts import (
-    SqlaAsyncContext, SqlaAsyncContextProvider, SqlaAsyncSessionContext,
-    SqlaAsyncSessionProvider, SqlaSyncContext, SqlaSyncContextProvider,
+    SqlaAsyncConnContext, SqlaAsyncConnProvider, SqlaAsyncSessionContext,
+    SqlaAsyncSessionProvider, SqlaSyncConnContext, SqlaSyncConnProvider,
     SqlaSyncSessionContext, SqlaSyncSessionProvider,
 )
 from .factory import SqlaAsyncEngineFactory, SqlaSyncEngineFactory
@@ -22,15 +22,15 @@ class SyncSqlaService(Service):
         self._engine_factory = SqlaSyncEngineFactory()
         self._active = False
         self._event: threading.Event = threading.Event()
-        self._registry = ScopedRegistry[Any, Any](
+        self._registry = ScopedMutableRegistry[Any, Any](
             factory=lambda: DictRegistry(),
-            scope_func=lambda: current_scope_id(SqlaSyncContext),
+            scope_func=lambda: current_scope_id(SqlaSyncConnContext),
         )
 
         for name in self._configs.keys():
             self._provider_factories.set(
-                SqlaSyncContextProvider,
-                lambda: SqlaSyncContextProvider(self.create_conn_context(name)),
+                SqlaSyncConnProvider,
+                lambda: SqlaSyncConnProvider(self.create_conn_context(name)),
                 name=name,
             )
             self._provider_factories.set(
@@ -40,12 +40,12 @@ class SyncSqlaService(Service):
             )
 
     def create_conn_context(self, name: str):
-        if instance := self._registry.get(SqlaSyncContext, name=name):
+        if instance := self._registry.get(SqlaSyncConnContext, name=name):
             return instance
 
         engine = self._engine_factory.get_engine(name)
-        instance = engine.get_context(SqlaSyncContext)
-        self._registry.set(SqlaSyncContext, instance, name=name)
+        instance = engine.get_context(SqlaSyncConnContext)
+        self._registry.set(SqlaSyncConnContext, instance, name=name)
         return instance
 
     def create_session_context(self, name: str):
@@ -97,15 +97,15 @@ class AsyncSqlaService(Service):
         self._engine_factory = SqlaAsyncEngineFactory()
         self._active = False
         self._event: asyncio.Event = asyncio.Event()
-        self._registry = ScopedRegistry[Any, Any](
+        self._registry = ScopedMutableRegistry[Any, Any](
             factory=lambda: DictRegistry(),
-            scope_func=lambda: current_scope_id(SqlaAsyncContext),
+            scope_func=lambda: current_scope_id(SqlaAsyncConnContext),
         )
 
         for name in self._configs.keys():
             self._provider_factories.set(
-                SqlaAsyncContextProvider,
-                lambda: SqlaAsyncContextProvider(self.create_conn_context(name)),
+                SqlaAsyncConnProvider,
+                lambda: SqlaAsyncConnProvider(self.create_conn_context(name)),
                 name=name,
             )
             self._provider_factories.set(
@@ -115,12 +115,12 @@ class AsyncSqlaService(Service):
             )
 
     def create_conn_context(self, name: str):
-        if instance := self._registry.get(SqlaAsyncContext, name=name):
+        if instance := self._registry.get(SqlaAsyncConnContext, name=name):
             return instance
 
         engine = self._engine_factory.get_engine(name)
-        instance = engine.get_context(SqlaAsyncContext)
-        self._registry.set(SqlaAsyncContext, instance, name=name)
+        instance = engine.get_context(SqlaAsyncConnContext)
+        self._registry.set(SqlaAsyncConnContext, instance, name=name)
         return instance
 
     def create_session_context(self, name: str):

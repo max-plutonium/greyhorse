@@ -2,9 +2,9 @@ import asyncio
 import threading
 from typing import Any, Mapping
 
-from greyhorse.app.context import current_scope_id
+from greyhorse.app.contexts import current_scope_id
 from greyhorse.app.entities.service import Service
-from greyhorse.app.utils.registry import DictRegistry, ScopedRegistry
+from greyhorse.app.utils.registry import DictRegistry, ScopedMutableRegistry
 from greyhorse.result import Result
 from .config import EngineConf
 from .contexts import RedisAsyncContext, RedisAsyncContextProvider, RedisSyncContext, RedisSyncContextProvider
@@ -18,7 +18,7 @@ class SyncRedisService(Service):
         self._engine_factory = RedisSyncEngineFactory()
         self._active = False
         self._event: threading.Event = threading.Event()
-        self._registry = ScopedRegistry[Any, Any](
+        self._registry = ScopedMutableRegistry[Any, Any](
             factory=lambda: DictRegistry(),
             scope_func=lambda: current_scope_id(RedisSyncContext),
         )
@@ -79,7 +79,7 @@ class AsyncRedisService(Service):
         self._engine_factory = RedisAsyncEngineFactory()
         self._active = False
         self._event: asyncio.Event = asyncio.Event()
-        self._registry = ScopedRegistry[Any, Any](
+        self._registry = ScopedMutableRegistry[Any, Any](
             factory=lambda: DictRegistry(),
             scope_func=lambda: current_scope_id(RedisAsyncContext),
         )

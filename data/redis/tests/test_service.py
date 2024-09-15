@@ -1,6 +1,6 @@
 import pytest
 
-from greyhorse.app.context import AsyncContext, SyncContext
+from greyhorse.app.contexts import AsyncContext, SyncContext
 from greyhorse_redis.config import EngineConf
 from greyhorse_redis.contexts import RedisAsyncContextProvider, RedisSyncContextProvider
 from greyhorse_redis.service import AsyncRedisService, SyncRedisService

@@ -1,9 +1,9 @@
 import asyncio
 from typing import Any, Mapping
 
-from greyhorse.app.context import current_scope_id
+from greyhorse.app.contexts import current_scope_id
 from greyhorse.app.entities.service import Service
-from greyhorse.app.utils.registry import DictRegistry, ScopedRegistry
+from greyhorse.app.utils.registry import DictRegistry, ScopedMutableRegistry
 from greyhorse.result import Result
 from .config import EngineConf
 from .contexts import ElasticSearchContext, ElasticSearchContextProvider
@@ -17,7 +17,7 @@ class ElasticSearchService(Service):
         self._engine_factory = ESAsyncEngineFactory()
         self._active = False
         self._event: asyncio.Event = asyncio.Event()
-        self._registry = ScopedRegistry[Any, Any](
+        self._registry = ScopedMutableRegistry[Any, Any](
             factory=lambda: DictRegistry(),
             scope_func=lambda: current_scope_id(ElasticSearchContext),
         )

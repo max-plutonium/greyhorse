@@ -5,14 +5,6 @@ class RenderError(ErrorKwargsMixin, Error):
     app = 'greyhorse-renders'
 
 
-class TemplateFileNotFound(RenderError):
-    type = 'template-not-found'
-
-
-class TemplateSyntaxError(RenderError):
-    type = 'syntax-error'
-
-
 class YamlError(RenderError):
     type = 'yaml-error'
 

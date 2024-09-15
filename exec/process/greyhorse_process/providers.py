@@ -16,5 +16,3 @@ class AsyncConnectionProvider(AsyncContextProvider[AsyncConnection]):
 
 class AsyncSessionProvider(AsyncContextProvider[AsyncSession]):
     pass
-
-
