@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import fields as dataclass_fields
-from typing import ClassVar, Final, TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Self
 
-from .enum import Struct, Enum
+from .enum import Enum, Struct
 from .i18n import StaticTranslator
 
 if TYPE_CHECKING:
@@ -32,8 +32,7 @@ class Error(Enum):
         else:
             msg = self.msg
 
-        msg = msg.format(**values)
-        return msg
+        return msg.format(**values)
 
     def __init_subclass__(cls, **kwargs):
         if 'tr' in kwargs:
@@ -41,7 +40,7 @@ class Error(Enum):
             cls._tr = kwargs.pop('tr')
         return super().__init_subclass__(**kwargs)
 
-    def to_result(self) -> 'Result[Any, Self]':
+    def to_result(self) -> Result[Any, Self]:
         from .result import Err
 
         return Err(self)
@@ -50,5 +49,5 @@ class Error(Enum):
 class ErrorCase(Struct):
     __slots__ = ('msg', 'code')
 
-    def _repr_fn(self, instance):
-        return f'{self._base.__name__}:{self._name}(\"{instance.message}\")'
+    def _repr_fn(self, instance) -> str:
+        return f'{self._base.__name__}:{self._name}("{instance.message}")'

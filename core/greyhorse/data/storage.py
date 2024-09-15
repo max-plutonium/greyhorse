@@ -5,7 +5,7 @@ from greyhorse.app.contexts import Context
 
 
 class DataStorageEngine(ABC):
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         self._name = name
 
     @property
@@ -14,8 +14,7 @@ class DataStorageEngine(ABC):
 
     @property
     @abstractmethod
-    def active(self) -> bool:
-        ...
+    def active(self) -> bool: ...
 
     def start(self) -> Awaitable[None] | None:
         pass
@@ -24,34 +23,30 @@ class DataStorageEngine(ABC):
         pass
 
     @abstractmethod
-    def get_context[T: Context](self, kind: type[T]) -> T | None:
-        ...
+    def get_context[T: Context](self, kind: type[T]) -> T | None: ...
 
 
 class DataStorageEngineFactory(ABC):
     @abstractmethod
-    def create_engine(self, name: str, *args, **kwargs) -> DataStorageEngine:
-        ...
+    def create_engine(self, name: str, *args, **kwargs) -> DataStorageEngine: ...
 
     @abstractmethod
-    def destroy_engine(self, name: str) -> bool:
-        ...
+    def destroy_engine(self, name: str) -> bool: ...
 
     @abstractmethod
-    def get_engine_names(self) -> list[str]:
-        ...
+    def get_engine_names(self) -> list[str]: ...
 
     @abstractmethod
-    def get_engine(self, name: str) -> DataStorageEngine | None:
-        ...
+    def get_engine(self, name: str) -> DataStorageEngine | None: ...
 
     @abstractmethod
-    def get_engines(self, names: list[str] | None = None) -> Mapping[str, DataStorageEngine]:
-        ...
+    def get_engines(
+        self, names: list[str] | None = None,
+    ) -> Mapping[str, DataStorageEngine]: ...
 
 
 class SimpleDataStorageFactory[T](DataStorageEngineFactory, ABC):
-    def __init__(self):
+    def __init__(self) -> None:
         self._engines: dict[str, T] = {}
 
     @override

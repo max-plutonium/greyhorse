@@ -2,7 +2,6 @@ import logging.config
 import os
 import sys
 
-
 DEBUG_MODE = os.environ.get('DEBUG', False)
 
 
@@ -32,7 +31,7 @@ LOGGING_CONFIG_DEFAULTS = dict(
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
             'stream': sys.stderr,
-        }
+        },
     },
     formatters={
         'generic': {
@@ -45,11 +44,8 @@ LOGGING_CONFIG_DEFAULTS = dict(
             'datefmt': '[%Y-%m-%d %H:%M:%S %z]',
             'class': 'logging.Formatter',
         },
-        'simple': {
-            'format': '%(asctime)s [%(levelname)-5.8s] %(message)s'
-        }
-
-    }
+        'simple': {'format': '%(asctime)s [%(levelname)-5.8s] %(message)s'},
+    },
 )
 
 

@@ -30,6 +30,4 @@ def calc_next_interval(
         return f
 
     initial_period = initial_period.total_seconds()
-    return min(
-        calc_interval(initial_period, floor(iteration / iteration_divisor)), max_seconds,
-    )
+    return min(calc_interval(initial_period, floor(iteration / iteration_divisor)), max_seconds)

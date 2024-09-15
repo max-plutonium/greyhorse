@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, Callable, TypeVar, TypeGuard, TYPE_CHECKING, Awaitable
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeGuard, TypeVar
 
-from .enum import Tuple, Unit, Enum
+from .enum import Enum, Tuple, Unit
 
 if TYPE_CHECKING:
     from .result import Result
@@ -20,14 +20,13 @@ class Maybe[T](Enum):
             case 'Maybe':
                 if value is None:
                     return cls.Nothing
-                else:
-                    return cls.__new_just__(value)
+                return cls.__new_just__(value)
             case 'Just':
                 return cls.__new_just__(value)
             case 'Nothing':
                 return super().__new__(cls)
 
-        assert False
+        raise AssertionError()
 
     @classmethod
     def __new_just__(cls, value: T):
@@ -46,7 +45,7 @@ class Maybe[T](Enum):
                 return hash((False, 969048543980197075614658413455))
 
     def is_just(self) -> bool:
-        """ Returns true if the `Maybe` is a `Just` value. """
+        """Returns true if the `Maybe` is a `Just` value."""
         return isinstance(self, Maybe[T].Just)
 
     is_some = is_just
@@ -56,38 +55,44 @@ class Maybe[T](Enum):
         Returns true if the `Maybe` is a `Just` and the value inside of it matches a predicate.
         """
         match self:
-            case Maybe.Just(v): return f(v)
-            case Maybe.Nothing: return False
+            case Maybe.Just(v):
+                return f(v)
+            case Maybe.Nothing:
+                return False
 
     is_some_and = is_just_and
 
     def is_nothing(self) -> bool:
-        """ Returns true if the `Maybe` is a `Nothing` value. """
+        """Returns true if the `Maybe` is a `Nothing` value."""
         return self is Maybe[T].Nothing
 
     is_none = is_nothing
 
-    def ok_or[E](self, err: E) -> 'Result[T, E]':
+    def ok_or[E](self, err: E) -> Result[T, E]:
         """
         Transforms the `Maybe[T]` into a `Result[T, E]`, mapping `Just(v)` to `Ok(v)`
         and `Nothing` to `Err(err)`.
         """
-        from .result import Ok, Err
+        from .result import Err, Ok
 
         match self:
-            case Maybe.Just(v): return Ok(v)
-            case Maybe.Nothing: return Err(err)
+            case Maybe.Just(v):
+                return Ok(v)
+            case Maybe.Nothing:
+                return Err(err)
 
-    def ok_or_else[E](self, err: Callable[[], E]) -> 'Result[T, E]':
+    def ok_or_else[E](self, err: Callable[[], E]) -> Result[T, E]:
         """
         Transforms the `Maybe[T]` into a `Result[T, E]`, mapping `Just(v)` to `Ok(v)`
         and `Nothing` to `Err(err())`.
         """
-        from .result import Ok, Err
+        from .result import Err, Ok
 
         match self:
-            case Maybe.Just(v): return Ok(v)
-            case Maybe.Nothing: return Err(err())
+            case Maybe.Just(v):
+                return Ok(v)
+            case Maybe.Nothing:
+                return Err(err())
 
     def inspect(self, f: Callable[[T], Any]) -> Maybe[T]:
         """
@@ -95,8 +100,10 @@ class Maybe[T](Enum):
         Returns the original `Maybe`.
         """
         match self:
-            case Maybe.Just(v): f(v)
-            case Maybe.Nothing: pass
+            case Maybe.Just(v):
+                f(v)
+            case Maybe.Nothing:
+                pass
         return self
 
     def expect(self, message: str) -> T:
@@ -104,48 +111,60 @@ class Maybe[T](Enum):
         Returns the contained `Just` value if the `Maybe` is a `Just` or raises a `MaybeUnwrapError`.
         """
         match self:
-            case Maybe.Just(v): return v
-            case Maybe.Nothing: raise MaybeUnwrapError(message)
+            case Maybe.Just(v):
+                return v
+            case Maybe.Nothing:
+                raise MaybeUnwrapError(message)
 
     def unwrap(self) -> T:
         """
         Returns the contained value if the `Maybe` is a `Just` or raises a `MaybeUnwrapError`.
         """
         match self:
-            case Maybe.Just(v): return v
-            case Maybe.Nothing: raise MaybeUnwrapError('Called `Maybe.unwrap()` on a `Nothing` value')
+            case Maybe.Just(v):
+                return v
+            case Maybe.Nothing:
+                raise MaybeUnwrapError('Called `Maybe.unwrap()` on a `Nothing` value')
 
     def unwrap_or(self, default: T) -> T:
         """
         Returns the contained `Just` value or a provided default.
         """
         match self:
-            case Maybe.Just(v): return v
-            case Maybe.Nothing: return default
+            case Maybe.Just(v):
+                return v
+            case Maybe.Nothing:
+                return default
 
     def unwrap_or_none(self) -> T | None:
         """
         Returns the contained `Just` value or `None`.
         """
         match self:
-            case Maybe.Just(v): return v
-            case Maybe.Nothing: return None
+            case Maybe.Just(v):
+                return v
+            case Maybe.Nothing:
+                return None
 
     def unwrap_or_else(self, f: Callable[[], T]) -> T:
         """
         Returns the contained `Just` value or computes it from a closure.
         """
         match self:
-            case Maybe.Just(v): return v
-            case Maybe.Nothing: return f()
+            case Maybe.Just(v):
+                return v
+            case Maybe.Nothing:
+                return f()
 
     def unwrap_or_raise(self, exc: Callable[[], ExcType]) -> T:
         """
         Returns the contained `Just` value or raise the provided exception.
         """
         match self:
-            case Maybe.Just(v): return v
-            case Maybe.Nothing: raise exc()
+            case Maybe.Just(v):
+                return v
+            case Maybe.Nothing:
+                raise exc()
 
     def map[U](self, f: Callable[[T], U]) -> Maybe[U]:
         """
@@ -153,8 +172,10 @@ class Maybe[T](Enum):
         or returns `Nothing` (if `Nothing`).
         """
         match self:
-            case Maybe.Just(v): return Maybe[U].Just(f(v))
-            case Maybe.Nothing: return self
+            case Maybe.Just(v):
+                return Maybe[U].Just(f(v))
+            case Maybe.Nothing:
+                return self
 
     async def map_async[U](self, f: Callable[[T], Awaitable[U]]) -> Maybe[U]:
         """
@@ -162,8 +183,10 @@ class Maybe[T](Enum):
         or returns `Nothing` (if `Nothing`).
         """
         match self:
-            case Maybe.Just(v): return Maybe[U].Just(await f(v))
-            case Maybe.Nothing: return self
+            case Maybe.Just(v):
+                return Maybe[U].Just(await f(v))
+            case Maybe.Nothing:
+                return self
 
     def map_or[U](self, default: U, f: Callable[[T], U]) -> U:
         """
@@ -171,8 +194,10 @@ class Maybe[T](Enum):
         to the contained value (if `Just`).
         """
         match self:
-            case Maybe.Just(v): return f(v)
-            case Maybe.Nothing: return default
+            case Maybe.Just(v):
+                return f(v)
+            case Maybe.Nothing:
+                return default
 
     def map_or_else[U](self, default_f: Callable[[], U], f: Callable[[T], U]) -> U:
         """
@@ -180,16 +205,20 @@ class Maybe[T](Enum):
         to the contained value (if `Just`).
         """
         match self:
-            case Maybe.Just(v): return f(v)
-            case Maybe.Nothing: return default_f()
+            case Maybe.Just(v):
+                return f(v)
+            case Maybe.Nothing:
+                return default_f()
 
     def and_[U](self, other: Maybe[U]) -> Maybe[U]:
         """
         Returns `Nothing` if the Maybe is `Nothing`, otherwise returns `other`.
         """
         match self:
-            case Maybe.Just(_): return other
-            case Maybe.Nothing: return self
+            case Maybe.Just(_):
+                return other
+            case Maybe.Nothing:
+                return self
 
     def and_then[U](self, f: Callable[[T], Maybe[U]]) -> Maybe[U]:
         """
@@ -197,8 +226,10 @@ class Maybe[T](Enum):
         Some languages call this operation flatmap.
         """
         match self:
-            case Maybe.Just(v): return f(v)
-            case Maybe.Nothing: return self
+            case Maybe.Just(v):
+                return f(v)
+            case Maybe.Nothing:
+                return self
 
     async def and_then_async[U](self, f: Callable[[T], Awaitable[Maybe[U]]]) -> Maybe[U]:
         """
@@ -206,8 +237,10 @@ class Maybe[T](Enum):
         Some languages call this operation flatmap.
         """
         match self:
-            case Maybe.Just(v): return await f(v)
-            case Maybe.Nothing: return self
+            case Maybe.Just(v):
+                return await f(v)
+            case Maybe.Nothing:
+                return self
 
     def filter(self, predicate: Callable[[T], bool]) -> Maybe[T]:
         """
@@ -228,25 +261,32 @@ class Maybe[T](Enum):
         Returns the Maybe if it contains a value, otherwise returns `other`.
         """
         match self:
-            case Maybe.Just(_): return self
-            case Maybe.Nothing: return other
+            case Maybe.Just(_):
+                return self
+            case Maybe.Nothing:
+                return other
 
     def or_else(self, f: Callable[[], Maybe[T]]) -> Maybe[T]:
         """
         Returns the Maybe if it contains a value, otherwise calls `f` and returns the result.
         """
         match self:
-            case Maybe.Just(_): return self
-            case Maybe.Nothing: return f()
+            case Maybe.Just(_):
+                return self
+            case Maybe.Nothing:
+                return f()
 
     def xor(self, other: Maybe[T]) -> Maybe[T]:
         """
         Returns `Just` if exactly one of `self`, `other` is `Just`, otherwise returns `Nothing`.
         """
         match (self, other):
-            case (Maybe.Just(_), Maybe.Nothing): return self
-            case (Maybe.Nothing, Maybe.Just(_)): return other
-            case _: return Maybe[T].Nothing
+            case (Maybe.Just(_), Maybe.Nothing):
+                return self
+            case (Maybe.Nothing, Maybe.Just(_)):
+                return other
+            case _:
+                return Maybe[T].Nothing
 
     def flatten(self) -> Maybe[T]:
         """
@@ -255,28 +295,36 @@ class Maybe[T](Enum):
         match self:
             case Maybe.Just(v):
                 match v:
-                    case Maybe.Just(_): return v
-                    case Maybe.Nothing: return Maybe[T].Nothing
-                    case _: return self
-            case Maybe.Nothing: return self
+                    case Maybe.Just(_):
+                        return v
+                    case Maybe.Nothing:
+                        return Maybe[T].Nothing
+                    case _:
+                        return self
+            case Maybe.Nothing:
+                return self
 
-    def to_result(self) -> 'Result[Maybe[T], Any]':
+    def to_result(self) -> Result[Maybe[T], Any]:
         """
         Transposes a `Maybe` of a `Result` into an `Result` of a `Maybe`.
 
         `Nothing` will be mapped to `Ok(Nothing)`.
         `Just(Ok(_))` and `Just(Err(_))` will be mapped to `Ok(Just(_))` and `Err(_)`.
         """
-        from .result import Result, Ok, Err
+        from .result import Err, Ok, Result
 
         match self:
             case Maybe.Just(v):
                 match v:
-                    case Result.Ok(x): return Ok(Just(x))
-                    case Result.Err(e): return Err(e)
-                    case _: return Ok(self)
+                    case Result.Ok(x):
+                        return Ok(Just(x))
+                    case Result.Err(e):
+                        return Err(e)
+                    case _:
+                        return Ok(self)
 
-            case Maybe.Nothing: return Result[Maybe[T], Any].Ok(Nothing)
+            case Maybe.Nothing:
+                return Result[Maybe[T], Any].Ok(Nothing)
 
 
 Just = Maybe.Just
@@ -288,7 +336,7 @@ class MaybeUnwrapError(Exception):
     Exception raised from ``.unwrap_<...>`` and ``.expect_<...>`` calls.
     """
 
-    def __init__(self, message: str):
+    def __init__(self, message: str) -> None:
         super().__init__(message)
 
 

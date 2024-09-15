@@ -1,6 +1,6 @@
 import asyncio
 from abc import ABC
-from typing import Any, Mapping, Self, Sequence, TYPE_CHECKING, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, Mapping, Self, Sequence, Tuple, TypeVar
 
 from pydantic.main import BaseModel as PydanticModel
 
@@ -19,7 +19,7 @@ class Model(AbstractModel[IdType], ModelFieldsMixin, ABC):
     _repo: 'ModelRepository[IdType, Self]'
 
     @classmethod
-    def bind(cls, repository: 'ModelRepository[IdType, Self]'):
+    def bind(cls, repository: 'ModelRepository[IdType, Self]') -> None:
         cls._repo = repository
 
     @classmethod
@@ -27,7 +27,9 @@ class Model(AbstractModel[IdType], ModelFieldsMixin, ABC):
         return await cls._repo.construct(data, **kwargs)
 
     @classmethod
-    async def construct_all(cls, objects: Sequence[Mapping[str, Any] | None], **kwargs) -> Sequence[Self | None]:
+    async def construct_all(
+        cls, objects: Sequence[Mapping[str, Any] | None], **kwargs,
+    ) -> Sequence[Self | None]:
         loop = asyncio.get_event_loop()
         awaitables = list()
 
@@ -78,10 +80,7 @@ class Model(AbstractModel[IdType], ModelFieldsMixin, ABC):
 
     @classmethod
     async def create(cls, data: CreateSchemaType | Mapping[str, Any], **kwargs) -> Self | None:
-        if isinstance(data, Mapping):
-            create_data = data
-        else:
-            create_data = data.dict(exclude_unset=True)
+        create_data = data if isinstance(data, Mapping) else data.dict(exclude_unset=True)
 
         if create_data:
             create_data = cls.prepare_for_create(create_data)
@@ -94,14 +93,10 @@ class Model(AbstractModel[IdType], ModelFieldsMixin, ABC):
     ) -> Tuple[Self | None, bool]:
         if instance := await cls.get(id_value, **kwargs):
             return instance, False
-        else:
-            return await cls.create(data, **kwargs), True
+        return await cls.create(data, **kwargs), True
 
     async def update(self, data: UpdateSchemaType | Mapping[str, Any], **kwargs) -> bool:
-        if isinstance(data, Mapping):
-            update_data = data
-        else:
-            update_data = data.dict(exclude_unset=True)
+        update_data = data if isinstance(data, Mapping) else data.dict(exclude_unset=True)
 
         if update_data:
             update_data = self.prepare_for_update(update_data)
@@ -109,11 +104,10 @@ class Model(AbstractModel[IdType], ModelFieldsMixin, ABC):
         return await self._repo.update_by_id(self.get_id_value(), update_data, **kwargs)
 
     @classmethod
-    async def update_by_id(cls, id_value: IdType, data: UpdateSchemaType | Mapping[str, Any], **kwargs) -> bool:
-        if isinstance(data, Mapping):
-            update_data = data
-        else:
-            update_data = data.dict(exclude_unset=True)
+    async def update_by_id(
+        cls, id_value: IdType, data: UpdateSchemaType | Mapping[str, Any], **kwargs,
+    ) -> bool:
+        update_data = data if isinstance(data, Mapping) else data.dict(exclude_unset=True)
 
         if update_data:
             update_data = cls.prepare_for_update(update_data)

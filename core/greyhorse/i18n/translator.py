@@ -7,28 +7,30 @@ from greyhorse.utils.dicts import build_dotted_keys_from_dict
 
 
 class StaticTranslator:
-    def __init__(self):
+    def __init__(self) -> None:
         self._data = dict()
         self._defaults = dict()
 
-    def load_string(self, content: str, namespace: str):
+    def load_string(self, content: str, namespace: str) -> None:
         parsed = tomlkit.parse(content)
         self._defaults[namespace] = parsed.pop('default', None)
         self._data |= build_dotted_keys_from_dict(parsed, root_key=namespace)
 
-    def load_file(self, filename: str, namespace: str | None = None):
+    def load_file(self, filename: str, namespace: str | None = None) -> None:
         filename = Path(filename)
         namespace = namespace if namespace else filename.stem
         self.load_string(filename.read_text('utf-8'), namespace)
 
-    def load_package(self, package: Package, filename: str, namespace: str | None = None):
+    def load_package(
+        self, package: Package, filename: str, namespace: str | None = None,
+    ) -> None:
         filename = Path(filename)
         namespace = namespace if namespace else filename.stem
         source = files(package).joinpath(filename)
         with as_file(source) as file:
             self.load_string(file.read_text(), namespace)
 
-    def unload(self, namespace: str):
+    def unload(self, namespace: str) -> None:
         self._defaults.pop(namespace, None)
         keys_to_remove = [k for k, v in self._data.items() if k.startswith(f'{namespace}.')]
         for k in keys_to_remove:
@@ -48,7 +50,7 @@ class StaticTranslator:
 
     def __call__(self, key: str, lang: str | None = None, default: str = '') -> str:
         if len(self._defaults) == 1:
-            ns = list(self._defaults.keys())[0]
+            ns = next(iter(self._defaults.keys()))
         else:
             ns = key.find('.')
             ns = key[0:ns] if ns != -1 else None

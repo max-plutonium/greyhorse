@@ -1,7 +1,16 @@
 from dataclasses import dataclass, field
-from types import ClassMethodDescriptorType, FunctionType, GetSetDescriptorType, MappingProxyType, MemberDescriptorType, \
-    MethodDescriptorType, MethodType, MethodWrapperType, WrapperDescriptorType
-from typing import Any, Dict, Mapping, Protocol, Sequence, Set
+from types import (
+    ClassMethodDescriptorType,
+    FunctionType,
+    GetSetDescriptorType,
+    MappingProxyType,
+    MemberDescriptorType,
+    MethodDescriptorType,
+    MethodType,
+    MethodWrapperType,
+    WrapperDescriptorType,
+)
+from typing import Any, Dict, Mapping, Optional, Protocol, Sequence, Set
 
 
 @dataclass
@@ -25,11 +34,18 @@ class ModelFieldsMixin(Protocol):
 
     # noinspection PyProtectedMember
     @classmethod
-    def _calculate_fields(cls):
+    def _calculate_fields(cls) -> None:
         private_types = (
-            type, FunctionType, MethodType, MappingProxyType,
-            WrapperDescriptorType, MethodWrapperType, MethodDescriptorType,
-            ClassMethodDescriptorType, GetSetDescriptorType, MemberDescriptorType
+            type,
+            FunctionType,
+            MethodType,
+            MappingProxyType,
+            WrapperDescriptorType,
+            MethodWrapperType,
+            MethodDescriptorType,
+            ClassMethodDescriptorType,
+            GetSetDescriptorType,
+            MemberDescriptorType,
         )
 
         private_fields, public_fields, serializable_fields = set(), set(), set()
@@ -49,12 +65,13 @@ class ModelFieldsMixin(Protocol):
         public_fields.difference_update(cls.Meta.private_fields)
         serializable_fields.update(cls.Meta.serializable_fields)
         serializable_fields.difference_update(cls.Meta.non_serializable_fields)
-        cls.Meta._fields_cache[cls._fields_cache_key()] = \
-            FieldsCache(priv=private_fields, pub=public_fields, ser=serializable_fields)
+        cls.Meta._fields_cache[cls._fields_cache_key()] = FieldsCache(
+            priv=private_fields, pub=public_fields, ser=serializable_fields,
+        )
 
     # noinspection PyProtectedMember
     @classmethod
-    def drop_fields_cache(cls):
+    def drop_fields_cache(cls) -> None:
         key = cls._fields_cache_key()
         cls.Meta._fields_cache.pop(key, None)
 
@@ -79,14 +96,18 @@ class ModelFieldsMixin(Protocol):
         return cls.get_public_fields()
 
     def get_values(
-        self, only_fields: Sequence[str] = None,
-            exclude_fields: Sequence[str] = None) -> Mapping[str, Any]:
+        self,
+        only_fields: Optional[Sequence[str]] = None,
+        exclude_fields: Optional[Sequence[str]] = None,
+    ) -> Mapping[str, Any]:
         public_fields = self.get_public_fields()
         only_fields = set(only_fields) if only_fields else set()
         exclude_fields = set(exclude_fields) if exclude_fields else set()
 
         return {
-            name: getattr(self, name) for name in public_fields
-            if hasattr(self, name) and (not only_fields or name in only_fields)
+            name: getattr(self, name)
+            for name in public_fields
+            if hasattr(self, name)
+            and (not only_fields or name in only_fields)
             and (not exclude_fields or name not in exclude_fields)
         }

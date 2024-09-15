@@ -1,5 +1,7 @@
-from dataclasses import make_dataclass, fields as dataclass_fields, field as dataclass_field
-from typing import Any, Generic, ClassVar, TypeVar
+from dataclasses import field as dataclass_field
+from dataclasses import fields as dataclass_fields
+from dataclasses import make_dataclass
+from typing import Any, ClassVar, Generic, NoReturn, TypeVar
 
 from greyhorse.utils.invoke import caller_path
 
@@ -14,13 +16,18 @@ class Unit:
         bases = [base]
 
         fields = [
-            ('__orig_class__', Any, dataclass_field(default=self._base, init=True, repr=False))
+            ('__orig_class__', Any, dataclass_field(default=self._base, init=True, repr=False)),
         ]
 
         dc = make_dataclass(
-            name, fields, bases=tuple(bases),
+            name,
+            fields,
+            bases=tuple(bases),
             module=f'{'.'.join(caller_path(3))}.{self._base.__name__}',
-            slots=True, frozen=True, repr=False, match_args=False,
+            slots=True,
+            frozen=True,
+            repr=False,
+            match_args=False,
         )
 
         dc.__orig_class__ = self.__class__
@@ -29,7 +36,7 @@ class Unit:
         self._factory = dc()
         return self._factory
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'{self._base.__name__}:{self._name}'
 
     def __call__(self):
@@ -39,7 +46,7 @@ class Unit:
 class Tuple[*Ts]:
     __slots__ = ('_name', '_base', '_factory', '_fields', '_types')
 
-    def __init__(self, *types: *Ts):
+    def __init__(self, *types: *Ts) -> None:
         self._types: list[TypeVar] = []
         self._fields: list[type] = []
 
@@ -58,18 +65,23 @@ class Tuple[*Ts]:
         if self._types:
             bases += [Generic[*self._types]]
 
-        fields = {
-            f'_{i}': arg for i, arg in enumerate(self._types + self._fields)
-        }
+        fields = {f'_{i}': arg for i, arg in enumerate(self._types + self._fields)}
         fields = list(fields.items())
-        fields.append(
-            ('__orig_class__', Any, dataclass_field(default=self._base, init=True, repr=False))
-        )
+        fields.append((
+            '__orig_class__',
+            Any,
+            dataclass_field(default=self._base, init=True, repr=False),
+        ))
 
         dc = make_dataclass(
-            name, fields, bases=tuple(bases),
+            name,
+            fields,
+            bases=tuple(bases),
             module=f'{'.'.join(caller_path(3))}.{self._base.__name__}',
-            slots=True, frozen=True, repr=False, match_args=False,
+            slots=True,
+            frozen=True,
+            repr=False,
+            match_args=False,
         )
 
         dc.__orig_class__ = self.__class__
@@ -86,18 +98,20 @@ class Tuple[*Ts]:
         old_init, dc.__init__ = dc.__init__, __init__
         return self._factory
 
-    def __repr__(self):
-        return f'{self._base.__name__}:{self._name}(' \
-               f'{", ".join([t.__name__ for t in self._types])})'
+    def __repr__(self) -> str:
+        return (
+            f'{self._base.__name__}:{self._name}('
+            f'{", ".join([t.__name__ for t in self._types])})'
+        )
 
-    def _repr_fn(self, instance):
+    def _repr_fn(self, instance) -> str:
         res = []
         for field, type_ in zip(dataclass_fields(instance), instance.__orig_class__.__args__):
             if not field.repr:
                 continue
 
             if v := getattr(instance, field.name, ''):
-                res.append(f'{type_.__name__}: {repr(v)}')
+                res.append(f'{type_.__name__}: {v!r}')
             else:
                 res.append(f'{type_.__name__}')
 
@@ -110,7 +124,7 @@ class Tuple[*Ts]:
 class Struct:
     __slots__ = ('_name', '_base', '_factory', '_fields', '_values')
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         self._values: dict[str, Any] = {}
         self._fields: dict[str, type] = {}
 
@@ -127,39 +141,46 @@ class Struct:
         bases = [base]
 
         fields = list(self._fields.items())
-        fields.append(
-            ('__orig_class__', Any, dataclass_field(default=self._base, init=True, repr=False))
-        )
+        fields.append((
+            '__orig_class__',
+            Any,
+            dataclass_field(default=self._base, init=True, repr=False),
+        ))
 
         for k, v in self._values.items():
-            fields.append(
-                (k, type(v), dataclass_field(default=v, init=False, repr=True))
-            )
+            fields.append((k, type(v), dataclass_field(default=v, init=False, repr=True)))
 
         dc = make_dataclass(
-            name, fields, bases=tuple(bases),
+            name,
+            fields,
+            bases=tuple(bases),
             module=f'{'.'.join(caller_path(3))}.{self._base.__name__}',
-            slots=True, frozen=True, repr=False, match_args=False,
+            slots=True,
+            frozen=True,
+            repr=False,
+            match_args=False,
         )
 
         dc.__orig_class__ = self.__class__
-        dc.__match_args__ = tuple([f'{k}' for k in self._fields.keys()])
+        dc.__match_args__ = tuple([f'{k}' for k in self._fields])
         dc.__repr__ = lambda self0: self._repr_fn(self0)
         self._factory = dc
         return self._factory
 
-    def __repr__(self):
-        return f'{self._base.__name__}:{self._name}(' \
-               f'{", ".join([f'{n}: {t.__name__}' for n, t in self._fields.items()])})'
+    def __repr__(self) -> str:
+        return (
+            f'{self._base.__name__}:{self._name}('
+            f'{", ".join([f'{n}: {t.__name__}' for n, t in self._fields.items()])})'
+        )
 
-    def _repr_fn(self, instance):
+    def _repr_fn(self, instance) -> str:
         res = []
         for field in dataclass_fields(instance):
             if not field.repr:
                 continue
 
             if v := getattr(instance, field.name, ''):
-                res.append(f'{field.name}: {type(v).__name__} = {repr(v)}')
+                res.append(f'{field.name}: {type(v).__name__} = {v!r}')
             else:
                 res.append(f'{field.name}: {type(v).__name__}')
 
@@ -173,6 +194,7 @@ class Enum:
     """
     Implements algebraic enumeration class.
     """
+
     def __init_subclass__(cls, allow_init: bool = False, **kwargs):
         fields: dict[str, ClassVar[Unit | Tuple | Struct]] = {}
 
@@ -191,7 +213,8 @@ class Enum:
             setattr(cls, field_name, factory)
 
         if fields and not allow_init:
-            def __init__(*_, **__):
+
+            def __init__(*_, **__) -> NoReturn:
                 raise NotImplementedError()
 
             cls.__init__ = __init__
@@ -203,6 +226,7 @@ def enum(cls: type | None = None, allow_init: bool = False):
     """
     Create algebraic enumeration from class.
     """
+
     def decorator(cls):
         for field_name in dir(cls):
             instance = getattr(cls, field_name)
@@ -215,7 +239,8 @@ def enum(cls: type | None = None, allow_init: bool = False):
                 continue
 
         if not allow_init:
-            def __init__(*_, **__):
+
+            def __init__(*_, **__) -> NoReturn:
                 raise NotImplementedError()
 
             cls.__init__ = __init__

@@ -2,10 +2,20 @@ from __future__ import annotations
 
 import inspect
 from functools import wraps
-from typing import Callable, TypeVar, Any, Iterator, \
-    NoReturn, TYPE_CHECKING, Awaitable, TypeGuard, Generator, AsyncGenerator
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncGenerator,
+    Awaitable,
+    Callable,
+    Generator,
+    Iterator,
+    NoReturn,
+    TypeGuard,
+    TypeVar,
+)
 
-from .enum import Tuple, Enum
+from .enum import Enum, Tuple
 from .error import Error
 
 if TYPE_CHECKING:
@@ -24,14 +34,13 @@ class Result[T, E](Enum):
             case 'Result':
                 if isinstance(value, Error):
                     return cls.__new_err__(value)
-                else:
-                    return cls.__new_ok__(value)
+                return cls.__new_ok__(value)
             case 'Ok':
                 return cls.__new_ok__(value)
             case 'Err':
                 return cls.__new_err__(value)
 
-        assert False
+        raise AssertionError()
 
     @classmethod
     def __new_ok__(cls, value: T):
@@ -56,13 +65,15 @@ class Result[T, E](Enum):
             case Result.Ok(v):
                 yield v
             case Result.Err(_):
+
                 def _iter() -> Iterator[NoReturn]:
                     # Exception will be raised when the iterator is advanced, not when it's created
                     raise DoException(self)
+
                 return _iter()
 
     def is_ok(self) -> bool:
-        """ Returns true if the `Result` is `Ok`. """
+        """Returns true if the `Result` is `Ok`."""
         return isinstance(self, Result[T, E].Ok)
 
     def is_ok_and(self, f: Callable[[T], bool]) -> bool:
@@ -70,11 +81,13 @@ class Result[T, E](Enum):
         Returns true if the `Result` is `Ok` and the value inside of it matches a predicate.
         """
         match self:
-            case Result.Ok(v): return f(v)
-            case Result.Err(_): return False
+            case Result.Ok(v):
+                return f(v)
+            case Result.Err(_):
+                return False
 
     def is_err(self) -> bool:
-        """ Returns true if the `Result` is `Err`. """
+        """Returns true if the `Result` is `Err`."""
         return isinstance(self, Result[T, E].Err)
 
     def is_err_and(self, f: Callable[[E], bool]) -> bool:
@@ -82,28 +95,34 @@ class Result[T, E](Enum):
         Returns true if the `Result` is `Err` and the value inside of it matches a predicate.
         """
         match self:
-            case Result.Ok(_): return False
-            case Result.Err(e): return f(e)
+            case Result.Ok(_):
+                return False
+            case Result.Err(e):
+                return f(e)
 
-    def ok(self) -> 'Maybe[T]':
+    def ok(self) -> Maybe[T]:
         """
         Converts the `Result` into a `Maybe[T]` and discarding the error, if any.
         """
         from .maybe import Just, Nothing
 
         match self:
-            case Result.Ok(v): return Just(v)
-            case Result.Err(_): return Nothing
+            case Result.Ok(v):
+                return Just(v)
+            case Result.Err(_):
+                return Nothing
 
-    def err(self) -> 'Maybe[E]':
+    def err(self) -> Maybe[E]:
         """
         Converts the `Result` into a `Maybe[E]` and discarding the success value, if any.
         """
         from .maybe import Just, Nothing
 
         match self:
-            case Result.Ok(_): return Nothing
-            case Result.Err(e): return Just(e)
+            case Result.Ok(_):
+                return Nothing
+            case Result.Err(e):
+                return Just(e)
 
     def inspect(self, f: Callable[[T], Any]) -> Result[T, E]:
         """
@@ -111,8 +130,10 @@ class Result[T, E](Enum):
         Returns the original `Result`.
         """
         match self:
-            case Result.Ok(v): f(v)
-            case Result.Err(_): pass
+            case Result.Ok(v):
+                f(v)
+            case Result.Err(_):
+                pass
         return self
 
     def inspect_err(self, f: Callable[[E], Any]) -> Result[T, E]:
@@ -121,8 +142,10 @@ class Result[T, E](Enum):
         Returns the original `Result`.
         """
         match self:
-            case Result.Ok(_): pass
-            case Result.Err(e): f(e)
+            case Result.Ok(_):
+                pass
+            case Result.Err(e):
+                f(e)
         return self
 
     def expect(self, message: str) -> T:
@@ -130,71 +153,88 @@ class Result[T, E](Enum):
         Returns the contained `Ok` value if the `Result` is `Ok` or raises a `ResultUnwrapError`.
         """
         match self:
-            case Result.Ok(v): return v
-            case Result.Err(e): raise ResultUnwrapError(message, e)
+            case Result.Ok(v):
+                return v
+            case Result.Err(e):
+                raise ResultUnwrapError(message, e)
 
     def expect_err(self, message: str) -> E:
         """
         Returns the contained `Err` value if the `Result` is `Err` or raises a `ResultUnwrapError`.
         """
         match self:
-            case Result.Ok(v): raise ResultUnwrapError(message, v)
-            case Result.Err(e): return e
+            case Result.Ok(v):
+                raise ResultUnwrapError(message, v)
+            case Result.Err(e):
+                return e
 
     def unwrap(self) -> T:
         """
         Returns the contained `Ok` value if the `Result` is `Ok` or raises a `ResultUnwrapError`.
         """
         match self:
-            case Result.Ok(v): return v
-            case Result.Err(e): raise ResultUnwrapError('Called `Result.unwrap()` on an `Err` value', e)
+            case Result.Ok(v):
+                return v
+            case Result.Err(e):
+                raise ResultUnwrapError('Called `Result.unwrap()` on an `Err` value', e)
 
     def unwrap_err(self) -> E:
         """
         Returns the contained `Err` value if the `Result` is `Err` or raises a `ResultUnwrapError`.
         """
         match self:
-            case Result.Ok(v): raise ResultUnwrapError('Called `Result.unwrap_err()` on an `Ok` value', v)
-            case Result.Err(e): return e
+            case Result.Ok(v):
+                raise ResultUnwrapError('Called `Result.unwrap_err()` on an `Ok` value', v)
+            case Result.Err(e):
+                return e
 
     def unwrap_or(self, default: T) -> T:
         """
         Returns the contained `Ok` value or a provided default.
         """
         match self:
-            case Result.Ok(v): return v
-            case Result.Err(_): return default
+            case Result.Ok(v):
+                return v
+            case Result.Err(_):
+                return default
 
     def unwrap_or_none(self) -> T | None:
         """
         Returns the contained `Ok` value or `None`.
         """
         match self:
-            case Result.Ok(v): return v
-            case Result.Err(_): return None
+            case Result.Ok(v):
+                return v
+            case Result.Err(_):
+                return None
 
     def unwrap_err_or_none(self) -> T | None:
         """
         Returns the contained `Err` value or `None`.
         """
         match self:
-            case Result.Ok(_): return None
-            case Result.Err(e): return e
+            case Result.Ok(_):
+                return None
+            case Result.Err(e):
+                return e
 
     def unwrap_or_else(self, f: Callable[[E], T]) -> T:
         """
         Returns the contained `Ok` value or computes it from a closure.
         """
         match self:
-            case Result.Ok(v): return v
-            case Result.Err(e): return f(e)
+            case Result.Ok(v):
+                return v
+            case Result.Err(e):
+                return f(e)
 
     def unwrap_or_raise(self, exc: Callable[[], ExcType]) -> T:
         """
         Returns the contained `Ok` value or raise the provided exception.
         """
         match self:
-            case Result.Ok(v): return v
+            case Result.Ok(v):
+                return v
             case Result.Err(e):
                 if isinstance(e, BaseException):
                     raise exc() from e
@@ -208,8 +248,10 @@ class Result[T, E](Enum):
         This function can be used to compose the results of two functions.
         """
         match self:
-            case Result.Ok(v): return Result[U, E].Ok(f(v))
-            case Result.Err(e): return Result[U, E].Err(e)
+            case Result.Ok(v):
+                return Result[U, E].Ok(f(v))
+            case Result.Err(e):
+                return Result[U, E].Err(e)
 
     async def map_async[U](self, f: Callable[[T], Awaitable[U]]) -> Result[U, E]:
         """
@@ -219,8 +261,10 @@ class Result[T, E](Enum):
         This function can be used to compose the results of two functions.
         """
         match self:
-            case Result.Ok(v): return Result[U, E].Ok(await f(v))
-            case Result.Err(e): return Result[U, E].Err(e)
+            case Result.Ok(v):
+                return Result[U, E].Ok(await f(v))
+            case Result.Err(e):
+                return Result[U, E].Err(e)
 
     def map_or[U](self, default: U, f: Callable[[T], U]) -> U:
         """
@@ -228,8 +272,10 @@ class Result[T, E](Enum):
         to the contained value (if `Ok`).
         """
         match self:
-            case Result.Ok(v): return f(v)
-            case Result.Err(_): return default
+            case Result.Ok(v):
+                return f(v)
+            case Result.Err(_):
+                return default
 
     def map_or_else[U](self, default_f: Callable[[E], U], f: Callable[[T], U]) -> U:
         """
@@ -239,8 +285,10 @@ class Result[T, E](Enum):
         This function can be used to unpack a successful result while handling an error.
         """
         match self:
-            case Result.Ok(v): return f(v)
-            case Result.Err(e): return default_f(e)
+            case Result.Ok(v):
+                return f(v)
+            case Result.Err(e):
+                return default_f(e)
 
     def map_err[F](self, f: Callable[[E], F]) -> Result[T, F]:
         """
@@ -250,16 +298,20 @@ class Result[T, E](Enum):
         This function can be used to pass through a successful result while handling an error.
         """
         match self:
-            case Result.Ok(v): return Result[T, F].Ok(v)
-            case Result.Err(e): return Result[T, F].Err(f(e))
+            case Result.Ok(v):
+                return Result[T, F].Ok(v)
+            case Result.Err(e):
+                return Result[T, F].Err(f(e))
 
     def and_[U](self, other: Result[U, E]) -> Result[U, E]:
         """
         Returns `other` if the Result is `Ok`, otherwise returns the `Err` value of `self`.
         """
         match self:
-            case Result.Ok(_): return other
-            case Result.Err(_): return self
+            case Result.Ok(_):
+                return other
+            case Result.Err(_):
+                return self
 
     def and_then[U](self, f: Callable[[T], Result[U, E]]) -> Result[U, E]:
         """
@@ -267,25 +319,33 @@ class Result[T, E](Enum):
         This function can be used for control flow based on `Result` values.
         """
         match self:
-            case Result.Ok(v): return f(v)
-            case Result.Err(_): return self
+            case Result.Ok(v):
+                return f(v)
+            case Result.Err(_):
+                return self
 
-    async def and_then_async[U](self, f: Callable[[T], Awaitable[Result[U, E]]]) -> Result[U, E]:
+    async def and_then_async[U](
+        self, f: Callable[[T], Awaitable[Result[U, E]]],
+    ) -> Result[U, E]:
         """
         Calls `f` if the result is `Ok`, otherwise returns the `Err` value of `self`.
         This function can be used for control flow based on `Result` values.
         """
         match self:
-            case Result.Ok(v): return await f(v)
-            case Result.Err(_): return self
+            case Result.Ok(v):
+                return await f(v)
+            case Result.Err(_):
+                return self
 
     def or_[F](self, other: Result[T, F]) -> Result[T, F]:
         """
         Returns `other` if the Result is `Err`, otherwise returns the `Ok` value of `self`.
         """
         match self:
-            case Result.Ok(_): return self
-            case Result.Err(_): return other
+            case Result.Ok(_):
+                return self
+            case Result.Err(_):
+                return other
 
     def or_else[F](self, f: Callable[[E], Result[T, F]]) -> Result[T, F]:
         """
@@ -293,8 +353,10 @@ class Result[T, E](Enum):
         This function can be used for control flow based on `Result` values.
         """
         match self:
-            case Result.Ok(_): return self
-            case Result.Err(e): return f(e)
+            case Result.Ok(_):
+                return self
+            case Result.Err(e):
+                return f(e)
 
     def flatten(self) -> Result[T, E]:
         """
@@ -303,28 +365,36 @@ class Result[T, E](Enum):
         match self:
             case Result.Ok(v):
                 match v:
-                    case Result.Ok(_): return v
-                    case Result.Err(_): return v
-                    case _: return self
-            case Result.Err(_): return self
+                    case Result.Ok(_):
+                        return v
+                    case Result.Err(_):
+                        return v
+                    case _:
+                        return self
+            case Result.Err(_):
+                return self
 
-    def to_maybe(self) -> 'Maybe[Result[T, E]]':
+    def to_maybe(self) -> Maybe[Result[T, E]]:
         """
         Transposes a `Result` of an `Maybe` into an `Maybe` of a `Result`.
 
         `Ok(Nothing)` will be mapped to `Nothing`.
         `Ok(Just(_))` and `Err(_)` will be mapped to `Just(Ok(_))` and `Just(Err(_))`.
         """
-        from .maybe import Maybe, Just, Nothing
+        from .maybe import Just, Maybe, Nothing
 
         match self:
             case Result.Ok(v):
                 match v:
-                    case Maybe.Just(x): return Just(Ok(x))
-                    case Maybe.Nothing: return Nothing
-                    case _: return Just(self)
+                    case Maybe.Just(x):
+                        return Just(Ok(x))
+                    case Maybe.Nothing:
+                        return Nothing
+                    case _:
+                        return Just(self)
 
-            case Result.Err(e): return Just(Result[T, E].Err(e))
+            case Result.Err(e):
+                return Just(Result[T, E].Err(e))
 
 
 Ok = Result.Ok
@@ -363,7 +433,7 @@ class DoException(Exception):
     we just return `self` (the Err).
     """
 
-    def __init__(self, err: Result.Err):
+    def __init__(self, err: Result.Err) -> None:
         self.err = err
 
 
@@ -412,6 +482,7 @@ def as_result_sync[T, E, **P](
         """
         Decorator to turn a function into one that returns a ``Result``.
         """
+
         @wraps(f)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> Result[T, E]:
             try:
@@ -442,6 +513,7 @@ def as_result_async[T, E, **P](
         """
         Decorator to turn a function into one that returns a ``Result``.
         """
+
         @wraps(f)
         async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> Result[T, E]:
             try:
@@ -494,23 +566,23 @@ def do[T, E](gen: Generator[Result[T, E], None, None]) -> Result[T, E]:
         if "'async_generator' object is not an iterator" in str(te):
             raise TypeError(
                 'Got async_generator but expected generator.'
-                'See the section on do notation in the README.'
+                'See the section on do notation in the README.',
             )
         raise te
 
 
 async def do_async[T, E](
-    gen: Generator[Result[T, E], None, None] | AsyncGenerator[Result[T, E], None]
+    gen: Generator[Result[T, E], None, None] | AsyncGenerator[Result[T, E], None],
 ) -> Result[T, E]:
     """Async version of do. Example:
 
     ``` python
     final_result: Result[float, int] = await do_async(
         Ok(len(x) + int(y) + z)
-            for x in await get_async_result_1()
-            for y in await get_async_result_2()
-            for z in get_sync_result_3()
-        )
+        for x in await get_async_result_1()
+        for y in await get_async_result_2()
+        for z in get_sync_result_3()
+    )
     ```
 
     NOTE: Python makes generators async in a counter-intuitive way.
@@ -526,11 +598,8 @@ async def do_async[T, E](
     async def foo(): ...
     async def bar(): ...
 
-    do(
-        Ok(1)
-        for x in await foo()
-        for y in await bar()
-    )
+
+    do(Ok(1) for x in await foo() for y in await bar())
     ```
 
     We let users try to use regular `do()`, which works in some cases
@@ -554,8 +623,7 @@ async def do_async[T, E](
     try:
         if isinstance(gen, AsyncGenerator):
             return await gen.__anext__()
-        else:
-            return next(gen)
+        return next(gen)
     except DoException as e:
         out: Err[E] = e.err  # type: ignore
         return out

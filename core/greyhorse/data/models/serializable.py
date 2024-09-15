@@ -1,8 +1,8 @@
 from abc import ABC
 from typing import Any, Mapping, Optional, Sequence, Set
 
-from .model import Model
 from ..serializers import Deserializer, Serializer
+from .model import Model
 
 
 class SerializableModel(Model, ABC):
@@ -11,7 +11,7 @@ class SerializableModel(Model, ABC):
         deserializer: Deserializer = None
 
     def __init_subclass__(cls, **kwargs):
-        from greyhorse.data.serializers.pickle import PickleSerializer, PickleDeserializer
+        from greyhorse.data.serializers.pickle import PickleDeserializer, PickleSerializer
 
         cls.Meta.serializer = cls.Meta.serializer or PickleSerializer()
         cls.Meta.deserializer = cls.Meta.deserializer or PickleDeserializer()
@@ -26,16 +26,19 @@ class SerializableModel(Model, ABC):
             cls._calculate_fields()
         return cls.Meta._fields_cache[key].ser
 
-    def get_serializable_values(self, only_fields: Sequence[str] = None) -> Optional[Mapping[str, Any]]:
+    def get_serializable_values(
+        self, only_fields: Optional[Sequence[str]] = None,
+    ) -> Optional[Mapping[str, Any]]:
         serializable_fields = self.get_serializable_fields()
         only_fields = set(only_fields) if only_fields else set()
 
         return {
-            name: getattr(self, name) for name in serializable_fields
+            name: getattr(self, name)
+            for name in serializable_fields
             if hasattr(self, name) and (not only_fields or name in only_fields)
         }
 
-    def serialize(self, only_fields: Sequence[str] = None) -> bytes:
+    def serialize(self, only_fields: Optional[Sequence[str]] = None) -> bytes:
         return self.Meta.serializer.serialize(self.get_serializable_values(only_fields))
 
     @classmethod

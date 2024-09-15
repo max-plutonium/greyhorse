@@ -9,7 +9,7 @@ from greyhorse.utils.hashes import calculate_digest
 
 
 class MethodCache:
-    def __init__(self, op: ModelCacheOperator, ttl: timedelta | None = None):
+    def __init__(self, op: ModelCacheOperator, ttl: timedelta | None = None) -> None:
         self._op = op
         self._ttl = ttl
 
@@ -37,21 +37,33 @@ class MethodCache:
 
         return ':'.join(id_data)
 
-    async def put(self, method: str, args: Mapping[str, Any] | None = None,
-                  data: Any | None = None, cache_key: str | None = None,
-                  ttl: timedelta | None = None, **kwargs) -> bool:
+    async def put(
+        self,
+        method: str,
+        args: Mapping[str, Any] | None = None,
+        data: Any | None = None,
+        cache_key: str | None = None,
+        ttl: timedelta | None = None,
+        **kwargs,
+    ) -> bool:
         cache_key = cache_key or self.cache_key_for(method, args)
         data = CacheData(cache_id=cache_key, data=data)
         return await self._op.cache_one(data, ttl=ttl or self._ttl, **kwargs)
 
-    async def get(self, method: str, args: Mapping[str, Any] | None = None,
-                  cache_key: str | None = None, **kwargs) -> Tuple[bool, Any | None]:
+    async def get(
+        self,
+        method: str,
+        args: Mapping[str, Any] | None = None,
+        cache_key: str | None = None,
+        **kwargs,
+    ) -> Tuple[bool, Any | None]:
         cache_key = cache_key or self.cache_key_for(method, args)
         exists, data = await self._op.load_one(self.get_cache_key(cache_key), **kwargs)
         return exists, data
 
-    async def drop(self, method: str, args: Mapping[str, Any] | None = None,
-                   cache_key: str | None = None) -> bool:
+    async def drop(
+        self, method: str, args: Mapping[str, Any] | None = None, cache_key: str | None = None,
+    ) -> bool:
         cache_key = cache_key or self.cache_key_for(method, args)
         return await self._op.drop_one(self.get_cache_key(cache_key))
 
@@ -59,7 +71,5 @@ class MethodCache:
         methods = methods if methods else list()
         if not methods:
             return await self._op.drop_all()
-        results = await asyncio.gather(
-            *(self._op.drop_all(method) for method in methods)
-        )
+        results = await asyncio.gather(*(self._op.drop_all(method) for method in methods))
         return reduce(operator.add, results, 0)
