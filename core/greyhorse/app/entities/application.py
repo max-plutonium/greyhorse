@@ -3,34 +3,58 @@ import signal
 import threading
 from asyncio import get_running_loop
 from contextlib import contextmanager
+from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Collection, Optional, TYPE_CHECKING
+from typing import Any, Callable, Collection, NoReturn
 
-from greyhorse.result import Result
-from .controller import Controller, ControllerKey
-from .module import Module, ModuleErrorsItem, ModuleProviderItem
-from .service import Service, ServiceKey
-from ..errors import AppNotLoadedError
-from ...i18n import tr
-from ...logging import logger
-from ...utils.invoke import get_asyncio_loop, caller_path
+from greyhorse.app.abc.controllers import Controller
+from greyhorse.app.abc.providers import Provider
+from greyhorse.app.abc.services import Service, ServiceWaiter
+from greyhorse.app.abc.visitor import Visitor
+from greyhorse.app.builders.module import load_module, unload_module
+from greyhorse.app.entities.components import ModuleComponent
+from greyhorse.app.schemas.components import ModuleComponentConf
+from greyhorse.error import Error, ErrorCase
+from greyhorse.logging import logger
+from greyhorse.maybe import Just, Maybe, Nothing
+from greyhorse.result import Ok, Result
+from greyhorse.utils.invoke import get_asyncio_loop, invoke_sync
 
-if TYPE_CHECKING:
-    from ..schemas.module import ModuleDesc
+
+class ApplicationError(Error):
+    namespace = 'greyhorse.app.application'
+
+    AlreadyLoaded = ErrorCase(msg='Application already loaded')
+    NotLoaded = ErrorCase(msg='Application not loaded')
+    Load = ErrorCase(msg='Load error occurred: "{details}"', details=str)
+    Unload = ErrorCase(msg='Unload error occurred: "{details}"', details=str)
+    Component = ErrorCase(
+        msg='Component error in application, details: "{details}"', details=str,
+    )
+
+
+class _ElementsVisitor(Visitor):
+    def __init__(self, controllers: list[Controller], services: list[Service]) -> None:
+        self._controllers: list[Controller] = controllers
+        self._services: list[Service] = services
+
+    def visit_controller(self, controller: Controller) -> None:
+        self._controllers.append(controller)
+
+    def visit_service(self, service: Service) -> None:
+        self._services.append(service)
 
 
 class Application:
-    def __init__(
-        self, name: str, version: str = '', debug: bool = False,
-    ):
+    def __init__(self, name: str, version: str = '', debug: bool = False) -> None:
         self._name = name
         self._version = version
         self._debug = debug
         self._path = self._inspect_cwd()
-        self._modules: dict[str, tuple[Module, 'ModuleDesc']] = {}
-        self._services: dict[str, Service] = {}
-        self._root_desc: Optional['ModuleDesc'] = None
-        self._module: Module | None = None
+        self._controllers: list[Controller] = []
+        self._services: list[Service] = []
+        self._root: Maybe[ModuleComponent] = Nothing
+        self._conf: Maybe[ModuleComponentConf] = Nothing
 
     @staticmethod
     def _inspect_cwd():
@@ -44,6 +68,7 @@ class Application:
                 pyproject_toml_path = path / 'pyproject.toml'
                 if pyproject_toml_path.exists():
                     return path
+        return None
 
     @property
     def name(self) -> str:
@@ -60,150 +85,160 @@ class Application:
     def get_cwd(self) -> Path:
         return self._path.absolute()
 
-    def register_module(self, name: str, instance: Module, desc: 'ModuleDesc'):
-        self._modules[name] = (instance, desc)
+    def add_resource(self, res_type: type, resource: Any) -> bool:
+        return self._root.map_or(False, lambda root: root.add_resource(res_type, resource))
 
-    def unregister_module(self, name: str):
-        self._modules.pop(name, None)
+    def remove_resource(self, res_type: type) -> bool:
+        return self._root.map_or(False, lambda root: root.remove_resource(res_type))
 
-    def register_service(self, name: str, instance: Service):
-        self._services[name] = instance
+    def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
+        return self._root.and_then(lambda root: root.get_provider(prov_type))
 
-    def unregister_service(self, name: str):
-        self._services.pop(name, None)
+    def load(self, conf: ModuleComponentConf) -> Result[None, ApplicationError]:
+        if self._root:
+            return ApplicationError.AlreadyLoaded().to_result()
 
-    def get_module(self, name: str) -> Module | None:
-        if value := self._modules.get(name):
-            return value[0]
-        return None
+        logger.info('{name}: Application load'.format(name=self.name))
 
-    def get_controller(self, key: ControllerKey, name: str | None = None) -> Controller | None:
-        if self._module:
-            return self._module.get_controller(key, name=name)
-        return None
-
-    def get_service(self, key: ServiceKey, name: str | None = None) -> Service | None:
-        if self._module:
-            return self._module.get_service(key, name=name)
-        return None
-
-    def satisfy_provider_claims(self, items: list[ModuleProviderItem]) -> list[ModuleErrorsItem]:
-        if self._module:
-            return self._module.satisfy_provider_claims(items)
-        raise AppNotLoadedError()
-
-    def create(self) -> list[ModuleErrorsItem]:
-        if self._module:
-            return self._module.create()
-        raise AppNotLoadedError()
-
-    def destroy(self) -> list[ModuleErrorsItem]:
-        if self._module:
-            return self._module.destroy()
-        raise AppNotLoadedError()
-
-    def start(self):
-        if self._module:
-            return self._module.start()
-        raise AppNotLoadedError()
-
-    def stop(self):
-        if self._module:
-            return self._module.stop()
-        raise AppNotLoadedError()
-
-    def load(self, module_path: str, args: dict[str, Any] | None = None) -> Result:
-        from ..builders.module import ModuleBuilder
-        from ..schemas.module import ModuleDesc
-
-        logger.info(tr('app.application.try-load').format(module_path=module_path))
-
-        root_desc = ModuleDesc(path=module_path, args=args or {})
-        root_desc._initpath = caller_path(2)
-        builder = ModuleBuilder(self, root_desc)
-
-        res = builder.load_pass()
-        if not res.success:
+        if not (
+            res := load_module(self._name, conf).map_err(
+                lambda e: ApplicationError.Load(details=e.message),
+            )
+        ):
             return res
 
-        self._root_desc = root_desc
+        module = res.unwrap()
 
-        res = builder.create_module_pass()
-        if not res.success:
+        try:
+            instance = ModuleComponent(
+                name=self._name, path=self._name, conf=conf, module=module,
+            )
+
+        except Exception as e:
+            error = ApplicationError.Component(details=str(e))
+            logger.error(error.message)
+            return error.to_result()
+
+        self._root = Just(instance)
+        self._conf = Just(conf)
+
+        logger.info('{name}: Application loaded successfully'.format(name=self.name))
+        return Ok(None)
+
+    def unload(self) -> Result[None, ApplicationError]:
+        if not self._root:
+            return Ok(None)
+
+        logger.info('{name}: Application unload'.format(name=self.name))
+
+        conf, self._conf = self._conf.unwrap(), Nothing
+
+        if not (
+            res := unload_module(self._name, conf).map_err(
+                lambda e: ApplicationError.Unload(details=e.message),
+            )
+        ):
             return res
 
-        self._module = res.result
+        del conf
 
-        logger.info(tr('app.application.load-success').format(module_path=module_path))
-        return Result.from_ok()
+        logger.info('{name}: Application unloaded successfully'.format(name=self.name))
+        return Ok(None)
 
-    def unload(self) -> Result:
-        from ..builders.module import ModuleTerminator
+    def setup(self) -> Result[None, ApplicationError]:
+        return (
+            self._root.map(
+                lambda root: root.setup()
+                .map_err(lambda e: ApplicationError.Component(details=e.message))
+                .map(lambda _: root),
+            )
+            .unwrap_or_else(lambda: ApplicationError.NotLoaded().to_result())
+            .map(self._collect_elements)
+        )
 
-        logger.info(tr('app.application.try-unload').format(module_path=self._root_desc.path))
+    def teardown(self) -> Result[None, ApplicationError]:
+        self._controllers = []
+        self._services = []
 
-        terminator = ModuleTerminator(self, self._root_desc)
+        return self._root.map(
+            lambda root: root.teardown().map_err(
+                lambda e: ApplicationError.Component(details=e.message),
+            ),
+        ).unwrap_or_else(lambda: ApplicationError.NotLoaded().to_result())
 
-        res = terminator.destroy_module_pass()
-        if not res.success:
-            return res
+    def start(self) -> bool:
+        if not self._root:
+            return False
 
-        self._module = None
+        for ctrl in self._controllers:
+            if hasattr(ctrl, 'start'):
+                invoke_sync(ctrl.start)
 
-        res = terminator.unload_pass()
-        if not res.success:
-            return res
+        for svc in self._services:
+            if hasattr(svc, 'start'):
+                invoke_sync(svc.start)
 
-        logger.info(tr('app.application.unload-success').format(module_path=self._root_desc.path))
-        self._root_desc = None
-        return Result.from_ok()
+        return True
 
-    def run_sync(self, callback: Callable[[], None] | None = None):
+    def stop(self) -> bool:
+        if not self._root:
+            return False
+
+        for ctrl in self._controllers:
+            if hasattr(ctrl, 'stop'):
+                invoke_sync(ctrl.stop)
+
+        for svc in self._services:
+            if hasattr(svc, 'stop'):
+                invoke_sync(svc.stop)
+
+        return True
+
+    def run_sync(self, callback: Callable[[], None] | None = None) -> None:
         sync_events: list[threading.Event] = []
         async_events: list[asyncio.Event] = []
 
-        for name, srv in self._services.items():
-            match srv.wait():
-                case threading.Event() as event:
-                    sync_events.append(event)
-                case asyncio.Event() as event:
-                    async_events.append(event)
+        for svc in self._services:
+            match svc.waiter:
+                case ServiceWaiter.Sync() as event:
+                    sync_events.append(event._0)
+                case ServiceWaiter.Async() as event:
+                    async_events.append(event._0)
 
         all_events = sync_events + async_events
 
-        async def waiter():
+        async def waiter() -> None:
             async with asyncio.TaskGroup() as tg:
                 for e in async_events:
                     tg.create_task(e.wait())
 
-        logger.info(tr('app.application.run-sync-start').format(name=self.name))
+        logger.info('{name}: Application start sync'.format(name=self._name))
 
         while not all([e.is_set() for e in all_events]):
             if async_events:
-                loop = get_running_loop()
-                loop.run_until_complete(waiter())
+                get_running_loop().run_until_complete(waiter())
 
             sync_events_bools = [e.wait(0.1) for e in sync_events]
 
             if callback and not all(sync_events_bools):
                 callback()
 
-        logger.info(tr('app.application.run-sync-stop').format(name=self.name))
+        logger.info('{name}: Application running sync STOPPED'.format(name=self._name))
 
-    async def run_async(self):
+    async def run_async(self) -> None:
         sync_events: list[threading.Event] = []
         async_events: list[asyncio.Event] = []
 
-        for name, srv in self._services.items():
-            match srv.wait():
-                case threading.Event() as event:
-                    sync_events.append(event)
-                case asyncio.Event() as event:
-                    async_events.append(event)
+        for svc in self._services:
+            match svc.waiter:
+                case ServiceWaiter.Sync() as event:
+                    sync_events.append(event._0)
+                case ServiceWaiter.Async() as event:
+                    async_events.append(event._0)
 
         all_events = sync_events + async_events
 
-        logger.info(tr('app.application.run-async-start').format(name=self.name))
+        logger.info('{name}: Application start async'.format(name=self._name))
 
         while not all([e.is_set() for e in all_events]):
             async with asyncio.TaskGroup() as tg:
@@ -212,16 +247,16 @@ class Application:
                 for e in async_events:
                     tg.create_task(e.wait())
 
-        logger.info(tr('app.application.run-async-stop').format(name=self.name))
+        logger.info('{name}: Application running async STOPPED'.format(name=self._name))
 
     @contextmanager
-    def graceful_exit(self, signals: Collection[int] = (signal.SIGINT, signal.SIGTERM)):
+    def graceful_exit(self, signals: Collection[int] = (signal.SIGINT, signal.SIGTERM)) -> None:
         signals = set(signals)
         flag: list[bool] = []
 
         if loop := get_asyncio_loop():
             for sig_num in signals:
-                loop.add_signal_handler(sig_num, self._exit_handler, sig_num, flag)
+                loop.add_signal_handler(sig_num, self._exit_handler, sig_num, None, flag)
             try:
                 yield
             finally:
@@ -232,21 +267,25 @@ class Application:
 
             for sig_num in signals:
                 original_handlers.append(signal.getsignal(sig_num))
-                signal.signal(sig_num, self._exit_handler)
+                signal.signal(sig_num, partial(self._exit_handler, flag=flag))
             try:
                 yield
             finally:
                 for sig_num, handler in zip(signals, original_handlers):
                     signal.signal(sig_num, handler)
 
-    def _exit_handler(self, sig_num: 'signal.Signals', flag: list[bool], *_) -> None:
+    def _collect_elements(self, root: ModuleComponent) -> None:
+        visitor = _ElementsVisitor(self._controllers, self._services)
+        root.accept_visitor(visitor)
+
+    def _exit_handler(self, sig_num: 'signal.Signals', _, flag: list[bool]) -> None:
         if flag:
             self._second_exit_stage(sig_num)
         else:
             self._first_exit_stage(sig_num)
             flag.append(True)
 
-    def _first_exit_stage(self, sig_num: 'signal.Signals'):
+    def _first_exit_stage(self, sig_num: 'signal.Signals') -> None:
         fail = False
 
         try:
@@ -257,5 +296,5 @@ class Application:
         if fail:
             self._second_exit_stage(sig_num)
 
-    def _second_exit_stage(self, sig_num: 'signal.Signals'):
+    def _second_exit_stage(self, sig_num: 'signal.Signals') -> NoReturn:
         raise SystemExit(128 + sig_num)
