@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "greyhorse"
-version = "0.4.12"
+version = "0.4.13"
 description = "Greyhorse library"
 license = "MIT"
 repository = "https://gitlab.com/max-plutonium/greyhorse"
@@ -28,21 +28,15 @@ tomlkit = "^0.11"
 orjson = "^3.8"
 networkx = "^3.3"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 pytest = "^7.4"
 pytest-asyncio = "^0.23"
 pytest-cov = "^4.1"
 pytest-mock = "^3.12"
 pytest-faker = "^2.0"
-autoflake = "^2.2"
-black = "^23.11"
-flake8 = "^6.1"
-isort = "^5.12"
 mypy = "^1.11.2"
 pre-commit = "^3.5"
-
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.6.3"
+ruff = "^0.6.5"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -131,19 +125,6 @@ addopts = [
 testpaths = [
   "tests",
 ]
-
-[tool.isort]
-profile = "black"
-known_first_party = "greyhorse"
-skip = ".tox,.eggs,ci/templates,build,dist"
-
-[tool.flake8]
-exclude = ".venv,.git,.tox,.eggs,ci/templates,build,dist"
-max-line-length = 90
-max-complexity = 7
-statistics = true
-ignore = "W503,E203"
-per-file-ignores = "__init__.py: F401"
 
 [tool.coverage.report]
 exclude_lines = [

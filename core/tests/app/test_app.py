@@ -32,6 +32,8 @@ def test_app() -> None:
     res = app.setup()
     assert res.is_ok()
 
+    print('OK')
+
     prov = app.get_provider(SharedProvider[FunctionalOperator])
     assert prov.is_just()
 
