@@ -7,6 +7,7 @@ from greyhorse.error import Error, ErrorCase
 from greyhorse.result import Result
 
 from .collectors import Collector, MutCollector
+from .visitor import Visitor
 
 
 class ControllerError(Error):
@@ -38,6 +39,9 @@ class Controller(ABC):
     def __init__(self) -> None:
         self._operator_members: dict[type, OperatorMember] = {}
         self._init_operator_members()
+
+    def accept_visitor(self, visitor: Visitor) -> None:
+        visitor.visit_controller(self)
 
     def _init_operator_members(self) -> None:
         operator_members = inspect.getmembers(self, _is_operator_member)

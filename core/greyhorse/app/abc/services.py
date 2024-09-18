@@ -11,6 +11,7 @@ from greyhorse.error import Error, ErrorCase
 from greyhorse.result import Result
 
 from .providers import Provider
+from .visitor import Visitor
 
 
 class ServiceState(Enum):
@@ -70,6 +71,9 @@ class Service(ABC):
         self._providers: dict[type, list[type[Provider]]] = defaultdict(list)
         self._provider_members: dict[type[Provider], ProviderMember] = {}
         self._init_provider_members()
+
+    def accept_visitor(self, visitor: Visitor) -> None:
+        visitor.visit_service(self)
 
     def _init_provider_members(self) -> None:
         provider_members = inspect.getmembers(self, _is_provider_member)

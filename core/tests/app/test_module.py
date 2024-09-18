@@ -2,45 +2,13 @@ from __future__ import annotations
 
 from greyhorse.app.abc.operators import AssignOperator
 from greyhorse.app.abc.providers import SharedProvider
-from greyhorse.app.boxes import SharedRefBox
 from greyhorse.app.builders.module import ModuleBuilder
-from greyhorse.app.entities.controllers import SyncController, operator
-from greyhorse.app.entities.services import SyncService, provider
 from greyhorse.app.schemas.components import ModuleComponentConf, ModuleConf, ProvidersConf
 from greyhorse.app.schemas.elements import CtrlConf, SvcConf
 from greyhorse.maybe import Maybe, Nothing
 
 from .common.functional import FunctionalOperator
-
-
-class FunctionalOperatorService(SyncService):
-    def __init__(self) -> None:
-        super().__init__()
-        self._res = None
-
-    def set_res(self, res) -> None:
-        self._res = res
-
-    @provider(SharedProvider[FunctionalOperator])
-    def create_op(self):
-        if not self._res:
-            return None
-        return SharedRefBox(lambda: self._res, lambda v: v)
-
-
-class FunctionalOperatorCtrl(SyncController):
-    def __init__(self, svc: FunctionalOperatorService) -> None:
-        super().__init__()
-        self._a = Nothing
-        self._svc = svc
-
-    def _setter(self, value) -> None:
-        self._a = value
-        self._svc.set_res(value.unwrap_or_none())
-
-    @operator(FunctionalOperator)
-    def create_op(self):
-        return AssignOperator[FunctionalOperator](lambda: self._a, self._setter)
+from .root import FunctionalOperatorCtrl, FunctionalOperatorService
 
 
 def __init__():
@@ -65,9 +33,9 @@ def __init__():
 
 
 def test_module() -> None:
-    test_module_conf = __init__()
+    module_conf = __init__()
 
-    module_builder = ModuleBuilder(test_module_conf, 'tests')
+    module_builder = ModuleBuilder(module_conf, 'tests')
     res = module_builder.create_pass()
     assert res.is_ok()
     module = res.unwrap()

@@ -91,6 +91,12 @@ class DictOperatorService(SyncService):
             return ServiceError.NoSuchResource(name='DictResContext').to_result()
         return super().teardown()
 
+    def start(self) -> None:
+        self._switch_to_active(True)
+
+    def stop(self) -> None:
+        self._switch_to_active(False)
+
     @provider(FunctionalOpProvider)
     def create_prov(
         self, ctx_prov: DictCtxProvider, mut_ctx_prov: DictMutCtxProvider,

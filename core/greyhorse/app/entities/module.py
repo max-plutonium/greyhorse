@@ -2,6 +2,7 @@ from typing import Any
 
 from greyhorse.app.abc.operators import Operator
 from greyhorse.app.abc.providers import Provider
+from greyhorse.app.abc.visitor import Visitor
 from greyhorse.app.entities.components import Component
 from greyhorse.app.private.res_manager import ResourceManager
 from greyhorse.app.registries import MutDictRegistry
@@ -38,6 +39,12 @@ class Module:
     @property
     def path(self) -> str:
         return self._path
+
+    def accept_visitor(self, visitor: Visitor) -> None:
+        visitor.start_module(self)
+        for comp in self._components.values():
+            comp.accept_visitor(visitor)
+        visitor.finish_module(self)
 
     def add_provider[T](self, prov_type: type[Provider[T]], provider: Provider[T]) -> bool:
         for prov_claim in self._conf.provider_claims:

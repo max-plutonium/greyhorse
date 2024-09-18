@@ -13,6 +13,7 @@ from greyhorse.utils.injectors import ParamsInjector
 
 from ...maybe import Just, Maybe, Nothing
 from ...utils.invoke import invoke_sync
+from ..abc.visitor import Visitor
 from ..private.res_manager import ResourceManager
 
 if TYPE_CHECKING:
@@ -58,8 +59,8 @@ class Component:
         self._controllers: list[Controller] = []
         self._services: list[Service] = []
 
-        self._private_providers = MutDictRegistry[type[Provider], Provider]()
         self._resources = MutDictRegistry[type, Any]()
+        self._providers = MutDictRegistry[type[Provider], Provider]()
 
     @property
     def name(self) -> str:
@@ -68,6 +69,29 @@ class Component:
     @property
     def path(self) -> str:
         return self._path
+
+    def accept_visitor(self, visitor: Visitor) -> None:
+        visitor.start_component(self)
+        for svc in self._services:
+            svc.accept_visitor(visitor)
+        for ctrl in self._controllers:
+            ctrl.accept_visitor(visitor)
+        visitor.finish_component(self)
+
+    def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
+        return self._rm.find_provider(prov_type, self._providers).map(Just).unwrap_or(Nothing)
+
+    def add_provider[T](self, prov_type: type[Provider[T]], provider: Provider[T]) -> bool:
+        return self._providers.add(prov_type, provider)
+
+    def remove_provider[T](self, prov_type: type[Provider[T]]) -> bool:
+        return self._providers.remove(prov_type)
+
+    def add_resource(self, res_type: type, resource: Any) -> bool:
+        return self._resources.add(res_type, resource)
+
+    def remove_resource(self, res_type: type) -> bool:
+        return self._resources.remove(res_type)
 
     def add_controller(self, controller: Controller) -> bool:
         if self._controllers.count(controller):
@@ -93,25 +117,6 @@ class Component:
         self._services.remove(service)
         return self._rm.remove_service(service)
 
-    def get_provider[T](self, prov_type: type[Provider[T]]) -> Maybe[Provider[T]]:
-        return (
-            self._rm.find_provider(prov_type, self._private_providers)
-            .map(Just)
-            .unwrap_or(Nothing)
-        )
-
-    def add_provider[T](self, prov_type: type[Provider[T]], provider: Provider[T]) -> bool:
-        return self._private_providers.add(prov_type, provider)
-
-    def remove_provider[T](self, prov_type: type[Provider[T]]) -> bool:
-        return self._private_providers.remove(prov_type)
-
-    def add_resource(self, res_type: type, resource: Any) -> bool:
-        return self._resources.add(res_type, resource)
-
-    def remove_resource(self, res_type: type) -> bool:
-        return self._resources.remove(res_type)
-
     def setup(self) -> Result[None, ComponentError]:
         injector = ParamsInjector()
 
@@ -134,7 +139,7 @@ class Component:
             self.add_controller(ctrl)
 
         if not (
-            res := self._rm.setup(self._private_providers).map_err(
+            res := self._rm.setup(self._providers).map_err(
                 lambda e: ComponentError.Resource(
                     path=self._path, name=self.name, details=e.message,
                 ),
@@ -360,6 +365,15 @@ class ModuleComponent(Component):
         self._conf = conf
         self._module = module
 
+    def accept_visitor(self, visitor: Visitor) -> None:
+        visitor.start_component(self)
+        for svc in self._services:
+            svc.accept_visitor(visitor)
+        for ctrl in self._controllers:
+            ctrl.accept_visitor(visitor)
+        self._module.accept_visitor(visitor)
+        visitor.finish_component(self)
+
     def setup(self) -> Result[None, ComponentError]:
         if not (res := super().setup()):
             return res
@@ -370,7 +384,7 @@ class ModuleComponent(Component):
         for res_type, res in self._resources.items():
             self._module.add_resource(res_type, res)
 
-        for prov_type, prov in self._private_providers.items():
+        for prov_type, prov in self._providers.items():
             self._module.add_provider(prov_type, prov)
 
         if not (
@@ -394,10 +408,10 @@ class ModuleComponent(Component):
         ):
             return res
 
-        for prov_type, _ in self._private_providers.items():
+        for prov_type, _ in self._providers.items():  # noqa: PERF102
             self._module.remove_provider(prov_type)
 
-        for res_type, _ in self._resources.items():
+        for res_type, _ in self._resources.items():  # noqa: PERF102
             self._module.remove_resource(res_type)
 
         for op in self._rm.get_operators():
