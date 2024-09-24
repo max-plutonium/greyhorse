@@ -39,16 +39,21 @@ class StaticTranslator:
     def size(self) -> int:
         return len(self._data)
 
+    def __len__(self) -> int:
+        return len(self._data)
+
     def set_default_lang(self, namespace: str, lang: str) -> bool:
         if namespace not in self._defaults:
             return False
         self._defaults[namespace] = lang
         return True
 
-    def namespaces(self) -> set[str]:
-        return set(self._defaults.keys())
+    def namespaces(self) -> frozenset[str]:
+        return frozenset(self._defaults.keys())
 
-    def __call__(self, key: str, lang: str | None = None, default: str = '') -> str:
+    def __call__(
+        self, key: str, lang: str | None = None, default: str = '', /, **kwargs,
+    ) -> str:
         if len(self._defaults) == 1:
             ns = next(iter(self._defaults.keys()))
         else:
@@ -74,6 +79,6 @@ class StaticTranslator:
 
         for t in tries:
             if res := self._data.get(t):
-                return res
+                return res.format(**kwargs) if kwargs else res
 
-        return default
+        return default.format(**kwargs) if kwargs else default
