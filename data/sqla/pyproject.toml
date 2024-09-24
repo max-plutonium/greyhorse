@@ -2,7 +2,26 @@
 name = "greyhorse-sqla"
 dynamic = ["version"]
 description = "Greyhorse SqlAlchemy library"
+keywords = ["sqlalchemy"]
+license = {text = "MIT License"}
+readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.12"
+
+maintainers = [
+    {name = "Max Plutonium", email = "plutonium.max@gmail.com"},
+]
+authors = [
+    {name = "Max Plutonium", email = "plutonium.max@gmail.com"},
+]
+
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Typing :: Typed",
+]
 
 dependencies = [
     "greyhorse>=0.0.0",
@@ -24,8 +43,13 @@ mysql = [
     "pymysql[rsa]>=1.1.1",
 ]
 
-[tool.uv.sources]
-greyhorse = { path = "../../core", editable = true }
+[project.urls]
+Homepage = "https://gitlab.com/max-plutonium/greyhorse"
+Repository = "https://gitlab.com/max-plutonium/greyhorse"
+
+[build-system]
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
 
 [tool.uv]
 dev-dependencies = [
@@ -39,3 +63,18 @@ dev-dependencies = [
     "ruff>=0.6.7",
     "uv-dynamic-versioning>=0.1.0",
 ]
+
+[tool.uv.sources]
+greyhorse = { path = "../../core", editable = true }
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.uv-dynamic-versioning]
+enable = true
+vcs = "git"
+pattern = "default-unprefixed"
+style = "pep440"
+bump = true
+strict = false
+latest-tag = true
