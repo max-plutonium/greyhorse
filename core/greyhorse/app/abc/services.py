@@ -3,8 +3,9 @@ import inspect
 import threading
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from greyhorse.enum import Enum, Struct, Tuple, Unit
 from greyhorse.error import Error, ErrorCase
@@ -97,12 +98,12 @@ class Service(ABC):
 
     @abstractmethod
     def setup(
-        self, *args, **kwargs,
+        self, *args, **kwargs
     ) -> Result[ServiceState, ServiceError] | Awaitable[Result[ServiceState, ServiceError]]: ...
 
     @abstractmethod
     def teardown(
-        self, *args, **kwargs,
+        self, *args, **kwargs
     ) -> Result[ServiceState, ServiceError] | Awaitable[Result[ServiceState, ServiceError]]: ...
 
     def can_provide(self, resource_type: type) -> bool:

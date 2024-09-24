@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
+from collections.abc import Awaitable, Callable
 from functools import partial
-from typing import Any, Awaitable, Callable, Literal, Union, override
+from typing import Any, Literal, override
 
 from greyhorse.maybe import Just, Maybe, Nothing
 from greyhorse.utils.types import TypeWrapper
@@ -8,7 +9,7 @@ from greyhorse.utils.types import TypeWrapper
 
 class Operator[T](TypeWrapper[T], ABC):
     @abstractmethod
-    def accept(self, instance: T) -> Union[bool, Awaitable[bool]]: ...
+    def accept(self, instance: T) -> bool | Awaitable[bool]: ...
 
     @abstractmethod
     def revoke(self) -> Maybe[T] | Awaitable[Maybe[T]]: ...
@@ -16,7 +17,7 @@ class Operator[T](TypeWrapper[T], ABC):
 
 class AssignOperator[T](Operator[T]):
     def __init__(
-        self, getter: Callable[[], Maybe[T]], setter: Callable[[Maybe[T]], Any],
+        self, getter: Callable[[], Maybe[T]], setter: Callable[[Maybe[T]], Any]
     ) -> None:
         super().__init__()
         self._getter = getter

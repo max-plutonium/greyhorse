@@ -16,7 +16,7 @@ class Unit:
         bases = [base]
 
         fields = [
-            ('__orig_class__', Any, dataclass_field(default=self._base, init=True, repr=False)),
+            ('__orig_class__', Any, dataclass_field(default=self._base, init=True, repr=False))
         ]
 
         dc = make_dataclass(
@@ -101,12 +101,14 @@ class Tuple[*Ts]:
     def __repr__(self) -> str:
         return (
             f'{self._base.__name__}:{self._name}('
-            f'{", ".join([t.__name__ for t in self._types])})'
+            f'{', '.join([t.__name__ for t in self._types])})'
         )
 
     def _repr_fn(self, instance) -> str:
         res = []
-        for field, type_ in zip(dataclass_fields(instance), instance.__orig_class__.__args__):
+        for field, type_ in zip(
+            dataclass_fields(instance), instance.__orig_class__.__args__, strict=False
+        ):
             if not field.repr:
                 continue
 
@@ -115,7 +117,7 @@ class Tuple[*Ts]:
             else:
                 res.append(f'{type_.__name__}')
 
-        return f'{self._base.__name__}:{self._name}({", ".join(res)})'
+        return f'{self._base.__name__}:{self._name}({', '.join(res)})'
 
     def __call__(self, *args):
         return self._factory(*args)
@@ -129,7 +131,7 @@ class Struct:
         self._fields: dict[str, type] = {}
 
         for k, v in kwargs.items():
-            if isinstance(v, (type, TypeVar)):
+            if isinstance(v, type | TypeVar):
                 self._fields[k] = v
             else:
                 self._values[k] = v
@@ -170,7 +172,7 @@ class Struct:
     def __repr__(self) -> str:
         return (
             f'{self._base.__name__}:{self._name}('
-            f'{", ".join([f'{n}: {t.__name__}' for n, t in self._fields.items()])})'
+            f'{', '.join([f'{n}: {t.__name__}' for n, t in self._fields.items()])})'
         )
 
     def _repr_fn(self, instance) -> str:
@@ -184,7 +186,7 @@ class Struct:
             else:
                 res.append(f'{field.name}: {type(v).__name__}')
 
-        return f'{self._base.__name__}:{self._name}({", ".join(res)})'
+        return f'{self._base.__name__}:{self._name}({', '.join(res)})'
 
     def __call__(self, **kwargs):
         return self._factory(**kwargs)
@@ -201,7 +203,7 @@ class Enum:
         for field_name in dir(cls):
             instance = getattr(cls, field_name)
 
-            if isinstance(instance, (Unit, Tuple, Struct)):
+            if isinstance(instance, Unit | Tuple | Struct):
                 fields[field_name] = instance
                 delattr(cls, field_name)
             else:
@@ -231,7 +233,7 @@ def enum(cls: type | None = None, allow_init: bool = False):
         for field_name in dir(cls):
             instance = getattr(cls, field_name)
 
-            if isinstance(instance, (Unit, Tuple, Struct)):
+            if isinstance(instance, Unit | Tuple | Struct):
                 # noinspection PyProtectedMember
                 factory = instance._bind(field_name, cls)
                 setattr(cls, field_name, factory)

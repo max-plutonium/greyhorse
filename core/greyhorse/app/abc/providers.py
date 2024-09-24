@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Awaitable, Union
+from collections.abc import Awaitable
+from typing import Union
 
 from greyhorse.error import Error, ErrorCase
 from greyhorse.result import Result
@@ -10,11 +11,11 @@ class BorrowError(Error):
     namespace = 'greyhorse.app'
 
     Empty = ErrorCase(
-        msg='Cannot borrow "{name}" as immutable because the value is empty', name=str,
+        msg='Cannot borrow "{name}" as immutable because the value is empty', name=str
     )
 
     MovedOut = ErrorCase(
-        msg='Cannot borrow "{name}" as immutable because the value was moved out', name=str,
+        msg='Cannot borrow "{name}" as immutable because the value was moved out', name=str
     )
 
     BorrowedAsMutable = ErrorCase(
@@ -27,15 +28,15 @@ class BorrowMutError(Error):
     namespace = 'greyhorse.app'
 
     Empty = ErrorCase(
-        msg='Cannot borrow "{name}" as mutable because the value is empty', name=str,
+        msg='Cannot borrow "{name}" as mutable because the value is empty', name=str
     )
 
     MovedOut = ErrorCase(
-        msg='Cannot borrow "{name}" as mutable because the value was moved out', name=str,
+        msg='Cannot borrow "{name}" as mutable because the value was moved out', name=str
     )
 
     AlreadyBorrowed = ErrorCase(
-        msg='Cannot borrow "{name}" as mutable more than once at a time', name=str,
+        msg='Cannot borrow "{name}" as mutable more than once at a time', name=str
     )
 
     BorrowedAsImmutable = ErrorCase(
@@ -60,7 +61,7 @@ class ForwardError(Error):
     Empty = ErrorCase(msg='Cannot forward "{name}" because the value is empty', name=str)
 
     MovedOut = ErrorCase(
-        msg='Cannot forward "{name}" because the value was moved out', name=str,
+        msg='Cannot forward "{name}" because the value was moved out', name=str
     )
 
 
@@ -72,7 +73,7 @@ class SharedProvider[T](Provider[T], ABC):
     def borrow(self) -> Result[T, BorrowError] | Awaitable[Result[T, BorrowError]]: ...
 
     @abstractmethod
-    def reclaim(self, instance: T) -> Union[None, Awaitable[None]]: ...
+    def reclaim(self, instance: T) -> None | Awaitable[None]: ...
 
 
 class MutProvider[T](Provider[T], ABC):
@@ -80,7 +81,7 @@ class MutProvider[T](Provider[T], ABC):
     def acquire(self) -> Result[T, BorrowMutError] | Awaitable[Result[T, BorrowMutError]]: ...
 
     @abstractmethod
-    def release(self, instance: T) -> Union[None, Awaitable[None]]: ...
+    def release(self, instance: T) -> None | Awaitable[None]: ...
 
 
 class FactoryProvider[T](Provider[T], ABC):
@@ -88,7 +89,7 @@ class FactoryProvider[T](Provider[T], ABC):
     def create(self) -> Result[T, FactoryError] | Awaitable[Result[T, FactoryError]]: ...
 
     @abstractmethod
-    def destroy(self, instance: T) -> Union[None, Awaitable[None]]: ...
+    def destroy(self, instance: T) -> None | Awaitable[None]: ...
 
 
 class ForwardProvider[T](Provider[T], ABC):
@@ -96,10 +97,10 @@ class ForwardProvider[T](Provider[T], ABC):
     def take(self) -> Result[T, ForwardError] | Awaitable[Result[T, ForwardError]]: ...
 
     @abstractmethod
-    def drop(self, instance: T) -> Union[None, Awaitable[None]]: ...
+    def drop(self, instance: T) -> None | Awaitable[None]: ...
 
     @abstractmethod
-    def __bool__(self) -> Union[bool, Awaitable[bool]]: ...
+    def __bool__(self) -> bool | Awaitable[bool]: ...
 
 
 AnyProvider = Union[SharedProvider, MutProvider, FactoryProvider, ForwardProvider]

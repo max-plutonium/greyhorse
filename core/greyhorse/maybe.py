@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeGuard, TypeVar
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING, Any, TypeGuard, TypeVar
 
 from .enum import Enum, Tuple, Unit
 

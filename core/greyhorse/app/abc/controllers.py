@@ -1,7 +1,8 @@
 import inspect
 from abc import ABC, abstractmethod
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from greyhorse.error import Error, ErrorCase
 from greyhorse.result import Result
@@ -56,10 +57,10 @@ class Controller(ABC):
 
     @abstractmethod
     def setup(
-        self, collector: Collector[type, Any],
+        self, collector: Collector[type, Any]
     ) -> Result[bool, ControllerError] | Awaitable[Result[bool, ControllerError]]: ...
 
     @abstractmethod
     def teardown(
-        self, collector: MutCollector[type, Any],
+        self, collector: MutCollector[type, Any]
     ) -> Result[bool, ControllerError] | Awaitable[Result[bool, ControllerError]]: ...

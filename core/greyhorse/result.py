@@ -1,19 +1,9 @@
 from __future__ import annotations
 
 import inspect
+from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iterator
 from functools import wraps
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    AsyncGenerator,
-    Awaitable,
-    Callable,
-    Generator,
-    Iterator,
-    NoReturn,
-    TypeGuard,
-    TypeVar,
-)
+from typing import TYPE_CHECKING, Any, NoReturn, TypeGuard, TypeVar
 
 from .enum import Enum, Tuple
 from .error import Error
@@ -325,7 +315,7 @@ class Result[T, E](Enum):
                 return self
 
     async def and_then_async[U](
-        self, f: Callable[[T], Awaitable[Result[U, E]]],
+        self, f: Callable[[T], Awaitable[Result[U, E]]]
     ) -> Result[U, E]:
         """
         Calls `f` if the result is `Ok`, otherwise returns the `Err` value of `self`.
@@ -566,7 +556,7 @@ def do[T, E](gen: Generator[Result[T, E], None, None]) -> Result[T, E]:
         if "'async_generator' object is not an iterator" in str(te):
             raise TypeError(
                 'Got async_generator but expected generator.'
-                'See the section on do notation in the README.',
+                'See the section on do notation in the README.'
             )
         raise te
 
