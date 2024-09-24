@@ -1,5 +1,6 @@
 from collections import defaultdict
-from typing import Callable, Mapping, Type, TypeVar
+from collections.abc import Callable, Mapping
+from typing import TypeVar
 
 from greyhorse.logging import logger
 from greyhorse.result import Result
@@ -13,18 +14,18 @@ EventHandler = Callable[[MessageType], None]
 class SyncMessageBus:
     def __init__(
         self,
-        cmd_handlers: Mapping[Type[MessageType], CommandHandler] | None = None,
-        event_handlers: Mapping[Type[MessageType], list[EventHandler]] | None = None,
+        cmd_handlers: Mapping[type[MessageType], CommandHandler] | None = None,
+        event_handlers: Mapping[type[MessageType], list[EventHandler]] | None = None,
     ) -> None:
         self._cmd_handlers = cmd_handlers or dict()
         self._event_handlers = event_handlers or defaultdict(list)
 
     def add_command_handler(
-        self, message_type: Type[MessageType], handler: CommandHandler,
+        self, message_type: type[MessageType], handler: CommandHandler
     ) -> None:
         self._cmd_handlers[message_type] = handler
 
-    def add_event_handler(self, message_type: Type[MessageType], handler: EventHandler) -> None:
+    def add_event_handler(self, message_type: type[MessageType], handler: EventHandler) -> None:
         self._event_handlers[message_type].append(handler)
 
     def handle_command(self, message: MessageType) -> Result:
@@ -44,18 +45,18 @@ class SyncMessageBus:
 class AsyncMessageBus:
     def __init__(
         self,
-        cmd_handlers: Mapping[Type[MessageType], CommandHandler] | None = None,
-        event_handlers: Mapping[Type[MessageType], list[EventHandler]] | None = None,
+        cmd_handlers: Mapping[type[MessageType], CommandHandler] | None = None,
+        event_handlers: Mapping[type[MessageType], list[EventHandler]] | None = None,
     ) -> None:
         self._cmd_handlers = cmd_handlers or dict()
         self._event_handlers = event_handlers or defaultdict(list)
 
     def add_command_handler(
-        self, message_type: Type[MessageType], handler: CommandHandler,
+        self, message_type: type[MessageType], handler: CommandHandler
     ) -> None:
         self._cmd_handlers[message_type] = handler
 
-    def add_event_handler(self, message_type: Type[MessageType], handler: EventHandler) -> None:
+    def add_event_handler(self, message_type: type[MessageType], handler: EventHandler) -> None:
         self._event_handlers[message_type].append(handler)
 
     async def handle_command(self, message: MessageType) -> Result:

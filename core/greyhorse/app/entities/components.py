@@ -141,23 +141,23 @@ class Component:
         if not (
             res := self._rm.setup(self._providers).map_err(
                 lambda e: ComponentError.Resource(
-                    path=self._path, name=self.name, details=e.message,
-                ),
+                    path=self._path, name=self.name, details=e.message
+                )
             )
         ):
             return res
 
-        for ctrl, _ctrl_conf in zip(self._controllers, self._conf.controllers):
+        for ctrl, _ctrl_conf in zip(self._controllers, self._conf.controllers, strict=False):
             if not (
                 res := invoke_sync(ctrl.setup, self._resources).map_err(
                     lambda e: ComponentError.Ctrl(
-                        path=self._path, name=self.name, details=e.message,
-                    ),
+                        path=self._path, name=self.name, details=e.message
+                    )
                 )
             ):
                 return res
 
-        for svc, svc_conf in zip(self._services, self._conf.services):
+        for svc, svc_conf in zip(self._services, self._conf.services, strict=False):
             for res_type in svc_conf.resources:
                 injector.add_type_provider(Maybe[res_type], self._resources.get(res_type))
 
@@ -165,11 +165,11 @@ class Component:
 
             if not (
                 res := invoke_sync(
-                    svc.setup, *injected_args.args, **injected_args.kwargs,
+                    svc.setup, *injected_args.args, **injected_args.kwargs
                 ).map_err(
                     lambda e: ComponentError.Service(
-                        path=self._path, name=self.name, details=e.message,
-                    ),
+                        path=self._path, name=self.name, details=e.message
+                    )
                 )
             ):
                 return res
@@ -179,8 +179,8 @@ class Component:
 
         logger.info(
             '{path}: Component "{name}" setup successful'.format(
-                path=self._path, name=self.name,
-            ),
+                path=self._path, name=self.name
+            )
         )
 
         return Ok(None)
@@ -189,10 +189,12 @@ class Component:
         injector = ParamsInjector()
 
         logger.info(
-            '{path}: Component "{name}" teardown'.format(path=self._path, name=self.name),
+            '{path}: Component "{name}" teardown'.format(path=self._path, name=self.name)
         )
 
-        for svc, svc_conf in zip(reversed(self._services), reversed(self._conf.services)):
+        for svc, svc_conf in zip(
+            reversed(self._services), reversed(self._conf.services), strict=False
+        ):
             for res_type in svc_conf.resources:
                 injector.add_type_provider(Maybe[res_type], self._resources.get(res_type))
 
@@ -200,11 +202,11 @@ class Component:
 
             if not (
                 res := invoke_sync(
-                    svc.teardown, *injected_args.args, **injected_args.kwargs,
+                    svc.teardown, *injected_args.args, **injected_args.kwargs
                 ).map_err(
                     lambda e: ComponentError.Service(
-                        path=self._path, name=self.name, details=e.message,
-                    ),
+                        path=self._path, name=self.name, details=e.message
+                    )
                 )
             ):
                 return res
@@ -213,13 +215,13 @@ class Component:
                 injector.remove_type_provider(Maybe[res_type])
 
         for ctrl, _ctrl_conf in zip(
-            reversed(self._controllers), reversed(self._conf.controllers),
+            reversed(self._controllers), reversed(self._conf.controllers), strict=False
         ):
             if not (
                 res := invoke_sync(ctrl.teardown, self._resources).map_err(
                     lambda e: ComponentError.Ctrl(
-                        path=self._path, name=self.name, details=e.message,
-                    ),
+                        path=self._path, name=self.name, details=e.message
+                    )
                 )
             ):
                 return res
@@ -227,8 +229,8 @@ class Component:
         if not (
             res := self._rm.teardown().map_err(
                 lambda e: ComponentError.Resource(
-                    path=self._path, name=self.name, details=e.message,
-                ),
+                    path=self._path, name=self.name, details=e.message
+                )
             )
         ):
             return res
@@ -244,19 +246,19 @@ class Component:
 
         logger.info(
             '{path}: Component "{name}" teardown successful'.format(
-                path=self._path, name=self.name,
-            ),
+                path=self._path, name=self.name
+            )
         )
 
         return Ok(None)
 
     def _create_controller(
-        self, conf: CtrlConf, factory: ControllerFactoryFn, injector: ParamsInjector,
+        self, conf: CtrlConf, factory: ControllerFactoryFn, injector: ParamsInjector
     ) -> Result[Controller, ControllerError]:
         logger.info(
             '{path}: Component controller "{name}" create'.format(
-                path=self._path, name=conf.name,
-            ),
+                path=self._path, name=conf.name
+            )
         )
 
         values = conf.args.copy()
@@ -274,8 +276,8 @@ class Component:
 
         logger.info(
             '{path}: Component controller "{name}" created successfully'.format(
-                path=self._path, name=conf.name,
-            ),
+                path=self._path, name=conf.name
+            )
         )
 
         if isinstance(res, Controller):
@@ -284,10 +286,10 @@ class Component:
         return res
 
     def _create_service(
-        self, conf: SvcConf, factory: ServiceFactoryFn, injector: ParamsInjector,
+        self, conf: SvcConf, factory: ServiceFactoryFn, injector: ParamsInjector
     ) -> Result[Service, ServiceError]:
         logger.info(
-            '{path}: Component service "{name}" create'.format(path=self._path, name=conf.name),
+            '{path}: Component service "{name}" create'.format(path=self._path, name=conf.name)
         )
 
         values = conf.args.copy()
@@ -305,8 +307,8 @@ class Component:
 
         logger.info(
             '{path}: Component service "{name}" created successfully'.format(
-                path=self._path, name=conf.name,
-            ),
+                path=self._path, name=conf.name
+            )
         )
 
         if isinstance(res, Service):
@@ -315,7 +317,7 @@ class Component:
         return res
 
     def _create_controllers(
-        self, injector: ParamsInjector,
+        self, injector: ParamsInjector
     ) -> Result[list[Controller], ComponentError]:
         result = []
 
@@ -328,7 +330,7 @@ class Component:
 
                 case Err(e):
                     error = ComponentError.Ctrl(
-                        path=self._path, name=self.name, details=e.message,
+                        path=self._path, name=self.name, details=e.message
                     )
                     logger.error(error.message)
                     return error.to_result()
@@ -336,7 +338,7 @@ class Component:
         return Ok(result)
 
     def _create_services(
-        self, injector: ParamsInjector,
+        self, injector: ParamsInjector
     ) -> Result[list[Service], ComponentError]:
         result = []
 
@@ -349,7 +351,7 @@ class Component:
 
                 case Err(e):
                     error = ComponentError.Service(
-                        path=self._path, name=self.name, details=e.message,
+                        path=self._path, name=self.name, details=e.message
                     )
                     logger.error(error.message)
                     return error.to_result()
@@ -359,7 +361,7 @@ class Component:
 
 class ModuleComponent(Component):
     def __init__(
-        self, name: str, path: str, conf: ModuleComponentConf, module: 'Module',
+        self, name: str, path: str, conf: ModuleComponentConf, module: 'Module'
     ) -> None:
         super().__init__(name, path, conf)
         self._conf = conf
@@ -390,8 +392,8 @@ class ModuleComponent(Component):
         if not (
             res := self._module.setup().map_err(
                 lambda e: ComponentError.Module(
-                    path=self._path, name=self.name, details=e.message,
-                ),
+                    path=self._path, name=self.name, details=e.message
+                )
             )
         ):
             return res
@@ -402,8 +404,8 @@ class ModuleComponent(Component):
         if not (
             res := self._module.teardown().map_err(
                 lambda e: ComponentError.Module(
-                    path=self._path, name=self.name, details=e.message,
-                ),
+                    path=self._path, name=self.name, details=e.message
+                )
             )
         ):
             return res

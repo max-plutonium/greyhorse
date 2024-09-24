@@ -1,5 +1,4 @@
 import pytest
-
 from greyhorse.enum import Enum, Struct, Tuple, Unit
 
 

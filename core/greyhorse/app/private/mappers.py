@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Awaitable, TypeVar, override
+from collections.abc import Awaitable
+from typing import TypeVar, override
 
 from greyhorse.app.abc.operators import Operator
 from greyhorse.app.abc.providers import (
@@ -59,7 +60,7 @@ class SyncResourceMapper[T](ResourceMapper[T]):
             .and_then(
                 lambda v: Ok(None)
                 if v
-                else Err(f'Could not accept resource "{self.__wrapped_type__.__name__}"'),
+                else Err(f'Could not accept resource "{self.__wrapped_type__.__name__}"')
             )
         )
 
@@ -84,12 +85,12 @@ class AsyncResourceMapper[T](ResourceMapper[T]):
         ).and_then_async(
             lambda v: Ok(None)
             if v
-            else Err(f'Could not accept resource "{self.__wrapped_type__.__name__}"'),
+            else Err(f'Could not accept resource "{self.__wrapped_type__.__name__}"')
         )
 
     @override
     async def teardown(self) -> Result[None, str]:
         fini_method = getattr(self._provider, self._methods[1])
         return (await (await self._operator.revoke()).map_async(fini_method)).ok_or(
-            f'Could not revoke resource "{self.__wrapped_type__.__name__}"',
+            f'Could not revoke resource "{self.__wrapped_type__.__name__}"'
         )

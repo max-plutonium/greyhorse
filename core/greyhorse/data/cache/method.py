@@ -1,8 +1,9 @@
 import asyncio
 import operator
+from collections.abc import Mapping, Sequence
 from datetime import timedelta
 from functools import reduce
-from typing import Any, Mapping, Sequence, Tuple
+from typing import Any
 
 from greyhorse.data.cache.base import CacheData, ModelCacheOperator
 from greyhorse.utils.hashes import calculate_digest
@@ -56,13 +57,13 @@ class MethodCache:
         args: Mapping[str, Any] | None = None,
         cache_key: str | None = None,
         **kwargs,
-    ) -> Tuple[bool, Any | None]:
+    ) -> tuple[bool, Any | None]:
         cache_key = cache_key or self.cache_key_for(method, args)
         exists, data = await self._op.load_one(self.get_cache_key(cache_key), **kwargs)
         return exists, data
 
     async def drop(
-        self, method: str, args: Mapping[str, Any] | None = None, cache_key: str | None = None,
+        self, method: str, args: Mapping[str, Any] | None = None, cache_key: str | None = None
     ) -> bool:
         cache_key = cache_key or self.cache_key_for(method, args)
         return await self._op.drop_one(self.get_cache_key(cache_key))

@@ -1,6 +1,7 @@
 import asyncio
 from abc import ABC
-from typing import TYPE_CHECKING, Any, Mapping, Self, Sequence, Tuple, TypeVar
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Self, TypeVar
 
 from pydantic.main import BaseModel as PydanticModel
 
@@ -28,7 +29,7 @@ class Model(AbstractModel[IdType], ModelFieldsMixin, ABC):
 
     @classmethod
     async def construct_all(
-        cls, objects: Sequence[Mapping[str, Any] | None], **kwargs,
+        cls, objects: Sequence[Mapping[str, Any] | None], **kwargs
     ) -> Sequence[Self | None]:
         loop = asyncio.get_event_loop()
         awaitables = list()
@@ -89,8 +90,8 @@ class Model(AbstractModel[IdType], ModelFieldsMixin, ABC):
 
     @classmethod
     async def get_or_create(
-        cls, id_value: Any, data: CreateSchemaType | Mapping[str, Any], **kwargs,
-    ) -> Tuple[Self | None, bool]:
+        cls, id_value: Any, data: CreateSchemaType | Mapping[str, Any], **kwargs
+    ) -> tuple[Self | None, bool]:
         if instance := await cls.get(id_value, **kwargs):
             return instance, False
         return await cls.create(data, **kwargs), True
@@ -105,7 +106,7 @@ class Model(AbstractModel[IdType], ModelFieldsMixin, ABC):
 
     @classmethod
     async def update_by_id(
-        cls, id_value: IdType, data: UpdateSchemaType | Mapping[str, Any], **kwargs,
+        cls, id_value: IdType, data: UpdateSchemaType | Mapping[str, Any], **kwargs
     ) -> bool:
         update_data = data if isinstance(data, Mapping) else data.dict(exclude_unset=True)
 

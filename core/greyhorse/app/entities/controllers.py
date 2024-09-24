@@ -12,7 +12,7 @@ def operator(resource_type: type):
         hints = get_type_hints(func, include_extras=True)
         ret_type = hints.pop('return', None)
         func.__operator__ = OperatorMember(
-            class_name, method_name, resource_type, method=func, params=hints, ret_type=ret_type,
+            class_name, method_name, resource_type, method=func, params=hints, ret_type=ret_type
         )
         return func
 
@@ -36,6 +36,6 @@ class AsyncController(Controller):
 
     @override
     async def teardown(
-        self, collector: MutCollector[type, Any],
+        self, collector: MutCollector[type, Any]
     ) -> Result[bool, ControllerError]:
         return Ok(True)

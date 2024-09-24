@@ -15,7 +15,7 @@ class TypeWrapper[T]:
 
     @classmethod
     def __generate_typename__(
-        cls, types: type | TypeVar | tuple[type | TypeVar, ...], include_base_name: bool = True,
+        cls, types: type | TypeVar | tuple[type | TypeVar, ...], include_base_name: bool = True
     ) -> str:
         if isinstance(types, tuple):
             type_args = [cls.__generate_typename__(a, False) for a in types]

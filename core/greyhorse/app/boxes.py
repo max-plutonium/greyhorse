@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from copy import deepcopy
-from typing import Any, Callable, override
+from typing import Any, override
 
 from greyhorse.app.abc.operators import Operator
 from greyhorse.app.abc.providers import (
@@ -57,7 +58,7 @@ class SharedRefBox[T](_BasicRefBox, SharedProvider[T]):
     __slots__ = ('_factory', '_copy_maker')
 
     def __init__(
-        self, factory: Callable[[], Maybe[T] | T], copy_maker: Callable[[T], T] = deepcopy,
+        self, factory: Callable[[], Maybe[T] | T], copy_maker: Callable[[T], T] = deepcopy
     ) -> None:
         super().__init__()
         self._factory = factory
@@ -84,7 +85,7 @@ class MutRefBox[T](_BasicRefBox, MutProvider[T]):
     __slots__ = ('_factory', '_copy_maker')
 
     def __init__(
-        self, factory: Callable[[], Maybe[T] | T], copy_maker: Callable[[T], T] = deepcopy,
+        self, factory: Callable[[], Maybe[T] | T], copy_maker: Callable[[T], T] = deepcopy
     ) -> None:
         super().__init__()
         self._factory = factory
@@ -160,7 +161,7 @@ class SharedCtxRefBox[T](_BasicRefBox, SharedProvider[T]):
     __slots__ = ('_kind', '_params', '_factory')
 
     def __init__(
-        self, kind: type[SyncContext[T] | AsyncContext[T]], factory: Callable[[], T], **params,
+        self, kind: type[SyncContext[T] | AsyncContext[T]], factory: Callable[[], T], **params
     ) -> None:
         super().__init__()
         self._kind = kind
@@ -174,7 +175,7 @@ class SharedCtxRefBox[T](_BasicRefBox, SharedProvider[T]):
         self._shared_counter += 1
 
         ctx_builder = ContextBuilder[self._kind, self.wrapped_type](
-            self._factory, **self._params,
+            self._factory, **self._params
         )
         return Ok(ctx_builder.build())
 
@@ -204,12 +205,12 @@ class MutCtxRefBox[T](_BasicRefBox, MutProvider[T]):
             return BorrowMutError.AlreadyBorrowed(name=self.wrapped_type.__name__).to_result()
         if not self.allow_acq_when_borrowed and self._shared_counter > 0:
             return BorrowMutError.BorrowedAsImmutable(
-                name=self.wrapped_type.__name__,
+                name=self.wrapped_type.__name__
             ).to_result()
         self._acq_counter += 1
 
         ctx_builder = ContextBuilder[self._mut_kind, self.wrapped_type](
-            self._factory, **self._params,
+            self._factory, **self._params
         )
         return Ok(ctx_builder.build())
 
@@ -246,7 +247,7 @@ class OwnerCtxRefBox[TS, TM](_BasicRefBox, SharedProvider[TS], MutProvider[TM]):
         self._shared_counter += 1
 
         ctx_builder = ContextBuilder[self._kind, self.wrapped_type[0]](
-            self._factory, **self._params,
+            self._factory, **self._params
         )
         return Ok(ctx_builder.build())
 
@@ -259,16 +260,16 @@ class OwnerCtxRefBox[TS, TM](_BasicRefBox, SharedProvider[TS], MutProvider[TM]):
     def acquire(self) -> Result[SyncMutContext[TM] | AsyncMutContext[TM], BorrowMutError]:
         if not self.allow_multiple_acquisition and self._acq_counter > 0:
             return BorrowMutError.AlreadyBorrowed(
-                name=self.wrapped_type[1].__name__,
+                name=self.wrapped_type[1].__name__
             ).to_result()
         if not self.allow_acq_when_borrowed and self._shared_counter > 0:
             return BorrowMutError.BorrowedAsImmutable(
-                name=self.wrapped_type[1].__name__,
+                name=self.wrapped_type[1].__name__
             ).to_result()
         self._acq_counter += 1
 
         ctx_builder = ContextBuilder[self._mut_kind, self.wrapped_type[1]](
-            self._mut_factory, **self._mut_params,
+            self._mut_factory, **self._mut_params
         )
         return Ok(ctx_builder.build())
 
@@ -300,7 +301,7 @@ class ForwardBox[T](Operator[T], ForwardProvider[T]):
     def take(self) -> Result[T, ForwardError]:
         value, self._value = self._value, Nothing
         return value.map(Ok).unwrap_or(
-            ForwardError.Empty(name=self.wrapped_type.__name__).to_result(),
+            ForwardError.Empty(name=self.wrapped_type.__name__).to_result()
         )
 
     @override
@@ -316,7 +317,7 @@ class PermanentForwardBox[T](ForwardBox[T]):
     @override
     def take(self) -> Result[T, ForwardError]:
         return self._value.map(Ok).unwrap_or(
-            ForwardError.Empty(name=self.wrapped_type.__name__).to_result(),
+            ForwardError.Empty(name=self.wrapped_type.__name__).to_result()
         )
 
     @override

@@ -1,5 +1,6 @@
 from abc import abstractmethod
-from typing import Any, Generic, Mapping, Sequence, TypeVar
+from collections.abc import Mapping, Sequence
+from typing import Any, Generic, TypeVar
 
 from .base import EntityType, IdType, Repository
 
@@ -8,7 +9,7 @@ SortingType = TypeVar('SortingType')
 
 
 class FilterableRepository(
-    Repository[IdType, EntityType], Generic[IdType, EntityType, FilterType, SortingType],
+    Repository[IdType, EntityType], Generic[IdType, EntityType, FilterType, SortingType]
 ):
     @abstractmethod
     async def list(
@@ -39,7 +40,7 @@ class FilterableRepository(
 
     @abstractmethod
     async def update_by(
-        self, filters: FilterType, data: Mapping[str, Any], **kwargs,
+        self, filters: FilterType, data: Mapping[str, Any], **kwargs
     ) -> int: ...
 
     @abstractmethod

@@ -1,5 +1,6 @@
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Generic, Mapping, Self, Sequence, TypeVar
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar
 
 from .base import IdType
 from .model import Model, UpdateSchemaType
@@ -17,7 +18,7 @@ class FilterableModel(Model[IdType], Generic[IdType, FilterType, SortingType]):
 
     @classmethod
     def bind(
-        cls, repository: 'FilterableRepository[IdType, Self, FilterType, SortingType]',
+        cls, repository: 'FilterableRepository[IdType, Self, FilterType, SortingType]'
     ) -> None:
         cls._repo = repository
 
@@ -58,7 +59,7 @@ class FilterableModel(Model[IdType], Generic[IdType, FilterType, SortingType]):
 
     @classmethod
     async def update_by(
-        cls, filters: FilterType, data: UpdateSchemaType | Mapping[str, Any], **kwargs,
+        cls, filters: FilterType, data: UpdateSchemaType | Mapping[str, Any], **kwargs
     ) -> int:
         update_data = data if isinstance(data, Mapping) else data.dict(exclude_unset=True)
 

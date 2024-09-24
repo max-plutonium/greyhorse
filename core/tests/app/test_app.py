@@ -13,8 +13,8 @@ def __init__():
         path='..module.main',
         provider_imports=[
             ProvidersConf(
-                resource=FunctionalOperator, providers=[SharedProvider[FunctionalOperator]],
-            ),
+                resource=FunctionalOperator, providers=[SharedProvider[FunctionalOperator]]
+            )
         ],
         services=[SvcConf(type=FunctionalOperatorService)],
         controllers=[CtrlConf(type=FunctionalOperatorCtrl)],

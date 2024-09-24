@@ -1,7 +1,6 @@
 from unittest import mock
 
 import pytest
-
 from greyhorse.maybe import Just, Maybe, MaybeUnwrapError, Nothing
 from greyhorse.result import Err, Ok
 

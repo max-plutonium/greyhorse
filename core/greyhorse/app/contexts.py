@@ -76,7 +76,7 @@ class Context:
     ) -> None:
         self._state = ContextState[Any].Idle
         self._data = ContextData(
-            factory=factory, field_factories=fields or {}, finalizers=finalizers or [],
+            factory=factory, field_factories=fields or {}, finalizers=finalizers or []
         )
         self._parent: Maybe[Context] = Nothing
         self._prev: Maybe[Context] = Nothing
@@ -694,7 +694,7 @@ class SyncContextWithCallbacks[T](SyncContext[T]):
     @override
     def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:
         self._callbacks.on_exit.map(
-            lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback),
+            lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback)
         )
 
     @override
@@ -704,7 +704,7 @@ class SyncContextWithCallbacks[T](SyncContext[T]):
     @override
     def _nested_exit(self, instance: T, exc_type, exc_value, traceback) -> None:
         self._callbacks.on_nested_exit.map(
-            lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback),
+            lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback)
         )
 
 
@@ -732,7 +732,7 @@ class SyncMutContextWithCallbacks[T](SyncMutContext[T]):
     @override
     def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:
         self._callbacks.on_exit.map(
-            lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback),
+            lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback)
         )
 
     @override
@@ -742,7 +742,7 @@ class SyncMutContextWithCallbacks[T](SyncMutContext[T]):
     @override
     def _nested_exit(self, instance: T, exc_type, exc_value, traceback) -> None:
         self._callbacks.on_nested_exit.map(
-            lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback),
+            lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback)
         )
 
     @override
@@ -780,7 +780,7 @@ class AsyncContextWithCallbacks[T](AsyncContext[T]):
     @override
     async def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:
         await self._callbacks.on_exit.map_async(
-            lambda f: invoke_async(f, instance, exc_type, exc_value, traceback),
+            lambda f: invoke_async(f, instance, exc_type, exc_value, traceback)
         )
 
     @override
@@ -790,7 +790,7 @@ class AsyncContextWithCallbacks[T](AsyncContext[T]):
     @override
     async def _nested_exit(self, instance: T, exc_type, exc_value, traceback) -> None:
         await self._callbacks.on_nested_exit.map_async(
-            lambda f: invoke_async(f, instance, exc_type, exc_value, traceback),
+            lambda f: invoke_async(f, instance, exc_type, exc_value, traceback)
         )
 
 
@@ -818,7 +818,7 @@ class AsyncMutContextWithCallbacks[T](AsyncMutContext[T]):
     @override
     async def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:
         await self._callbacks.on_exit.map_async(
-            lambda f: invoke_async(f, instance, exc_type, exc_value, traceback),
+            lambda f: invoke_async(f, instance, exc_type, exc_value, traceback)
         )
 
     @override
@@ -828,7 +828,7 @@ class AsyncMutContextWithCallbacks[T](AsyncMutContext[T]):
     @override
     async def _nested_exit(self, instance: T, exc_type, exc_value, traceback) -> None:
         await self._callbacks.on_nested_exit.map_async(
-            lambda f: invoke_async(f, instance, exc_type, exc_value, traceback),
+            lambda f: invoke_async(f, instance, exc_type, exc_value, traceback)
         )
 
     @override
@@ -867,7 +867,7 @@ class ContextBuilder[T](TypeWrapper[T]):
         )
 
     def __class_getitem__[C: SyncContext | AsyncContext | SyncMutContext | AsyncMutContext](
-        cls, args: tuple[type[C], type[T]],
+        cls, args: tuple[type[C], type[T]]
     ) -> ContextBuilder:
         class_, type_ = args
         return super().__class_getitem__(class_[type_])

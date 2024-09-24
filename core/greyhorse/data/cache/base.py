@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
+from collections.abc import AsyncGenerator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any, AsyncGenerator, Mapping, Sequence, Tuple
+from typing import Any
 
 
 @dataclass
@@ -19,20 +20,20 @@ class CacheOperator(ABC):
 
     @abstractmethod
     async def cache_one(
-        self, data: CacheData, ttl: timedelta | None = None, **kwargs,
+        self, data: CacheData, ttl: timedelta | None = None, **kwargs
     ) -> bool: ...
 
     @abstractmethod
     async def cache_many(
-        self, objects: Sequence[CacheData], ttl: timedelta | None = None, **kwargs,
+        self, objects: Sequence[CacheData], ttl: timedelta | None = None, **kwargs
     ) -> bool: ...
 
     @abstractmethod
-    async def load_one(self, cache_key: str, **kwargs) -> Tuple[bool, Any | None]: ...
+    async def load_one(self, cache_key: str, **kwargs) -> tuple[bool, Any | None]: ...
 
     @abstractmethod
     async def load_many(
-        self, indices: Sequence[Any], **kwargs,
+        self, indices: Sequence[Any], **kwargs
     ) -> Sequence[Mapping[str, Any] | None]: ...
 
     @abstractmethod
@@ -62,5 +63,5 @@ class ModelCacheOperator(CacheOperator):
 class ScanCacheMixin(CacheOperator):
     @abstractmethod
     async def scan(
-        self, cache_key: str | None = None, match: str | None = None, count: int | None = None,
-    ) -> AsyncGenerator[Tuple[str, Any | None], None]: ...
+        self, cache_key: str | None = None, match: str | None = None, count: int | None = None
+    ) -> AsyncGenerator[tuple[str, Any | None], None]: ...

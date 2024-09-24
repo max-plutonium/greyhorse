@@ -32,7 +32,7 @@ def __init__():
                     ProvidersConf(resource=MutDictResContext, providers=[DictMutCtxProvider]),
                 ],
                 provider_imports=[
-                    ProvidersConf(resource=FunctionalOperator, providers=[FunctionalOpProvider]),
+                    ProvidersConf(resource=FunctionalOperator, providers=[FunctionalOpProvider])
                 ],
                 services=[SvcConf(type=DictOperatorService, resources=[DictResContext])],
                 controllers=[CtrlConf(type=DictOperatorCtrl)],

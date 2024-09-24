@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Any, Generic, Mapping, Self, Sequence, Tuple, TypeVar
+from collections.abc import Mapping, Sequence
+from typing import Any, Generic, Self, TypeVar
 
 IdType = TypeVar('IdType')
 
@@ -38,8 +39,8 @@ class AbstractModel(Generic[IdType], ABC):
     @classmethod
     @abstractmethod
     async def get_or_create(
-        cls, id_value: IdType, data: Mapping[str, Any], **kwargs,
-    ) -> Tuple[Self | None, bool]: ...
+        cls, id_value: IdType, data: Mapping[str, Any], **kwargs
+    ) -> tuple[Self | None, bool]: ...
 
     @abstractmethod
     async def update(self, data: Mapping[str, Any], **kwargs) -> bool: ...
@@ -47,7 +48,7 @@ class AbstractModel(Generic[IdType], ABC):
     @classmethod
     @abstractmethod
     async def update_by_id(
-        cls, id_value: IdType, data: Mapping[str, Any], **kwargs,
+        cls, id_value: IdType, data: Mapping[str, Any], **kwargs
     ) -> bool: ...
 
     @abstractmethod

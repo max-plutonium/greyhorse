@@ -12,13 +12,13 @@ class ModuleBuildError(Error):
 
     Disabled = ErrorCase(msg='Module is disabled: "{path}"', path=str)
     Factory = ErrorCase(
-        msg='Module factory error: "{path}", details: "{details}"', path=str, details=str,
+        msg='Module factory error: "{path}", details: "{details}"', path=str, details=str
     )
     LoadError = ErrorCase(
-        msg='Load error in component: "{path}", details: "{details}"', path=str, details=str,
+        msg='Load error in component: "{path}", details: "{details}"', path=str, details=str
     )
     UnloadError = ErrorCase(
-        msg='Unload error in component: "{path}", details: "{details}"', path=str, details=str,
+        msg='Unload error in component: "{path}", details: "{details}"', path=str, details=str
     )
     ComponentError = ErrorCase(
         msg='Component error in module: "{path}" "{name}", details: "{details}"',
@@ -86,7 +86,7 @@ class ModuleBuilder:
         return Ok(None)
 
     def _create_component(
-        self, name: str, conf: ComponentConf,
+        self, name: str, conf: ComponentConf
     ) -> Result[Component, ComponentBuildError]:
         if not conf.enabled:
             return ComponentBuildError.Disabled(path=self._path, name=name).to_result()
@@ -102,26 +102,26 @@ class ModuleBuilder:
             return error.to_result()
 
         logger.info(
-            '{path}: Component "{name}" created successfully'.format(path=self._path, name=name),
+            '{path}: Component "{name}" created successfully'.format(path=self._path, name=name)
         )
 
         return Ok(instance)
 
     def _create_module_component(
-        self, name: str, conf: ModuleComponentConf,
+        self, name: str, conf: ModuleComponentConf
     ) -> Result[ModuleComponent, ComponentBuildError]:
         if not conf.enabled:
             return ComponentBuildError.Disabled(path=self._path, name=name).to_result()
 
         logger.info(
-            '{path}: Module component "{name}" create'.format(path=self._path, name=name),
+            '{path}: Module component "{name}" create'.format(path=self._path, name=name)
         )
 
         if not (
             res := load_module(f'{self._path}.{name}', conf).map_err(
                 lambda e: ComponentBuildError.Submodule(
-                    path=self._path, name=name, details=e.message,
-                ),
+                    path=self._path, name=name, details=e.message
+                )
             )
         ):
             return res
@@ -138,8 +138,8 @@ class ModuleBuilder:
 
         logger.info(
             '{path}: Module component "{name}" created successfully'.format(
-                path=self._path, name=name,
-            ),
+                path=self._path, name=name
+            )
         )
 
         return Ok(instance)
@@ -160,7 +160,7 @@ class ModuleBuilder:
                                     logger.info(e.message)
                                 case _:
                                     error = ModuleBuildError.ComponentError(
-                                        path=self._path, name=name, details=e.message,
+                                        path=self._path, name=name, details=e.message
                                     )
                                     logger.error(error.message)
                                     return error.to_result()
@@ -176,7 +176,7 @@ class ModuleBuilder:
                                     logger.info(e.message)
                                 case _:
                                     error = ModuleBuildError.ComponentError(
-                                        path=self._path, name=name, details=e.message,
+                                        path=self._path, name=name, details=e.message
                                     )
                                     logger.error(error.message)
                                     return error.to_result()
@@ -195,23 +195,23 @@ class ModuleBuilder:
                 case ModuleComponentConf() as conf:
                     logger.info(
                         '{path}: Module component "{name}" destroy'.format(
-                            path=self._path, name=name,
-                        ),
+                            path=self._path, name=name
+                        )
                     )
 
                     if not (
                         res := unload_module(f'{self._path}.{name}', conf).map_err(
                             lambda e: ModuleBuildError.UnloadError(
-                                path=self._path, details=e.message,
-                            ),
+                                path=self._path, details=e.message
+                            )
                         )
                     ):
                         return res
 
                     logger.info(
                         '{path}: Module component "{name}" destroyed successfully'.format(
-                            path=self._path, name=name,
-                        ),
+                            path=self._path, name=name
+                        )
                     )
 
         return Ok(None)
@@ -222,7 +222,7 @@ def load_module(path: str, conf: ModuleComponentConf) -> Result[Module, ModuleBu
 
     if not (
         res := loader.load_pass(conf).map_err(
-            lambda e: ModuleBuildError.LoadError(path=conf.path, details=e.message),
+            lambda e: ModuleBuildError.LoadError(path=conf.path, details=e.message)
         )
     ):
         return res
@@ -246,5 +246,5 @@ def unload_module(path: str, conf: ModuleComponentConf) -> Result[None, ModuleBu
     loader = ModuleLoader()
 
     return loader.unload_pass(conf).map_err(
-        lambda e: ModuleBuildError.UnloadError(path=conf.path, details=e.message),
+        lambda e: ModuleBuildError.UnloadError(path=conf.path, details=e.message)
     )

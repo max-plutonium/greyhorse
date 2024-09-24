@@ -22,7 +22,7 @@ class StaticTranslator:
         self.load_string(filename.read_text('utf-8'), namespace)
 
     def load_package(
-        self, package: Package, filename: str, namespace: str | None = None,
+        self, package: Package, filename: str, namespace: str | None = None
     ) -> None:
         filename = Path(filename)
         namespace = namespace if namespace else filename.stem
@@ -52,7 +52,7 @@ class StaticTranslator:
         return frozenset(self._defaults.keys())
 
     def __call__(
-        self, key: str, lang: str | None = None, default: str = '', /, **kwargs,
+        self, key: str, /, lang: str | None = None, default: str = '', **kwargs
     ) -> str:
         if len(self._defaults) == 1:
             ns = next(iter(self._defaults.keys()))

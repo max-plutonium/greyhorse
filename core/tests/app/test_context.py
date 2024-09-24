@@ -4,7 +4,6 @@ from datetime import datetime
 from unittest.mock import MagicMock, Mock
 
 import pytest
-
 from greyhorse.app.contexts import AsyncContext, ContextBuilder, SyncContext
 
 
@@ -64,7 +63,7 @@ def test_sync_context_complex() -> None:
         assert data.id == 123
         assert data.name == 'name'
         assert data.timestamp.replace(second=0, microsecond=0) == datetime.now().replace(
-            second=0, microsecond=0,
+            second=0, microsecond=0
         )
 
     mock_context.__enter__.assert_called_once()
@@ -126,7 +125,7 @@ async def test_async_context_complex() -> None:
         assert data.id == 123
         assert data.name == 'name'
         assert data.timestamp.replace(second=0, microsecond=0) == datetime.now().replace(
-            second=0, microsecond=0,
+            second=0, microsecond=0
         )
 
     mock_context.__aenter__.assert_called_once()

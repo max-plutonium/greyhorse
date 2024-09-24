@@ -16,11 +16,11 @@ class ModuleError(Error):
     namespace = 'greyhorse.app.module'
 
     Component = ErrorCase(
-        msg='{path}: Component error in module, details: "{details}"', path=str, details=str,
+        msg='{path}: Component error in module, details: "{details}"', path=str, details=str
     )
 
     Resource = ErrorCase(
-        msg='{path}: Resource error in module: "{details}"', path=str, details=str,
+        msg='{path}: Resource error in module: "{details}"', path=str, details=str
     )
 
 
@@ -95,13 +95,13 @@ class Module:
             for prov_conf in comp_conf.provider_grants:
                 for prov_type in prov_conf.providers:
                     for _, prov in self._providers.items(
-                        lambda t, pt=prov_type: issubclass(t, pt),
+                        lambda t, pt=prov_type: issubclass(t, pt)
                     ):
                         component.add_provider(prov_type, prov)
 
             if not (
                 res := component.setup().map_err(
-                    lambda e: ModuleError.Component(path=self._path, details=e.message),
+                    lambda e: ModuleError.Component(path=self._path, details=e.message)
                 )
             ):
                 return res
@@ -114,7 +114,7 @@ class Module:
         for op in self._operators:
             if not (
                 res := self._rm.setup_resource(op, self._providers).map_err(
-                    lambda e: ModuleError.Resource(path=self._path, details=e.message),
+                    lambda e: ModuleError.Resource(path=self._path, details=e.message)
                 )
             ):
                 return res
@@ -127,7 +127,7 @@ class Module:
 
         if not (
             res := self._rm.teardown().map_err(
-                lambda e: ModuleError.Resource(path=self._path, details=e.message),
+                lambda e: ModuleError.Resource(path=self._path, details=e.message)
             )
         ):
             return res
@@ -142,7 +142,7 @@ class Module:
 
             if not (
                 res := component.teardown().map_err(
-                    lambda e: ModuleError.Component(path=self._path, details=e.message),
+                    lambda e: ModuleError.Component(path=self._path, details=e.message)
                 )
             ):
                 return res

@@ -1,4 +1,5 @@
-from typing import Any, Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
+from typing import Any
 
 
 def dict_values_to_str(data: dict):
@@ -20,7 +21,7 @@ def dict_values_to_str(data: dict):
 
 
 def build_dict_from_dotted_keys(
-    iterable: Iterable, key_getter: Callable[[Any], Any], value_getter: Callable[[Any], Any],
+    iterable: Iterable, key_getter: Callable[[Any], Any], value_getter: Callable[[Any], Any]
 ) -> Mapping[str, Any]:
     result = dict()
 
@@ -42,7 +43,7 @@ def build_dict_from_dotted_keys(
 
 
 def build_dotted_keys_from_dict(
-    dict_: Mapping[str, Any], root_key: str | None = None,
+    dict_: Mapping[str, Any], root_key: str | None = None
 ) -> Mapping[str, Any]:
     def traverse(key_stack: list[str], values: Mapping[str, Any]) -> Mapping[str, Any]:
         result = dict()

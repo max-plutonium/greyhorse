@@ -2,8 +2,8 @@ import asyncio
 import inspect
 from asyncio import Future, get_running_loop, iscoroutine, iscoroutinefunction
 from asyncio import run as run_main
+from collections.abc import Callable
 from functools import partial
-from typing import Callable
 
 
 def is_awaitable(f):
@@ -42,7 +42,7 @@ def invoke_sync[T, **P](func: Callable[P, T], *args: P.args, **kwargs: P.kwargs)
 
 
 async def invoke_async[T, **P](
-    func: Callable[P, T], *args: P.args, to_thread: bool = False, **kwargs: P.kwargs,
+    func: Callable[P, T], *args: P.args, to_thread: bool = False, **kwargs: P.kwargs
 ) -> T:
     if is_awaitable(func):
         if iscoroutine(func):

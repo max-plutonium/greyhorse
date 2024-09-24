@@ -1,3 +1,4 @@
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from types import (
     ClassMethodDescriptorType,
@@ -10,23 +11,23 @@ from types import (
     MethodWrapperType,
     WrapperDescriptorType,
 )
-from typing import Any, Dict, Mapping, Optional, Protocol, Sequence, Set
+from typing import Any, Protocol
 
 
 @dataclass
 class FieldsCache:
-    priv: Set[str] = field(default_factory=set)
-    pub: Set[str] = field(default_factory=set)
-    ser: Set[str] = field(default_factory=set)
+    priv: set[str] = field(default_factory=set)
+    pub: set[str] = field(default_factory=set)
+    ser: set[str] = field(default_factory=set)
 
 
 class ModelFieldsMixin(Protocol):
     class Meta:
-        private_fields: Set[str] = set()
-        public_fields: Set[str] = set()
-        serializable_fields: Set[str] = set()
-        non_serializable_fields: Set[str] = set()
-        _fields_cache: Dict[str, FieldsCache] = dict()
+        private_fields: set[str] = set()
+        public_fields: set[str] = set()
+        serializable_fields: set[str] = set()
+        non_serializable_fields: set[str] = set()
+        _fields_cache: dict[str, FieldsCache] = dict()
 
     @classmethod
     def _fields_cache_key(cls):
@@ -66,7 +67,7 @@ class ModelFieldsMixin(Protocol):
         serializable_fields.update(cls.Meta.serializable_fields)
         serializable_fields.difference_update(cls.Meta.non_serializable_fields)
         cls.Meta._fields_cache[cls._fields_cache_key()] = FieldsCache(
-            priv=private_fields, pub=public_fields, ser=serializable_fields,
+            priv=private_fields, pub=public_fields, ser=serializable_fields
         )
 
     # noinspection PyProtectedMember
@@ -97,8 +98,8 @@ class ModelFieldsMixin(Protocol):
 
     def get_values(
         self,
-        only_fields: Optional[Sequence[str]] = None,
-        exclude_fields: Optional[Sequence[str]] = None,
+        only_fields: Sequence[str] | None = None,
+        exclude_fields: Sequence[str] | None = None,
     ) -> Mapping[str, Any]:
         public_fields = self.get_public_fields()
         only_fields = set(only_fields) if only_fields else set()

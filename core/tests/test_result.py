@@ -1,7 +1,6 @@
 from unittest import mock
 
 import pytest
-
 from greyhorse.error import Error, ErrorCase
 from greyhorse.maybe import Just, Nothing
 from greyhorse.result import (

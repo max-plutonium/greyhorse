@@ -17,13 +17,13 @@ class ModuleLoadError(Error):
     Disabled = ErrorCase(msg='Module is disabled: "{path}"', path=str)
     AlreadyLoaded = ErrorCase(msg='Module already loaded: "{path}"', path=str)
     WrongImport = ErrorCase(
-        msg='Module import error: "{path}", details: "{details}"', path=str, details=str,
+        msg='Module import error: "{path}", details: "{details}"', path=str, details=str
     )
     Validation = ErrorCase(
-        msg='Module validation error: "{path}", details: "{details}"', path=str, details=str,
+        msg='Module validation error: "{path}", details: "{details}"', path=str, details=str
     )
     Unexpected = ErrorCase(
-        msg='Module unexpected error: "{path}", details: "{details}"', path=str, details=str,
+        msg='Module unexpected error: "{path}", details: "{details}"', path=str, details=str
     )
     InvalidConf = ErrorCase(msg='Module conf is invalid: "{path}"', path=str)
 
@@ -34,7 +34,7 @@ class ModuleUnloadError(Error):
     Disabled = ErrorCase(msg='Module is disabled: "{path}"', path=str)
     AlreadyUnloaded = ErrorCase(msg='Module already unloaded: "{path}"', path=str)
     Unexpected = ErrorCase(
-        msg='Module unexpected error: "{path}", details: "{details}"', path=str, details=str,
+        msg='Module unexpected error: "{path}", details: "{details}"', path=str, details=str
     )
 
 
@@ -120,7 +120,7 @@ class ModuleLoader:
             return error.to_result()
 
         logger.info(
-            'ModuleLoader: Module "{path}" loaded successfully'.format(path=module_path),
+            'ModuleLoader: Module "{path}" loaded successfully'.format(path=module_path)
         )
         return Ok(res)
 
@@ -150,6 +150,6 @@ class ModuleLoader:
         del sys.modules[module_path]
 
         logger.info(
-            'ModuleLoader: Module "{path}" unloaded successfully'.format(path=module_path),
+            'ModuleLoader: Module "{path}" unloaded successfully'.format(path=module_path)
         )
         return Ok(None)

@@ -23,11 +23,11 @@ def __init__():
                     ProvidersConf(
                         resource=FunctionalOperator,
                         providers=[SharedProvider[FunctionalOperator]],
-                    ),
+                    )
                 ],
                 services=[SvcConf(type=FunctionalOperatorService)],
                 controllers=[CtrlConf(type=FunctionalOperatorCtrl)],
-            ),
+            )
         },
     )
 

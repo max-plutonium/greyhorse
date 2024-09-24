@@ -74,7 +74,7 @@ class ResourceManager:
         return True
 
     def setup(
-        self, providers: Selector[type[Provider], Provider] | None = None,
+        self, providers: Selector[type[Provider], Provider] | None = None
     ) -> Result[None, ResourceError]:
         operators = []
 
@@ -103,7 +103,7 @@ class ResourceManager:
 
             if not (
                 res := mapper.teardown().map_err(
-                    lambda e: ResourceError.Provision(details=e.message),
+                    lambda e: ResourceError.Provision(details=e.message)
                 )
             ):
                 return res
@@ -159,7 +159,7 @@ class ResourceManager:
                 raise AssertionError()
 
     def setup_resource[T](
-        self, operator: Operator[T], providers: Selector[type[Provider], Provider] | None = None,
+        self, operator: Operator[T], providers: Selector[type[Provider], Provider] | None = None
     ) -> Result[bool, ResourceError]:
         res_type = operator.wrapped_type
         prov_type = None
@@ -227,7 +227,7 @@ class ResourceManager:
         self._res_providers[provider_member.resource_type].append(provider_member.provider_type)
 
         self._resource_graph.add_node(
-            provider_member.provider_type, factory=getattr(service, provider_member.method_name),
+            provider_member.provider_type, factory=getattr(service, provider_member.method_name)
         )
 
         for param_type in provider_member.params.values():
@@ -248,7 +248,7 @@ class ResourceManager:
                 self._deps.remove(param_type)
 
     def _add_ctrl_operator(
-        self, controller: Controller, operator_member: OperatorMember,
+        self, controller: Controller, operator_member: OperatorMember
     ) -> None:
         ctrl_dict = self._operator_map[operator_member.resource_type]
 
@@ -258,7 +258,7 @@ class ResourceManager:
         ctrl_dict[controller] = operator_member
 
     def _remove_ctrl_operator(
-        self, controller: Controller, operator_member: OperatorMember,
+        self, controller: Controller, operator_member: OperatorMember
     ) -> None:
         ctrl_dict = self._operator_map[operator_member.resource_type]
 

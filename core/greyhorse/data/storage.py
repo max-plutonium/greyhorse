@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Awaitable, Mapping, override
+from collections.abc import Awaitable, Mapping
+from typing import override
 
 from greyhorse.app.contexts import Context
 
@@ -22,9 +23,6 @@ class DataStorageEngine(ABC):
     def stop(self) -> Awaitable[None] | None:
         pass
 
-    @abstractmethod
-    def get_context[T: Context](self, kind: type[T]) -> T | None: ...
-
 
 class DataStorageEngineFactory(ABC):
     @abstractmethod
@@ -41,7 +39,7 @@ class DataStorageEngineFactory(ABC):
 
     @abstractmethod
     def get_engines(
-        self, names: list[str] | None = None,
+        self, names: list[str] | None = None
     ) -> Mapping[str, DataStorageEngine]: ...
 
 

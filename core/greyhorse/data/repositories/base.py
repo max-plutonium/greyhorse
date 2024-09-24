@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Generic, Mapping, Sequence, Tuple, Type, TypeVar
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any, Generic, TypeVar
 
 from ...utils.invoke import is_awaitable
 from ..models.model import Model
@@ -12,7 +13,7 @@ ModelFactory = Callable[..., ModelType]
 
 
 class Repository(Generic[IdType, EntityType], ABC):
-    def __init__(self, class_: Type[EntityType], factory: EntityFactory | None = None) -> None:
+    def __init__(self, class_: type[EntityType], factory: EntityFactory | None = None) -> None:
         self._class = class_
         self._factory = factory or class_
 
@@ -35,7 +36,7 @@ class Repository(Generic[IdType, EntityType], ABC):
 
     @abstractmethod
     async def get_any(
-        self, indices: Sequence[IdType], **kwargs,
+        self, indices: Sequence[IdType], **kwargs
     ) -> Sequence[EntityType | None]: ...
 
     @abstractmethod
@@ -48,15 +49,15 @@ class Repository(Generic[IdType, EntityType], ABC):
     async def create(self, data: Mapping[str, Any], **kwargs) -> EntityType | None: ...
 
     async def get_or_create(
-        self, id_value: IdType, data: Mapping[str, Any], **kwargs,
-    ) -> Tuple[EntityType | None, bool]:
+        self, id_value: IdType, data: Mapping[str, Any], **kwargs
+    ) -> tuple[EntityType | None, bool]:
         if instance := await self.get(id_value, **kwargs):
             return instance, False
         return await self.create(data, **kwargs), True
 
     @abstractmethod
     async def update_by_id(
-        self, id_value: IdType, data: Mapping[str, Any], **kwargs,
+        self, id_value: IdType, data: Mapping[str, Any], **kwargs
     ) -> bool: ...
 
     @abstractmethod
@@ -77,7 +78,7 @@ class Repository(Generic[IdType, EntityType], ABC):
 
 class ModelRepository(Repository[IdType, ModelType], ABC):
     def __init__(
-        self, model_class: Type[ModelType], model_factory: ModelFactory | None = None,
+        self, model_class: type[ModelType], model_factory: ModelFactory | None = None
     ) -> None:
         super().__init__(model_class, model_factory)
         model_class.bind(self)

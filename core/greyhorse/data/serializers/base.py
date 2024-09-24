@@ -1,4 +1,5 @@
-from typing import Any, Mapping, Optional, Protocol
+from collections.abc import Mapping
+from typing import Any, Protocol
 
 
 class Serializer(Protocol):
@@ -12,9 +13,9 @@ class Deserializer(Protocol):
 class ModelSerializer(Protocol):
     serializer: Serializer
 
-    def serialize(self, only_fields: Optional[list[str]] = None) -> bytes:
+    def serialize(self, only_fields: list[str] | None = None) -> bytes:
         return self.serializer.serialize(self.get_serializable_values(only_fields))
 
     def get_serializable_values(
-        self, only_fields: Optional[list[str]] = None,
+        self, only_fields: list[str] | None = None
     ) -> Mapping[str, Any] | None: ...

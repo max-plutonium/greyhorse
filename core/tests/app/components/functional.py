@@ -68,7 +68,7 @@ class FunctionalOpProviderImpl(FactoryProvider[FunctionalOperator]):
                 return FactoryError.Internal(name='FunctionalOperator', details=e).to_result()
 
         return FactoryError.Internal(
-            name='FunctionalOperator', details='Unexpected return',
+            name='FunctionalOperator', details='Unexpected return'
         ).to_result()
 
     @override
@@ -99,7 +99,7 @@ class DictOperatorService(SyncService):
 
     @provider(FunctionalOpProvider)
     def create_prov(
-        self, ctx_prov: DictCtxProvider, mut_ctx_prov: DictMutCtxProvider,
+        self, ctx_prov: DictCtxProvider, mut_ctx_prov: DictMutCtxProvider
     ) -> Result[FunctionalOpProvider, ProvisionError]:
         return Ok(FunctionalOpProviderImpl(ctx_prov, mut_ctx_prov))
 

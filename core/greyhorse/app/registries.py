@@ -1,5 +1,6 @@
 from collections import defaultdict
-from typing import Callable, override
+from collections.abc import Callable
+from typing import override
 
 from greyhorse.app.abc.collectors import Collector, MutCollector
 from greyhorse.app.abc.selectors import ListSelector
@@ -71,7 +72,7 @@ class MutDictRegistry[K, T](MutCollector[K, T], DictRegistry[K, T]):
 
 class ScopedDictRegistry[K, T](DictRegistry[K, T]):
     def __init__(
-        self, factory: Callable[[], DictRegistry[K, T]], scope_func: Callable[[], str],
+        self, factory: Callable[[], DictRegistry[K, T]], scope_func: Callable[[], str]
     ) -> None:
         super().__init__()
         self._scope_func = scope_func
@@ -108,7 +109,7 @@ class ScopedDictRegistry[K, T](DictRegistry[K, T]):
 
 class ScopedMutDictRegistry[K, T](MutDictRegistry[K, T]):
     def __init__(
-        self, factory: Callable[[], MutDictRegistry[K, T]], scope_func: Callable[[], str],
+        self, factory: Callable[[], MutDictRegistry[K, T]], scope_func: Callable[[], str]
     ) -> None:
         super().__init__()
         self._scope_func = scope_func

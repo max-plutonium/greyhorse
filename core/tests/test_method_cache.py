@@ -3,7 +3,6 @@ from unittest import mock
 from unittest.mock import call
 
 import pytest
-
 from greyhorse.data.cache.base import CacheData, ModelCacheOperator
 from greyhorse.data.cache.method import MethodCache
 
@@ -65,7 +64,7 @@ async def test_get() -> None:
     assert not exists
     assert not data
     operator_mock.get_cache_key.assert_called_once_with(
-        MethodCache.cache_key_for('method', args),
+        MethodCache.cache_key_for('method', args)
     )
     operator_mock.load_one.assert_called_once_with('greyhorse.models.test:1')
     operator_mock.get_cache_key.reset_mock()
@@ -76,7 +75,7 @@ async def test_get() -> None:
     assert exists
     assert data == 123
     operator_mock.get_cache_key.assert_called_once_with(
-        MethodCache.cache_key_for('method', args),
+        MethodCache.cache_key_for('method', args)
     )
     operator_mock.load_one.assert_called_once_with('greyhorse.models.test:1')
     operator_mock.get_cache_key.reset_mock()
@@ -94,7 +93,7 @@ async def test_drop() -> None:
     operator_mock.drop_one.return_value = True
     assert await method_cache.drop('method', args)
     operator_mock.get_cache_key.assert_called_once_with(
-        MethodCache.cache_key_for('method', args),
+        MethodCache.cache_key_for('method', args)
     )
     operator_mock.drop_one.assert_called_once_with('greyhorse.models.test:1')
     operator_mock.get_cache_key.reset_mock()

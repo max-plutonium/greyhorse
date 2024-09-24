@@ -2,10 +2,11 @@ import asyncio
 import signal
 import threading
 from asyncio import get_running_loop
+from collections.abc import Callable, Collection
 from contextlib import contextmanager
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Collection, NoReturn
+from typing import Any, NoReturn
 
 from greyhorse.app.abc.controllers import Controller
 from greyhorse.app.abc.providers import Provider
@@ -29,7 +30,7 @@ class ApplicationError(Error):
     Load = ErrorCase(msg='Load error occurred: "{details}"', details=str)
     Unload = ErrorCase(msg='Unload error occurred: "{details}"', details=str)
     Component = ErrorCase(
-        msg='Component error in application, details: "{details}"', details=str,
+        msg='Component error in application, details: "{details}"', details=str
     )
 
 
@@ -102,7 +103,7 @@ class Application:
 
         if not (
             res := load_module(self._name, conf).map_err(
-                lambda e: ApplicationError.Load(details=e.message),
+                lambda e: ApplicationError.Load(details=e.message)
             )
         ):
             return res
@@ -111,7 +112,7 @@ class Application:
 
         try:
             instance = ModuleComponent(
-                name=self._name, path=self._name, conf=conf, module=module,
+                name=self._name, path=self._name, conf=conf, module=module
             )
 
         except Exception as e:
@@ -135,7 +136,7 @@ class Application:
 
         if not (
             res := unload_module(self._name, conf).map_err(
-                lambda e: ApplicationError.Unload(details=e.message),
+                lambda e: ApplicationError.Unload(details=e.message)
             )
         ):
             return res
@@ -150,7 +151,7 @@ class Application:
             self._root.map(
                 lambda root: root.setup()
                 .map_err(lambda e: ApplicationError.Component(details=e.message))
-                .map(lambda _: root),
+                .map(lambda _: root)
             )
             .unwrap_or_else(lambda: ApplicationError.NotLoaded().to_result())
             .map(self._collect_elements)
@@ -162,8 +163,8 @@ class Application:
 
         return self._root.map(
             lambda root: root.teardown().map_err(
-                lambda e: ApplicationError.Component(details=e.message),
-            ),
+                lambda e: ApplicationError.Component(details=e.message)
+            )
         ).unwrap_or_else(lambda: ApplicationError.NotLoaded().to_result())
 
     def start(self) -> bool:
@@ -271,7 +272,7 @@ class Application:
             try:
                 yield
             finally:
-                for sig_num, handler in zip(signals, original_handlers):
+                for sig_num, handler in zip(signals, original_handlers, strict=False):
                     signal.signal(sig_num, handler)
 
     def _collect_elements(self, root: ModuleComponent) -> None:

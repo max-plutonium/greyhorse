@@ -1,5 +1,6 @@
 from abc import ABC
-from typing import Any, Mapping, Optional, Sequence, Set
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 from ..serializers import Deserializer, Serializer
 from .model import Model
@@ -20,15 +21,15 @@ class SerializableModel(Model, ABC):
 
     # noinspection PyProtectedMember
     @classmethod
-    def get_serializable_fields(cls) -> Set[str]:
+    def get_serializable_fields(cls) -> set[str]:
         key = cls._fields_cache_key()
         if key not in cls.Meta._fields_cache:
             cls._calculate_fields()
         return cls.Meta._fields_cache[key].ser
 
     def get_serializable_values(
-        self, only_fields: Optional[Sequence[str]] = None,
-    ) -> Optional[Mapping[str, Any]]:
+        self, only_fields: Sequence[str] | None = None
+    ) -> Mapping[str, Any] | None:
         serializable_fields = self.get_serializable_fields()
         only_fields = set(only_fields) if only_fields else set()
 
@@ -38,9 +39,9 @@ class SerializableModel(Model, ABC):
             if hasattr(self, name) and (not only_fields or name in only_fields)
         }
 
-    def serialize(self, only_fields: Optional[Sequence[str]] = None) -> bytes:
+    def serialize(self, only_fields: Sequence[str] | None = None) -> bytes:
         return self.Meta.serializer.serialize(self.get_serializable_values(only_fields))
 
     @classmethod
-    def deserialize(cls, data: bytes) -> Optional[Mapping[str, Any]]:
+    def deserialize(cls, data: bytes) -> Mapping[str, Any] | None:
         return cls.Meta.deserializer.deserialize(data)
