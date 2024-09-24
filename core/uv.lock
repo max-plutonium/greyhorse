@@ -136,8 +136,8 @@ wheels = [
 
 [[package]]
 name = "greyhorse"
-version = "0.0.0"
-source = { virtual = "." }
+version = "0.4.14"
+source = { editable = "." }
 dependencies = [
     { name = "networkx" },
     { name = "orjson" },

@@ -35,6 +35,10 @@ dependencies = [
 Homepage = "https://gitlab.com/max-plutonium/greyhorse"
 Repository = "https://gitlab.com/max-plutonium/greyhorse"
 
+[build-system]
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
 [tool.uv]
 dev-dependencies = [
     "mypy>=1.11.2",
@@ -47,3 +51,15 @@ dev-dependencies = [
     "ruff>=0.6.7",
     "uv-dynamic-versioning>=0.1.0",
 ]
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.uv-dynamic-versioning]
+enable = true
+vcs = "git"
+pattern = "default-unprefixed"
+style = "pep440"
+bump = true
+strict = false
+latest-tag = true
