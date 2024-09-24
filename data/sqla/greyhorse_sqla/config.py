@@ -13,9 +13,7 @@ class SqlEngineType(str, enum.Enum):
     MYSQL = 'MySQL'
 
 
-SQLiteDsn = Annotated[
-    Url, UrlConstraints(allowed_schemes=['file', 'sqlite']),
-]
+SQLiteDsn = Annotated[Url, UrlConstraints(allowed_schemes=['file', 'sqlite'])]
 
 
 class EngineConf(BaseModel):
@@ -39,14 +37,16 @@ NAMING_CONVENTION = {
     'uq': 'uq_%(table_name)s_%(column_0_name)s',
     'ck': 'ck_%(table_name)s_%(constraint_name)s',
     'fk': 'fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s',
-    'pk': 'pk_%(table_name)s'
+    'pk': 'pk_%(table_name)s',
 }
 
 
 class SqliteSettings(BaseSettings):
     dsn: SQLiteDsn
 
-    model_config = SettingsConfigDict(env_file='.env', case_sensitive=False, env_prefix='sqlite_')
+    model_config = SettingsConfigDict(
+        env_file='.env', case_sensitive=False, env_prefix='sqlite_'
+    )
 
 
 class PgSettings(BaseSettings):
@@ -64,7 +64,9 @@ class PgSettings(BaseSettings):
 
     dsn: PostgresDsn | None = None
 
-    model_config = SettingsConfigDict(env_file='.env', case_sensitive=False, env_prefix='postgres_')
+    model_config = SettingsConfigDict(
+        env_file='.env', case_sensitive=False, env_prefix='postgres_'
+    )
 
     @classmethod
     @field_validator('dsn', mode='before')
@@ -84,7 +86,7 @@ class PgSettings(BaseSettings):
             password=values.get('password'),
             host=values.get('host'),
             port=str(values.get('port')),
-            path=f'/{values.get("database", "public")}',
+            path=f'/{values.get('database', 'public')}',
         )
 
 
@@ -102,7 +104,9 @@ class MySqlSettings(BaseSettings):
 
     dsn: MySQLDsn | None = None
 
-    model_config = SettingsConfigDict(env_file='.env', case_sensitive=False, env_prefix='mysql_')
+    model_config = SettingsConfigDict(
+        env_file='.env', case_sensitive=False, env_prefix='mysql_'
+    )
 
     @classmethod
     @field_validator('dsn', mode='before')
@@ -122,5 +126,5 @@ class MySqlSettings(BaseSettings):
             password=values.get('password'),
             host=values.get('host'),
             port=str(values.get('port')),
-            path=f'/{values.get("database", "")}',
+            path=f'/{values.get('database', '')}',
         )

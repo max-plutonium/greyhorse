@@ -1,31 +1,27 @@
 import asyncio
-import sys
-import threading
-from contextlib import AbstractAsyncContextManager, AbstractContextManager, asynccontextmanager, contextmanager
-from dataclasses import dataclass
+from collections.abc import Callable
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from functools import partial
-from typing import Any, override, Callable
+from typing import Any, override
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session, async_sessionmaker
-from sqlalchemy.ext.asyncio.engine import AsyncConnection, AsyncEngine, AsyncTransaction
-
-from greyhorse.app.abc.providers import MutProvider, BorrowMutError, Provider
-from greyhorse.app.boxes import MutCtxRefBox
-from greyhorse.app.contexts import current_scope_id, \
-    ContextBuilder, AsyncMutContext
-from greyhorse.app.registries import ScopedMutDictRegistry, DictRegistry, MutDictRegistry
+from greyhorse.app.abc.providers import BorrowMutError, MutProvider, Provider
+from greyhorse.app.contexts import AsyncMutContext, ContextBuilder, current_scope_id
+from greyhorse.app.registries import MutDictRegistry, ScopedMutDictRegistry
 from greyhorse.data.storage import DataStorageEngine
 from greyhorse.i18n import tr
 from greyhorse.logging import logger
-from greyhorse.maybe import Maybe, Nothing
-from greyhorse.result import Result, Ok
+from greyhorse.maybe import Maybe
+from greyhorse.result import Ok, Result
+from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session, async_sessionmaker
+from sqlalchemy.ext.asyncio.engine import AsyncConnection, AsyncEngine, AsyncTransaction
+
 from .config import EngineConf
 
 
 class _AsyncConnCtx(AsyncMutContext[AsyncConnection]):
     __slots__ = ('_root_tx', '_tx_stack')
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._root_tx: AsyncTransaction | None = None
         self._tx_stack: list[AsyncTransaction] = []
@@ -53,7 +49,9 @@ class _AsyncConnCtx(AsyncMutContext[AsyncConnection]):
         await nested.__aenter__()
 
     @override
-    async def _nested_exit(self, instance: AsyncConnection, exc_type, exc_value, traceback) -> None:
+    async def _nested_exit(
+        self, instance: AsyncConnection, exc_type, exc_value, traceback
+    ) -> None:
         nested = self._tx_stack.pop()
         await nested.__aexit__(exc_type, exc_value, traceback)
         await nested.close()
@@ -82,7 +80,7 @@ class _AsyncSessionCtx(AsyncMutContext[AsyncSession]):
 class _ConnProvider(MutProvider[AsyncConnection]):
     __slots__ = ('_builder',)
 
-    def __init__(self, builder: ContextBuilder[_AsyncConnCtx, AsyncConnection]):
+    def __init__(self, builder: ContextBuilder[_AsyncConnCtx, AsyncConnection]) -> None:
         self._builder = builder
 
     @override
@@ -97,7 +95,7 @@ class _ConnProvider(MutProvider[AsyncConnection]):
 class _SessionProvider(MutProvider[AsyncSession]):
     __slots__ = ('_builder',)
 
-    def __init__(self, builder: ContextBuilder[_AsyncSessionCtx, AsyncSession]):
+    def __init__(self, builder: ContextBuilder[_AsyncSessionCtx, AsyncSession]) -> None:
         self._builder = builder
 
     @override
@@ -110,7 +108,7 @@ class _SessionProvider(MutProvider[AsyncSession]):
 
 
 class AsyncSqlaEngine(DataStorageEngine):
-    def __init__(self, name: str, config: EngineConf, engine: AsyncEngine):
+    def __init__(self, name: str, config: EngineConf, engine: AsyncEngine) -> None:
         super().__init__(name)
         self._config = config
         self._counter = 0
@@ -118,19 +116,20 @@ class AsyncSqlaEngine(DataStorageEngine):
         self._engine = engine
 
         self._registry = ScopedMutDictRegistry[type, Any](
-            factory=MutDictRegistry,
-            scope_func=lambda: str(id(asyncio.current_task())),
+            factory=MutDictRegistry, scope_func=lambda: str(id(asyncio.current_task()))
         )
 
         self._conn_builder = ContextBuilder[_AsyncConnCtx, AsyncConnection](
             lambda conn: conn,
-            force_rollback=config.force_rollback, auto_apply=config.auto_apply
+            force_rollback=config.force_rollback,
+            auto_apply=config.auto_apply,
         )
         self._conn_builder.add_param('conn', self._get_connection)
 
         self._session_builder = ContextBuilder[_AsyncSessionCtx, AsyncSession](
             lambda session: session,
-            force_rollback=config.force_rollback, auto_apply=config.auto_apply
+            force_rollback=config.force_rollback,
+            auto_apply=config.auto_apply,
         )
         self._session_builder.add_param('session', self._get_session)
 
@@ -141,25 +140,41 @@ class AsyncSqlaEngine(DataStorageEngine):
         return self._counter > 0
 
     @override
-    async def start(self):
+    async def start(self) -> None:
         async with self._lock:
-            if 0 == self._counter:
-                self._providers.add(MutProvider[AsyncMutContext[AsyncConnection]], partial(_ConnProvider, self._conn_builder))
-                self._providers.add(MutProvider[AsyncMutContext[AsyncSession]], partial(_SessionProvider, self._session_builder))
+            if self._counter == 0:
+                self._providers.add(
+                    MutProvider[AsyncMutContext[AsyncConnection]],
+                    partial(_ConnProvider, self._conn_builder),
+                )
+                self._providers.add(
+                    MutProvider[AsyncMutContext[AsyncSession]],
+                    partial(_SessionProvider, self._session_builder),
+                )
                 logger.info(
-                    tr('greyhorse.engines.sqla.engine.started', name=self.name, db_type=self._config.type.value, async_='async')
+                    tr(
+                        'greyhorse.engines.sqla.engine.started',
+                        name=self.name,
+                        db_type=self._config.type.value,
+                        async_='async',
+                    )
                 )
             self._counter += 1
 
     @override
-    async def stop(self):
+    async def stop(self) -> None:
         async with self._lock:
-            if 1 == self._counter:
+            if self._counter == 1:
                 self._providers.remove(MutProvider[AsyncMutContext[AsyncConnection]])
                 self._providers.remove(MutProvider[AsyncMutContext[AsyncSession]])
                 await self._engine.dispose()
                 logger.info(
-                    tr('greyhorse.engines.sqla.engine.stopped', name=self.name, db_type=self._config.type.value, async_='async')
+                    tr(
+                        'greyhorse.engines.sqla.engine.stopped',
+                        name=self.name,
+                        db_type=self._config.type.value,
+                        async_='async',
+                    )
                 )
             self._counter = max(self._counter - 1, 0)
 
@@ -178,7 +193,9 @@ class AsyncSqlaEngine(DataStorageEngine):
 
             session_maker = async_scoped_session(
                 async_sessionmaker(
-                    bind=instance, autoflush=False, expire_on_commit=False,
+                    bind=instance,
+                    autoflush=False,
+                    expire_on_commit=False,
                     join_transaction_mode='create_savepoint',
                 ),
                 scopefunc=lambda: current_scope_id(AsyncSession),

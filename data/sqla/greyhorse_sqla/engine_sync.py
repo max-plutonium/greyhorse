@@ -1,30 +1,30 @@
 import threading
-from contextlib import AbstractAsyncContextManager, AbstractContextManager, asynccontextmanager, contextmanager
-from dataclasses import dataclass
+from collections.abc import Callable
+from contextlib import AbstractContextManager, contextmanager
 from functools import partial
-from typing import Any, override, Callable
+from typing import Any, override
 
-from sqlalchemy.engine.base import RootTransaction, NestedTransaction
-from sqlalchemy.engine import Connection as SyncConnection, Engine as SyncEngine
-from sqlalchemy.orm import Session as SyncSession, scoped_session, sessionmaker
-
-from greyhorse.app.abc.providers import MutProvider, BorrowMutError, Provider
-from greyhorse.app.boxes import MutCtxRefBox
-from greyhorse.app.contexts import Context, current_scope_id, SyncMutContext, SyncMutContextWithCallbacks, \
-    ContextBuilder
-from greyhorse.app.registries import ScopedMutDictRegistry, DictRegistry, MutDictRegistry
+from greyhorse.app.abc.providers import BorrowMutError, MutProvider, Provider
+from greyhorse.app.contexts import ContextBuilder, SyncMutContext, current_scope_id
+from greyhorse.app.registries import MutDictRegistry, ScopedMutDictRegistry
 from greyhorse.data.storage import DataStorageEngine
 from greyhorse.i18n import tr
 from greyhorse.logging import logger
-from greyhorse.maybe import Maybe, Nothing
-from greyhorse.result import Result, Ok
+from greyhorse.maybe import Maybe
+from greyhorse.result import Ok, Result
+from sqlalchemy.engine import Connection as SyncConnection
+from sqlalchemy.engine import Engine as SyncEngine
+from sqlalchemy.engine.base import NestedTransaction, RootTransaction
+from sqlalchemy.orm import Session as SyncSession
+from sqlalchemy.orm import scoped_session, sessionmaker
+
 from .config import EngineConf
 
 
 class _SyncConnCtx(SyncMutContext[SyncConnection]):
     __slots__ = ('_root_tx', '_tx_stack')
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._root_tx: RootTransaction | None = None
         self._tx_stack: list[NestedTransaction] = []
@@ -81,7 +81,7 @@ class _SyncSessionCtx(SyncMutContext[SyncSession]):
 class _ConnProvider(MutProvider[SyncConnection]):
     __slots__ = ('_builder',)
 
-    def __init__(self, builder: ContextBuilder[_SyncConnCtx, SyncConnection]):
+    def __init__(self, builder: ContextBuilder[_SyncConnCtx, SyncConnection]) -> None:
         self._builder = builder
 
     @override
@@ -96,7 +96,7 @@ class _ConnProvider(MutProvider[SyncConnection]):
 class _SessionProvider(MutProvider[SyncSession]):
     __slots__ = ('_builder',)
 
-    def __init__(self, builder: ContextBuilder[_SyncSessionCtx, SyncSession]):
+    def __init__(self, builder: ContextBuilder[_SyncSessionCtx, SyncSession]) -> None:
         self._builder = builder
 
     @override
@@ -109,7 +109,7 @@ class _SessionProvider(MutProvider[SyncSession]):
 
 
 class SyncSqlaEngine(DataStorageEngine):
-    def __init__(self, name: str, config: EngineConf, engine: SyncEngine):
+    def __init__(self, name: str, config: EngineConf, engine: SyncEngine) -> None:
         super().__init__(name)
         self._config = config
         self._counter = 0
@@ -117,19 +117,20 @@ class SyncSqlaEngine(DataStorageEngine):
         self._engine = engine
 
         self._registry = ScopedMutDictRegistry[type, Any](
-            factory=MutDictRegistry,
-            scope_func=lambda: str(threading.current_thread().ident),
+            factory=MutDictRegistry, scope_func=lambda: str(threading.current_thread().ident)
         )
 
         self._conn_builder = ContextBuilder[_SyncConnCtx, SyncConnection](
             lambda conn: conn,
-            force_rollback=config.force_rollback, auto_apply=config.auto_apply
+            force_rollback=config.force_rollback,
+            auto_apply=config.auto_apply,
         )
         self._conn_builder.add_param('conn', self._get_connection)
 
         self._session_builder = ContextBuilder[_SyncSessionCtx, SyncSession](
             lambda session: session,
-            force_rollback=config.force_rollback, auto_apply=config.auto_apply
+            force_rollback=config.force_rollback,
+            auto_apply=config.auto_apply,
         )
         self._session_builder.add_param('session', self._get_session)
 
@@ -140,26 +141,41 @@ class SyncSqlaEngine(DataStorageEngine):
         return self._counter > 0
 
     @override
-    def start(self):
+    def start(self) -> None:
         with self._lock:
-            if 0 == self._counter:
-                self._providers.add(MutProvider[SyncMutContext[SyncConnection]], partial(_ConnProvider, self._conn_builder))
-                self._providers.add(MutProvider[SyncMutContext[SyncSession]], partial(_SessionProvider, self._session_builder))
+            if self._counter == 0:
+                self._providers.add(
+                    MutProvider[SyncMutContext[SyncConnection]],
+                    partial(_ConnProvider, self._conn_builder),
+                )
+                self._providers.add(
+                    MutProvider[SyncMutContext[SyncSession]],
+                    partial(_SessionProvider, self._session_builder),
+                )
                 logger.info(
-                    tr('greyhorse.engines.sqla.engine.started', name=self.name, db_type=self._config.type.value, async_='sync')
+                    tr(
+                        'greyhorse.engines.sqla.engine.started',
+                        name=self.name,
+                        db_type=self._config.type.value,
+                        async_='sync',
+                    )
                 )
             self._counter += 1
 
-
     @override
-    def stop(self):
+    def stop(self) -> None:
         with self._lock:
-            if 1 == self._counter:
+            if self._counter == 1:
                 self._providers.remove(MutProvider[SyncMutContext[SyncConnection]])
                 self._providers.remove(MutProvider[SyncMutContext[SyncSession]])
                 self._engine.dispose()
                 logger.info(
-                    tr('greyhorse.engines.sqla.engine.stopped', name=self.name, db_type=self._config.type.value, async_='sync')
+                    tr(
+                        'greyhorse.engines.sqla.engine.stopped',
+                        name=self.name,
+                        db_type=self._config.type.value,
+                        async_='sync',
+                    )
                 )
             self._counter = max(self._counter - 1, 0)
 
@@ -178,7 +194,9 @@ class SyncSqlaEngine(DataStorageEngine):
 
             session_maker = scoped_session(
                 sessionmaker(
-                    bind=instance, autoflush=False, expire_on_commit=False,
+                    bind=instance,
+                    autoflush=False,
+                    expire_on_commit=False,
                     join_transaction_mode='create_savepoint',
                 ),
                 scopefunc=lambda: current_scope_id(SyncSession),

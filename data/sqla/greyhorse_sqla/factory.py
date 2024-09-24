@@ -1,15 +1,13 @@
-import decimal
 import re
 from typing import override
 
-from orjson import orjson
+from greyhorse.data.storage import SimpleDataStorageFactory
+from greyhorse.i18n import tr
+from greyhorse.logging import logger
+from greyhorse.utils import json
 from sqlalchemy import create_engine as create_sync_engine
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from greyhorse.data.storage import SimpleDataStorageFactory
-from greyhorse.i18n import tr
-from greyhorse.utils import json
-from greyhorse.logging import logger
 from .config import EngineConf, SqlEngineType
 from .engine_async import AsyncSqlaEngine
 from .engine_sync import SyncSqlaEngine
@@ -26,11 +24,13 @@ def _prepare_params(config: EngineConf) -> dict:
     )
 
     if config.type in (SqlEngineType.POSTGRES, SqlEngineType.MYSQL):
-        params.update(dict(
-            pool_size=config.pool_min_size,
-            max_overflow=config.pool_max_size - config.pool_min_size,
-            pool_timeout=config.pool_timeout_seconds,
-        ))
+        params.update(
+            dict(
+                pool_size=config.pool_min_size,
+                max_overflow=config.pool_max_size - config.pool_min_size,
+                pool_timeout=config.pool_timeout_seconds,
+            )
+        )
 
     return params
 
@@ -49,11 +49,16 @@ class SyncSqlaEngineFactory(SimpleDataStorageFactory[SyncSqlaEngine]):
 
         params = _prepare_params(config)
         engine = create_sync_engine(str(config.dsn), **params).execution_options(
-            timeout=config.pool_timeout_seconds,
+            timeout=config.pool_timeout_seconds
         )
 
         logger.info(
-            tr('greyhorse.engines.sqla.engine.created', name=name, db_type=config.type.value, async_='sync')
+            tr(
+                'greyhorse.engines.sqla.engine.created',
+                name=name,
+                db_type=config.type.value,
+                async_='sync',
+            )
         )
 
         engine = SyncSqlaEngine(name, config, engine)
@@ -80,11 +85,16 @@ class AsyncSqlaEngineFactory(SimpleDataStorageFactory[AsyncSqlaEngine]):
 
         params = _prepare_params(config)
         engine = create_async_engine(str(config.dsn), **params).execution_options(
-            timeout=config.pool_timeout_seconds,
+            timeout=config.pool_timeout_seconds
         )
 
         logger.info(
-            tr('greyhorse.engines.sqla.engine.created', name=name, db_type=config.type.value, async_='async')
+            tr(
+                'greyhorse.engines.sqla.engine.created',
+                name=name,
+                db_type=config.type.value,
+                async_='async',
+            )
         )
 
         engine = AsyncSqlaEngine(name, config, engine)

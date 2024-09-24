@@ -1,76 +1,89 @@
 import pytest
-from sqlalchemy import text
-
 from greyhorse.app.contexts import AsyncContext, SyncContext
 from greyhorse_sqla.config import EngineConf, SqlEngineType
-from greyhorse_sqla.providers import SqlaSyncConnProvider, SqlaSyncSessionProvider, SqlaAsyncConnProvider, \
-    SqlaAsyncSessionProvider
 from greyhorse_sqla.engine_async import AsyncSqlaEngine
 from greyhorse_sqla.engine_sync import SyncSqlaEngine
 from greyhorse_sqla.factory import AsyncSqlaEngineFactory, SyncSqlaEngineFactory
+from greyhorse_sqla.providers import (
+    SqlaAsyncConnProvider,
+    SqlaAsyncSessionProvider,
+    SqlaSyncConnProvider,
+    SqlaSyncSessionProvider,
+)
+from sqlalchemy import text
+
 from .conf import MYSQL_URI, POSTGRES_URI, SQLITE_URI
 
 
-def test_sync_factory():
+def test_sync_factory() -> None:
     config = EngineConf(
-        dsn=SQLITE_URI, type=SqlEngineType.SQLITE,
-        pool_min_size=1, pool_max_size=2,
-        pool_expire_seconds=15, pool_timeout_seconds=15,
+        dsn=SQLITE_URI,
+        type=SqlEngineType.SQLITE,
+        pool_min_size=1,
+        pool_max_size=2,
+        pool_expire_seconds=15,
+        pool_timeout_seconds=15,
     )
 
     factory = SyncSqlaEngineFactory()
 
-    assert [] == factory.get_engine_names()
+    assert factory.get_engine_names() == []
     assert factory.get_engine('test') is None
-    assert {} == factory.get_engines()
+    assert factory.get_engines() == {}
 
     engine = factory.create_engine('test', config)
 
     assert engine
     assert engine.name == 'test'
     assert isinstance(engine, SyncSqlaEngine)
-    assert ['test'] == factory.get_engine_names()
+    assert factory.get_engine_names() == ['test']
     assert factory.get_engine('test') is engine
-    assert {'test': engine} == factory.get_engines()
+    assert factory.get_engines() == {'test': engine}
 
 
-def test_async_factory():
+def test_async_factory() -> None:
     config = EngineConf(
-        dsn=SQLITE_URI, type=SqlEngineType.SQLITE,
-        pool_min_size=1, pool_max_size=2,
-        pool_expire_seconds=15, pool_timeout_seconds=15,
+        dsn=SQLITE_URI,
+        type=SqlEngineType.SQLITE,
+        pool_min_size=1,
+        pool_max_size=2,
+        pool_expire_seconds=15,
+        pool_timeout_seconds=15,
     )
 
     factory = AsyncSqlaEngineFactory()
 
-    assert [] == factory.get_engine_names()
+    assert factory.get_engine_names() == []
     assert factory.get_engine('test') is None
-    assert {} == factory.get_engines()
+    assert factory.get_engines() == {}
 
     engine = factory.create_engine('test', config)
 
     assert engine
     assert engine.name == 'test'
     assert isinstance(engine, AsyncSqlaEngine)
-    assert ['test'] == factory.get_engine_names()
+    assert factory.get_engine_names() == ['test']
     assert factory.get_engine('test') is engine
-    assert {'test': engine} == factory.get_engines()
+    assert factory.get_engines() == {'test': engine}
 
 
 @pytest.mark.parametrize(
     'param',
     (
-        (SQLITE_URI, SqlEngineType.SQLITE, 'sqlite_version',),
-        (POSTGRES_URI, SqlEngineType.POSTGRES, 'version',),
-        (MYSQL_URI, SqlEngineType.MYSQL, 'version',),
+        (SQLITE_URI, SqlEngineType.SQLITE, 'sqlite_version'),
+        (POSTGRES_URI, SqlEngineType.POSTGRES, 'version'),
+        (MYSQL_URI, SqlEngineType.MYSQL, 'version'),
     ),
     ids=('SQLite', 'PostgreSQL', 'MySQL'),
 )
-def test_sync_connection(param):
+def test_sync_connection(param) -> None:
     config = EngineConf(
-        dsn=param[0], type=param[1],
-        pool_min_size=1, pool_max_size=2,
-        pool_expire_seconds=15, pool_timeout_seconds=15,
+        dsn=param[0],
+        type=param[1],
+        pool_min_size=1,
+        pool_max_size=2,
+        pool_expire_seconds=15,
+        pool_timeout_seconds=15,
     )
 
     factory = SyncSqlaEngineFactory()
@@ -114,18 +127,21 @@ def test_sync_connection(param):
 @pytest.mark.parametrize(
     'param',
     (
-        (SQLITE_URI, SqlEngineType.SQLITE, 'sqlite_version',),
-        (POSTGRES_URI, SqlEngineType.POSTGRES, 'version',),
-        (MYSQL_URI, SqlEngineType.MYSQL, 'version',),
+        (SQLITE_URI, SqlEngineType.SQLITE, 'sqlite_version'),
+        (POSTGRES_URI, SqlEngineType.POSTGRES, 'version'),
+        (MYSQL_URI, SqlEngineType.MYSQL, 'version'),
     ),
     ids=('SQLite', 'PostgreSQL', 'MySQL'),
 )
 @pytest.mark.asyncio
-async def test_async_connection(param):
+async def test_async_connection(param) -> None:
     config = EngineConf(
-        dsn=param[0], type=param[1],
-        pool_min_size=1, pool_max_size=2,
-        pool_expire_seconds=15, pool_timeout_seconds=15,
+        dsn=param[0],
+        type=param[1],
+        pool_min_size=1,
+        pool_max_size=2,
+        pool_expire_seconds=15,
+        pool_timeout_seconds=15,
     )
 
     factory = AsyncSqlaEngineFactory()
