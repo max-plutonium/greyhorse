@@ -2,7 +2,8 @@ from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Mapping
 from typing import override
 
-from greyhorse.app.contexts import Context
+from greyhorse.app.abc.providers import Provider
+from greyhorse.maybe import Maybe
 
 
 class DataStorageEngine(ABC):
@@ -16,6 +17,9 @@ class DataStorageEngine(ABC):
     @property
     @abstractmethod
     def active(self) -> bool: ...
+
+    @abstractmethod
+    def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]: ...
 
     def start(self) -> Awaitable[None] | None:
         pass
