@@ -29,9 +29,6 @@ Repository = "https://gitlab.com/max-plutonium/greyhorse"
 requires = ["hatchling", "uv-dynamic-versioning"]
 build-backend = "hatchling.build"
 
-[tool.uv.sources]
-greyhorse = { path = "core" }
-
 [tool.hatch.version]
 source = "uv-dynamic-versioning"
 
@@ -67,8 +64,7 @@ split-on-trailing-comma = false
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "N", "B", "Q", "ANN", "RET", "SLF", "SIM", "UP", "COM", "PL", "PERF", "RUF"]
-ignore = ["F402", "E701", "UP032", "Q000", "Q003"]
-extend-safe-fixes = ["COM812"]
+ignore = ["F402", "E701", "UP032", "Q000", "Q003", "COM812"]
 
 explicit-preview-rules = true
 
