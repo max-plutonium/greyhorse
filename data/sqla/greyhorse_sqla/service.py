@@ -7,19 +7,19 @@ from greyhorse.app.entities.service import Service
 from greyhorse.app.utils.registry import DictRegistry, ScopedMutableRegistry
 from greyhorse.result import Result
 from .config import EngineConf
-from .contexts import (
+from .providers import (
     SqlaAsyncConnContext, SqlaAsyncConnProvider, SqlaAsyncSessionContext,
     SqlaAsyncSessionProvider, SqlaSyncConnContext, SqlaSyncConnProvider,
     SqlaSyncSessionContext, SqlaSyncSessionProvider,
 )
-from .factory import SqlaAsyncEngineFactory, SqlaSyncEngineFactory
+from .factory import AsyncSqlaEngineFactory, SyncSqlaEngineFactory
 
 
 class SyncSqlaService(Service):
     def __init__(self, name: str, configs: Mapping[str, EngineConf]):
         super().__init__(name)
         self._configs = configs
-        self._engine_factory = SqlaSyncEngineFactory()
+        self._engine_factory = SyncSqlaEngineFactory()
         self._active = False
         self._event: threading.Event = threading.Event()
         self._registry = ScopedMutableRegistry[Any, Any](
@@ -94,7 +94,7 @@ class AsyncSqlaService(Service):
     def __init__(self, name: str, configs: Mapping[str, EngineConf]):
         super().__init__(name)
         self._configs = configs
-        self._engine_factory = SqlaAsyncEngineFactory()
+        self._engine_factory = AsyncSqlaEngineFactory()
         self._active = False
         self._event: asyncio.Event = asyncio.Event()
         self._registry = ScopedMutableRegistry[Any, Any](

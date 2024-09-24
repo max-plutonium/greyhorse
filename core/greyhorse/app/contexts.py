@@ -4,6 +4,7 @@ import asyncio
 import threading
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from collections.abc import Awaitable, Callable, Mapping
 from contextlib import (
     AbstractAsyncContextManager,
     AbstractContextManager,
@@ -13,15 +14,7 @@ from contextlib import (
 )
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import (
-    Any,
-    AsyncContextManager,
-    Awaitable,
-    Callable,
-    ContextManager,
-    Mapping,
-    override,
-)
+from typing import Any, AsyncContextManager, ContextManager, override
 from uuid import uuid4
 
 from greyhorse.enum import Enum, Struct, Unit
@@ -340,47 +333,53 @@ class SyncMutContext[T](SyncContext[T], MutContext):
     @override
     def apply(self) -> None:
         with self._lock:
-            match self._state:
-                case ContextState.Idle:
-                    raise InvalidContextState('MutContext apply on idle state')
-
-                case ContextState.InUse(count, value):
-                    for child in self._mut_children:
-                        child.apply()
-                    self._apply(value)
-                    self._state = ContextState[type(value)].Applied(count=count, value=value)
-
-                case ContextState.Applied(_, _):
-                    pass
-
-                case ContextState.Cancelled(_, _):
-                    raise InvalidContextState('MutContext apply on cancelled state')
+            self._do_apply()
 
     @override
     def cancel(self) -> None:
         with self._lock:
-            match self._state:
-                case ContextState.Idle:
-                    raise InvalidContextState('MutContext cancel on idle state')
-
-                case ContextState.InUse(count, value):
-                    for child in self._mut_children:
-                        child.cancel()
-                    self._cancel(value)
-                    self._state = ContextState[type(value)].Cancelled(count=count, value=value)
-
-                case ContextState.Applied(_, _):
-                    raise InvalidContextState('MutContext cancel on applied state')
-
-                case ContextState.Cancelled(_, _):
-                    pass
+            self._do_cancel()
 
     @override
     def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:
         if self._force_rollback or exc_type is not None:
-            self.cancel()
+            self._do_cancel()
         elif self._auto_apply:
-            self.apply()
+            self._do_apply()
+
+    def _do_apply(self) -> None:
+        match self._state:
+            case ContextState.Idle:
+                raise InvalidContextState('MutContext apply on idle state')
+
+            case ContextState.InUse(count, value):
+                for child in self._mut_children:
+                    child.apply()
+                self._apply(value)
+                self._state = ContextState[type(value)].Applied(count=count, value=value)
+
+            case ContextState.Applied(_, _):
+                pass
+
+            case ContextState.Cancelled(_, _):
+                raise InvalidContextState('MutContext apply on cancelled state')
+
+    def _do_cancel(self) -> None:
+        match self._state:
+            case ContextState.Idle:
+                raise InvalidContextState('MutContext cancel on idle state')
+
+            case ContextState.InUse(count, value):
+                for child in self._mut_children:
+                    child.cancel()
+                self._cancel(value)
+                self._state = ContextState[type(value)].Cancelled(count=count, value=value)
+
+            case ContextState.Applied(_, _):
+                raise InvalidContextState('MutContext cancel on applied state')
+
+            case ContextState.Cancelled(_, _):
+                pass
 
 
 class AsyncContext[T](Context, TypeWrapper[T], AsyncContextManager):
@@ -599,51 +598,57 @@ class AsyncMutContext[T](AsyncContext[T], MutContext):
     @override
     async def apply(self) -> None:
         async with self._lock:
-            match self._state:
-                case ContextState.Idle:
-                    raise InvalidContextState('MutContext apply on idle state')
-
-                case ContextState.InUse(count, value):
-                    for child in self._sync_mut_children:
-                        child.apply()
-                    for child in self._async_mut_children:
-                        await child.apply()
-                    await self._apply(value)
-                    self._state = ContextState[type(value)].Applied(count=count, value=value)
-
-                case ContextState.Applied(_, _):
-                    pass
-
-                case ContextState.Cancelled(_, _):
-                    raise InvalidContextState('MutContext apply on cancelled state')
+            await self._do_apply()
 
     @override
     async def cancel(self) -> None:
         async with self._lock:
-            match self._state:
-                case ContextState.Idle:
-                    raise InvalidContextState('MutContext cancel on idle state')
-
-                case ContextState.InUse(count, value):
-                    for child in self._sync_mut_children:
-                        child.cancel()
-                    for child in self._async_mut_children:
-                        await child.cancel()
-                    await self._cancel(value)
-                    self._state = ContextState[type(value)].Cancelled(count=count, value=value)
-
-                case ContextState.Applied(_, _):
-                    raise InvalidContextState('MutContext cancel on applied state')
-
-                case ContextState.Cancelled(_, _):
-                    pass
+            await self._do_cancel()
 
     @override
     async def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:
         if self._force_rollback or exc_type is not None:
-            await self.cancel()
+            await self._do_cancel()
         elif self._auto_apply:
-            await self.apply()
+            await self._do_apply()
+
+    async def _do_apply(self) -> None:
+        match self._state:
+            case ContextState.Idle:
+                raise InvalidContextState('MutContext apply on idle state')
+
+            case ContextState.InUse(count, value):
+                for child in self._sync_mut_children:
+                    child.apply()
+                for child in self._async_mut_children:
+                    await child.apply()
+                await self._apply(value)
+                self._state = ContextState[type(value)].Applied(count=count, value=value)
+
+            case ContextState.Applied(_, _):
+                pass
+
+            case ContextState.Cancelled(_, _):
+                raise InvalidContextState('MutContext apply on cancelled state')
+
+    async def _do_cancel(self) -> None:
+        match self._state:
+            case ContextState.Idle:
+                raise InvalidContextState('MutContext cancel on idle state')
+
+            case ContextState.InUse(count, value):
+                for child in self._sync_mut_children:
+                    child.cancel()
+                for child in self._async_mut_children:
+                    await child.cancel()
+                await self._cancel(value)
+                self._state = ContextState[type(value)].Cancelled(count=count, value=value)
+
+            case ContextState.Applied(_, _):
+                raise InvalidContextState('MutContext cancel on applied state')
+
+            case ContextState.Cancelled(_, _):
+                pass
 
 
 @dataclass

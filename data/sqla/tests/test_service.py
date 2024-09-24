@@ -3,7 +3,7 @@ from sqlalchemy import text
 
 from greyhorse.app.contexts import AsyncContext, SyncContext
 from greyhorse_sqla.config import EngineConf, SqlEngineType
-from greyhorse_sqla.contexts import SqlaAsyncConnProvider, SqlaSyncConnProvider
+from greyhorse_sqla.providers import SqlaAsyncConnProvider, SqlaSyncConnProvider
 from greyhorse_sqla.service import AsyncSqlaService, SyncSqlaService
 from .conf import MYSQL_URI, POSTGRES_URI, SQLITE_URI
 

@@ -7,7 +7,7 @@ from sqlalchemy import DateTime, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column as C
 
 from greyhorse_sqla.config import EngineConfig, SqlEngineType
-from greyhorse_sqla.factory import SqlaAsyncEngineFactory
+from greyhorse_sqla.factory import AsyncSqlaEngineFactory
 from greyhorse_sqla.model import SqlaModel
 from greyhorse_sqla.query import SqlaFiltersQuery as Q
 from greyhorse_sqla.repository import SqlaModelRepository
@@ -48,7 +48,7 @@ async def sqla_engine(request):
         pool_expire_seconds=15, pool_timeout_seconds=15,
     )
 
-    factory = SqlaAsyncEngineFactory()
+    factory = AsyncSqlaEngineFactory()
     engine = factory('test-sqla', config, engine_type)
     await engine.start()
 

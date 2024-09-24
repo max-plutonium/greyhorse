@@ -27,7 +27,7 @@ class EngineConf(BaseModel):
     pool_max_size: int = Field(default=4, gt=0)
     pool_expire_seconds: int = Field(default=60, gt=0)
     pool_timeout_seconds: int = Field(default=15, gt=0)
-    begin_tx: bool = True
+    auto_apply: bool = False
     force_rollback: bool = False
 
 

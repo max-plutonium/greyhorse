@@ -3,9 +3,11 @@ from sqlalchemy import text
 
 from greyhorse.app.contexts import AsyncContext, SyncContext
 from greyhorse_sqla.config import EngineConf, SqlEngineType
-from greyhorse_sqla.contexts import SqlaAsyncConnContext, SqlaAsyncSessionContext, SqlaSyncConnContext, SqlaSyncSessionContext
-from greyhorse_sqla.engine import SqlaAsyncEngine, SqlaSyncEngine
-from greyhorse_sqla.factory import SqlaAsyncEngineFactory, SqlaSyncEngineFactory
+from greyhorse_sqla.providers import SqlaSyncConnProvider, SqlaSyncSessionProvider, SqlaAsyncConnProvider, \
+    SqlaAsyncSessionProvider
+from greyhorse_sqla.engine_async import AsyncSqlaEngine
+from greyhorse_sqla.engine_sync import SyncSqlaEngine
+from greyhorse_sqla.factory import AsyncSqlaEngineFactory, SyncSqlaEngineFactory
 from .conf import MYSQL_URI, POSTGRES_URI, SQLITE_URI
 
 
@@ -16,7 +18,7 @@ def test_sync_factory():
         pool_expire_seconds=15, pool_timeout_seconds=15,
     )
 
-    factory = SqlaSyncEngineFactory()
+    factory = SyncSqlaEngineFactory()
 
     assert [] == factory.get_engine_names()
     assert factory.get_engine('test') is None
@@ -26,7 +28,7 @@ def test_sync_factory():
 
     assert engine
     assert engine.name == 'test'
-    assert isinstance(engine, SqlaSyncEngine)
+    assert isinstance(engine, SyncSqlaEngine)
     assert ['test'] == factory.get_engine_names()
     assert factory.get_engine('test') is engine
     assert {'test': engine} == factory.get_engines()
@@ -39,7 +41,7 @@ def test_async_factory():
         pool_expire_seconds=15, pool_timeout_seconds=15,
     )
 
-    factory = SqlaAsyncEngineFactory()
+    factory = AsyncSqlaEngineFactory()
 
     assert [] == factory.get_engine_names()
     assert factory.get_engine('test') is None
@@ -49,7 +51,7 @@ def test_async_factory():
 
     assert engine
     assert engine.name == 'test'
-    assert isinstance(engine, SqlaAsyncEngine)
+    assert isinstance(engine, AsyncSqlaEngine)
     assert ['test'] == factory.get_engine_names()
     assert factory.get_engine('test') is engine
     assert {'test': engine} == factory.get_engines()
@@ -71,30 +73,37 @@ def test_sync_connection(param):
         pool_expire_seconds=15, pool_timeout_seconds=15,
     )
 
-    factory = SqlaSyncEngineFactory()
+    factory = SyncSqlaEngineFactory()
     engine = factory.create_engine('test', config)
 
     assert not engine.active
     engine.start()
     assert engine.active
 
-    conn_ctx = engine.get_context(SqlaSyncConnContext)
-    assert conn_ctx
+    conn_ctx = engine.get_provider(SqlaSyncConnProvider)
+    assert conn_ctx.is_just()
+    conn_ctx = conn_ctx.unwrap().acquire().unwrap()
     assert isinstance(conn_ctx, SyncContext)
 
-    session_ctx = engine.get_context(SqlaSyncSessionContext)
-    assert session_ctx
+    session_ctx = engine.get_provider(SqlaSyncSessionProvider)
+    assert session_ctx.is_just()
+    session_ctx = session_ctx.unwrap().acquire().unwrap()
     assert isinstance(session_ctx, SyncContext)
 
+    with session_ctx as s1:
+        res = s1.execute(text('select 1 * 2;'))
+        assert res.fetchone()[0] == 2
+
     with conn_ctx as conn:
-        res = conn.connection.execute(text(f'select {param[2]}();'))
+        res = conn.execute(text(f'select {param[2]}();'))
         print(res.fetchone()[0])
 
         with session_ctx as s1:
-            res = s1.session.execute(text('select 1 + 2;'))
+            res = s1.execute(text('select 1 + 2;'))
             assert res.fetchone()[0] == 3
+
         with session_ctx as s2:
-            res = s2.session.execute(text('select 3 + 4;'))
+            res = s2.execute(text('select 3 + 4;'))
             assert res.fetchone()[0] == 7
 
     assert engine.active
@@ -119,30 +128,37 @@ async def test_async_connection(param):
         pool_expire_seconds=15, pool_timeout_seconds=15,
     )
 
-    factory = SqlaAsyncEngineFactory()
+    factory = AsyncSqlaEngineFactory()
     engine = factory.create_engine('test', config)
 
     assert not engine.active
     await engine.start()
     assert engine.active
 
-    conn_ctx = engine.get_context(SqlaAsyncConnContext)
-    assert conn_ctx
+    conn_ctx = engine.get_provider(SqlaAsyncConnProvider)
+    assert conn_ctx.is_just()
+    conn_ctx = conn_ctx.unwrap().acquire().unwrap()
     assert isinstance(conn_ctx, AsyncContext)
 
-    session_ctx = engine.get_context(SqlaAsyncSessionContext)
-    assert session_ctx
+    session_ctx0 = engine.get_provider(SqlaAsyncSessionProvider)
+    assert session_ctx0.is_just()
+    session_ctx = session_ctx0.unwrap().acquire().unwrap()
     assert isinstance(session_ctx, AsyncContext)
 
+    async with session_ctx as s1:
+        res = await s1.execute(text('select 1 * 2;'))
+        assert res.fetchone()[0] == 2
+
     async with conn_ctx as conn:
-        res = await conn.connection.execute(text(f'select {param[2]}();'))
+        res = await conn.execute(text(f'select {param[2]}();'))
         print(res.fetchone()[0])
 
         async with session_ctx as s1:
-            res = await s1.session.execute(text('select 1 + 2;'))
+            res = await s1.execute(text('select 1 + 2;'))
             assert res.fetchone()[0] == 3
+
         async with session_ctx as s2:
-            res = await s2.session.execute(text('select 3 + 4;'))
+            res = await s2.execute(text('select 3 + 4;'))
             assert res.fetchone()[0] == 7
 
     assert engine.active

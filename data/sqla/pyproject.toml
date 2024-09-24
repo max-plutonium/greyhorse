@@ -1,61 +1,41 @@
-[tool.poetry]
+[project]
 name = "greyhorse-sqla"
-version = "0.4.0"
+dynamic = ["version"]
 description = "Greyhorse SqlAlchemy library"
-license = "MIT"
-repository = "https://gitlab.com/max-plutonium/greyhorse"
-authors = ["Max Plutonium <plutonium.max@gmail.com>"]
-maintainers = ["Max Plutonium <plutonium.max@gmail.com>"]
-classifiers = [
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
-    "Typing :: Typed",
+requires-python = ">=3.12"
+
+dependencies = [
+    "greyhorse>=0.0.0",
+    "pydantic-settings>=2.5.2",
+    "sqlalchemy-utils>=0.41.2",
+    "sqlalchemy[asyncio,mypy]>=2.0.35",
 ]
 
-packages = [
-    { include = "greyhorse_sqla" },
+[project.optional-dependencies]
+pg = [
+    "asyncpg>=0.29.0",
+    "psycopg2>=2.9.9",
+]
+sqlite = [
+    "aiosqlite>=0.20.0",
+]
+mysql = [
+    "aiomysql>=0.2.0",
+    "pymysql[rsa]>=1.1.1",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-greyhorse = [
-    { path = "../../core/", develop = true },
-    { version = "^0.4.2" }
+[tool.uv.sources]
+greyhorse = { path = "../../core", editable = true }
+
+[tool.uv]
+dev-dependencies = [
+    "mypy>=1.11.2",
+    "pre-commit>=3.8.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=5.0.0",
+    "pytest-faker>=2.0.0",
+    "pytest-mock>=3.14.0",
+    "pytest>=8.3.3",
+    "ruff>=0.6.7",
+    "uv-dynamic-versioning>=0.1.0",
 ]
-pydantic = {version = "^2.0", extras = ["dotenv"]}
-pydantic-settings = "^2.2.1"
-
-sqlalchemy = {extras = ["asyncio", "mypy"], version = "^2.0.29"}
-sqlalchemy-utils = "^0.41.2"
-
-aiosqlite = {version = "^0.20.0", optional = true}
-asyncpg = {version = "^0.29.0", optional = true}
-psycopg2 = {version = "^2.9.9", optional = true}
-aiomysql = {version = "^0.2.0", optional = true}
-pymysql = {version = "^1.1.0", extras = ["rsa"], optional = true}
-
-[tool.poetry.extras]
-sqlite = ["aiosqlite"]
-pg = ["asyncpg", "psycopg2"]
-mysql = ["aiomysql", "pymysql"]
-
-[tool.poetry.dev-dependencies]
-pytest = "^7.4"
-pytest-asyncio = "^0.23"
-pytest-cov = "^4.1"
-pytest-mock = "^3.12"
-pytest-faker = "^2.0"
-autoflake = "^2.2"
-black = "^23.11"
-flake8 = "^6.1"
-isort = "^5.12"
-mypy = "^1.7"
-pre-commit = "^3.5"
-
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry-monorepo-dependency-plugin]
-enable = true

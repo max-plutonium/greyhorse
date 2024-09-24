@@ -1,3 +1,4 @@
+import decimal
 import re
 from typing import override
 
@@ -7,9 +8,11 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from greyhorse.data.storage import SimpleDataStorageFactory
 from greyhorse.i18n import tr
+from greyhorse.utils import json
 from greyhorse.logging import logger
 from .config import EngineConf, SqlEngineType
-from .engine import SqlaAsyncEngine, SqlaSyncEngine
+from .engine_async import AsyncSqlaEngine
+from .engine_sync import SyncSqlaEngine
 
 
 def _prepare_params(config: EngineConf) -> dict:
@@ -18,8 +21,8 @@ def _prepare_params(config: EngineConf) -> dict:
         echo_pool=config.echo,
         pool_pre_ping=True,
         pool_recycle=config.pool_expire_seconds,
-        json_serializer=orjson.dumps,
-        json_deserializer=orjson.loads,
+        json_serializer=json.dumps,
+        json_deserializer=json.loads,
     )
 
     if config.type in (SqlEngineType.POSTGRES, SqlEngineType.MYSQL):
@@ -32,10 +35,10 @@ def _prepare_params(config: EngineConf) -> dict:
     return params
 
 
-class SqlaSyncEngineFactory(SimpleDataStorageFactory[SqlaSyncEngine]):
+class SyncSqlaEngineFactory(SimpleDataStorageFactory[SyncSqlaEngine]):
     # noinspection PyMethodOverriding
     @override
-    def create_engine(self, name: str, config: EngineConf, *args, **kwargs) -> SqlaSyncEngine:
+    def create_engine(self, name: str, config: EngineConf, *args, **kwargs) -> SyncSqlaEngine:
         if engine := self._engines.get(name):
             return engine
 
@@ -50,19 +53,18 @@ class SqlaSyncEngineFactory(SimpleDataStorageFactory[SqlaSyncEngine]):
         )
 
         logger.info(
-            tr('greyhorse.engines.sqla.engine.created')
-            .format(name=name, db_type=config.type.value, async_='sync')
+            tr('greyhorse.engines.sqla.engine.created', name=name, db_type=config.type.value, async_='sync')
         )
 
-        engine = SqlaSyncEngine(name, config, engine)
+        engine = SyncSqlaEngine(name, config, engine)
         self._engines[name] = engine
         return engine
 
 
-class SqlaAsyncEngineFactory(SimpleDataStorageFactory[SqlaAsyncEngine]):
+class AsyncSqlaEngineFactory(SimpleDataStorageFactory[AsyncSqlaEngine]):
     # noinspection PyMethodOverriding
     @override
-    def create_engine(self, name: str, config: EngineConf, *args, **kwargs) -> SqlaAsyncEngine:
+    def create_engine(self, name: str, config: EngineConf, *args, **kwargs) -> AsyncSqlaEngine:
         if engine := self._engines.get(name):
             return engine
 
@@ -82,10 +84,9 @@ class SqlaAsyncEngineFactory(SimpleDataStorageFactory[SqlaAsyncEngine]):
         )
 
         logger.info(
-            tr('greyhorse.engines.sqla.engine.created')
-            .format(name=name, db_type=config.type.value, async_='async')
+            tr('greyhorse.engines.sqla.engine.created', name=name, db_type=config.type.value, async_='async')
         )
 
-        engine = SqlaAsyncEngine(name, config, engine)
+        engine = AsyncSqlaEngine(name, config, engine)
         self._engines[name] = engine
         return engine
