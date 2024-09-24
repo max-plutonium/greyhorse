@@ -136,7 +136,7 @@ wheels = [
 
 [[package]]
 name = "greyhorse"
-version = "0.4.14rc0"
+version = "0.0.0"
 source = { virtual = "." }
 dependencies = [
     { name = "networkx" },

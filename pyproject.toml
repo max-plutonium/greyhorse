@@ -1,29 +1,8 @@
 [project]
 name = "greyhorse"
-dynamic = ["version"]
 description = "Greyhorse library"
 license = {file = "LICENSE"}
 requires-python = ">=3.12"
-
-maintainers = [
-    {name = "Max Plutonium", email = "plutonium.max@gmail.com"},
-]
-authors = [
-    {name = "Max Plutonium", email = "plutonium.max@gmail.com"},
-]
-
-classifiers = [
-    "License :: OSI Approved :: MIT License",
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
-    "Typing :: Typed",
-]
-
-[project.urls]
-Homepage = "https://gitlab.com/max-plutonium/greyhorse"
-Repository = "https://gitlab.com/max-plutonium/greyhorse"
 
 [build-system]
 requires = ["hatchling", "uv-dynamic-versioning"]
