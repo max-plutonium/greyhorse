@@ -58,7 +58,7 @@ class SyncResourceMapper[T](ResourceMapper[T]):
             .map_err(lambda e: e.message)
             .map(self._operator.accept)
             .and_then(
-                lambda v: Ok(None)
+                lambda v: Ok()
                 if v
                 else Err(f'Could not accept resource "{self.__wrapped_type__.__name__}"')
             )
@@ -83,7 +83,7 @@ class AsyncResourceMapper[T](ResourceMapper[T]):
             .map_err(lambda e: e.message)
             .map_async(self._operator.accept)
         ).and_then_async(
-            lambda v: Ok(None)
+            lambda v: Ok()
             if v
             else Err(f'Could not accept resource "{self.__wrapped_type__.__name__}"')
         )

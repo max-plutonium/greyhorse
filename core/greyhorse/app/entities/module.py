@@ -120,7 +120,7 @@ class Module:
                 return res
 
         logger.info('{path}: Module setup successful'.format(path=self._path))
-        return Ok(None)
+        return Ok()
 
     def teardown(self) -> Result[None, ModuleError]:
         logger.info('{path}: Module teardown'.format(path=self._path))
@@ -155,4 +155,4 @@ class Module:
                 component.remove_resource(res_type)
 
         logger.info('{path}: Module teardown successful'.format(path=self._path))
-        return Ok(None)
+        return Ok()

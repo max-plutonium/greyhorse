@@ -124,11 +124,11 @@ class Application:
         self._conf = Just(conf)
 
         logger.info('{name}: Application loaded successfully'.format(name=self.name))
-        return Ok(None)
+        return Ok()
 
     def unload(self) -> Result[None, ApplicationError]:
         if not self._root:
-            return Ok(None)
+            return Ok()
 
         logger.info('{name}: Application unload'.format(name=self.name))
 
@@ -144,7 +144,7 @@ class Application:
         del conf
 
         logger.info('{name}: Application unloaded successfully'.format(name=self.name))
-        return Ok(None)
+        return Ok()
 
     def setup(self) -> Result[None, ApplicationError]:
         return (

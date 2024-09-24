@@ -30,7 +30,7 @@ class FunctionalOperatorImpl(FunctionalOperator):
             ctx['number'] = value
             self.mut_ctx.apply()
 
-        return Ok(None)
+        return Ok()
 
     @override
     def get_number(self) -> Result[int, str]:

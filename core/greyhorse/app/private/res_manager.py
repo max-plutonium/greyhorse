@@ -95,7 +95,7 @@ class ResourceManager:
             if not self.setup_resource(op, providers):
                 self._public_operators.append(op)
 
-        return Ok(None)
+        return Ok()
 
     def teardown(self) -> Result[None, ResourceError]:
         while operator := next(reversed(self._provided_resources.keys()), None):
@@ -117,7 +117,7 @@ class ResourceManager:
         self._deps.clear()
         self._resource_graph.clear()
         assert len(self._provided_resources) == 0
-        return Ok(None)
+        return Ok()
 
     def find_provider(
         self,

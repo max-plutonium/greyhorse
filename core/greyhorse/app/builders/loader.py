@@ -152,4 +152,4 @@ class ModuleLoader:
         logger.info(
             'ModuleLoader: Module "{path}" unloaded successfully'.format(path=module_path)
         )
-        return Ok(None)
+        return Ok()

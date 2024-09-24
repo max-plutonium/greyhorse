@@ -183,7 +183,7 @@ class Component:
             )
         )
 
-        return Ok(None)
+        return Ok()
 
     def teardown(self) -> Result[None, ComponentError]:
         injector = ParamsInjector()
@@ -250,7 +250,7 @@ class Component:
             )
         )
 
-        return Ok(None)
+        return Ok()
 
     def _create_controller(
         self, conf: CtrlConf, factory: ControllerFactoryFn, injector: ParamsInjector
@@ -398,7 +398,7 @@ class ModuleComponent(Component):
         ):
             return res
 
-        return Ok(None)
+        return Ok()
 
     def teardown(self) -> Result[None, ComponentError]:
         if not (

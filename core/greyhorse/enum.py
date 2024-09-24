@@ -91,6 +91,8 @@ class Tuple[*Ts]:
 
         # noinspection PyUnresolvedReferences
         def __init__(self0, *args):
+            if not args:
+                args = (None,)
             types = tuple(type(arg) for arg in args)
             orig_class = self._factory[*types] if self._types else self.__class__
             return old_init(self0, *args, __orig_class__=orig_class)

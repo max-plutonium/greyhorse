@@ -83,7 +83,7 @@ class ModuleBuilder:
             return res
 
         logger.info('{path}: Module destroyed successfully'.format(path=self._path))
-        return Ok(None)
+        return Ok()
 
     def _create_component(
         self, name: str, conf: ComponentConf
@@ -214,7 +214,7 @@ class ModuleBuilder:
                         )
                     )
 
-        return Ok(None)
+        return Ok()
 
 
 def load_module(path: str, conf: ModuleComponentConf) -> Result[Module, ModuleBuildError]:
