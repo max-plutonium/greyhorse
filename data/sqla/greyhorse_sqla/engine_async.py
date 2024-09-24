@@ -4,7 +4,7 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from functools import partial
 from typing import Any, override
 
-from greyhorse.app.abc.providers import BorrowMutError, MutProvider, Provider
+from greyhorse.app.abc.providers import BorrowMutError, Provider
 from greyhorse.app.contexts import AsyncMutContext, ContextBuilder, current_scope_id
 from greyhorse.app.registries import MutDictRegistry, ScopedMutDictRegistry
 from greyhorse.data.storage import DataStorageEngine
@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session, async_ses
 from sqlalchemy.ext.asyncio.engine import AsyncConnection, AsyncEngine, AsyncTransaction
 
 from .config import EngineConf
+from .providers import SqlaAsyncConnProvider, SqlaAsyncSessionProvider
 
 
 class _AsyncConnCtx(AsyncMutContext[AsyncConnection]):
@@ -77,7 +78,7 @@ class _AsyncSessionCtx(AsyncMutContext[AsyncSession]):
         await instance.rollback()
 
 
-class _ConnProvider(MutProvider[AsyncConnection]):
+class _ConnProvider(SqlaAsyncConnProvider):
     __slots__ = ('_builder',)
 
     def __init__(self, builder: ContextBuilder[_AsyncConnCtx, AsyncConnection]) -> None:
@@ -92,7 +93,7 @@ class _ConnProvider(MutProvider[AsyncConnection]):
         del instance
 
 
-class _SessionProvider(MutProvider[AsyncSession]):
+class _SessionProvider(SqlaAsyncSessionProvider):
     __slots__ = ('_builder',)
 
     def __init__(self, builder: ContextBuilder[_AsyncSessionCtx, AsyncSession]) -> None:
@@ -140,16 +141,18 @@ class AsyncSqlaEngine(DataStorageEngine):
         return self._counter > 0
 
     @override
+    def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
+        return self._providers.get(prov_type).map(lambda func: func())
+
+    @override
     async def start(self) -> None:
         async with self._lock:
             if self._counter == 0:
                 self._providers.add(
-                    MutProvider[AsyncMutContext[AsyncConnection]],
-                    partial(_ConnProvider, self._conn_builder),
+                    SqlaAsyncConnProvider, partial(_ConnProvider, self._conn_builder)
                 )
                 self._providers.add(
-                    MutProvider[AsyncMutContext[AsyncSession]],
-                    partial(_SessionProvider, self._session_builder),
+                    SqlaAsyncSessionProvider, partial(_SessionProvider, self._session_builder)
                 )
                 logger.info(
                     tr(
@@ -165,8 +168,8 @@ class AsyncSqlaEngine(DataStorageEngine):
     async def stop(self) -> None:
         async with self._lock:
             if self._counter == 1:
-                self._providers.remove(MutProvider[AsyncMutContext[AsyncConnection]])
-                self._providers.remove(MutProvider[AsyncMutContext[AsyncSession]])
+                self._providers.remove(SqlaAsyncConnProvider)
+                self._providers.remove(SqlaAsyncSessionProvider)
                 await self._engine.dispose()
                 logger.info(
                     tr(
@@ -177,10 +180,6 @@ class AsyncSqlaEngine(DataStorageEngine):
                     )
                 )
             self._counter = max(self._counter - 1, 0)
-
-    @override
-    def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
-        return self._providers.get(prov_type).map(lambda func: func())
 
     @asynccontextmanager
     async def _get_connection(self) -> AbstractAsyncContextManager[AsyncConnection]:

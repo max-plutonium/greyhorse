@@ -28,7 +28,7 @@ def test_sync_factory() -> None:
     factory = SyncSqlaEngineFactory()
 
     assert factory.get_engine_names() == []
-    assert factory.get_engine('test') is None
+    assert factory.get_engine('test').is_nothing()
     assert factory.get_engines() == {}
 
     engine = factory.create_engine('test', config)
@@ -37,7 +37,7 @@ def test_sync_factory() -> None:
     assert engine.name == 'test'
     assert isinstance(engine, SyncSqlaEngine)
     assert factory.get_engine_names() == ['test']
-    assert factory.get_engine('test') is engine
+    assert factory.get_engine('test').unwrap() is engine
     assert factory.get_engines() == {'test': engine}
 
 
@@ -54,7 +54,7 @@ def test_async_factory() -> None:
     factory = AsyncSqlaEngineFactory()
 
     assert factory.get_engine_names() == []
-    assert factory.get_engine('test') is None
+    assert factory.get_engine('test').is_nothing()
     assert factory.get_engines() == {}
 
     engine = factory.create_engine('test', config)
@@ -63,7 +63,7 @@ def test_async_factory() -> None:
     assert engine.name == 'test'
     assert isinstance(engine, AsyncSqlaEngine)
     assert factory.get_engine_names() == ['test']
-    assert factory.get_engine('test') is engine
+    assert factory.get_engine('test').unwrap() is engine
     assert factory.get_engines() == {'test': engine}
 
 
@@ -156,9 +156,9 @@ async def test_async_connection(param) -> None:
     conn_ctx = conn_ctx.unwrap().acquire().unwrap()
     assert isinstance(conn_ctx, AsyncContext)
 
-    session_ctx0 = engine.get_provider(SqlaAsyncSessionProvider)
-    assert session_ctx0.is_just()
-    session_ctx = session_ctx0.unwrap().acquire().unwrap()
+    session_ctx = engine.get_provider(SqlaAsyncSessionProvider)
+    assert session_ctx.is_just()
+    session_ctx = session_ctx.unwrap().acquire().unwrap()
     assert isinstance(session_ctx, AsyncContext)
 
     async with session_ctx as s1:

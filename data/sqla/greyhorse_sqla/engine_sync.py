@@ -4,7 +4,7 @@ from contextlib import AbstractContextManager, contextmanager
 from functools import partial
 from typing import Any, override
 
-from greyhorse.app.abc.providers import BorrowMutError, MutProvider, Provider
+from greyhorse.app.abc.providers import BorrowMutError, Provider
 from greyhorse.app.contexts import ContextBuilder, SyncMutContext, current_scope_id
 from greyhorse.app.registries import MutDictRegistry, ScopedMutDictRegistry
 from greyhorse.data.storage import DataStorageEngine
@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session as SyncSession
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from .config import EngineConf
+from .providers import SqlaSyncConnProvider, SqlaSyncSessionProvider
 
 
 class _SyncConnCtx(SyncMutContext[SyncConnection]):
@@ -78,7 +79,7 @@ class _SyncSessionCtx(SyncMutContext[SyncSession]):
         instance.rollback()
 
 
-class _ConnProvider(MutProvider[SyncConnection]):
+class _ConnProvider(SqlaSyncConnProvider):
     __slots__ = ('_builder',)
 
     def __init__(self, builder: ContextBuilder[_SyncConnCtx, SyncConnection]) -> None:
@@ -93,7 +94,7 @@ class _ConnProvider(MutProvider[SyncConnection]):
         del instance
 
 
-class _SessionProvider(MutProvider[SyncSession]):
+class _SessionProvider(SqlaSyncSessionProvider):
     __slots__ = ('_builder',)
 
     def __init__(self, builder: ContextBuilder[_SyncSessionCtx, SyncSession]) -> None:
@@ -141,16 +142,18 @@ class SyncSqlaEngine(DataStorageEngine):
         return self._counter > 0
 
     @override
+    def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
+        return self._providers.get(prov_type).map(lambda func: func())
+
+    @override
     def start(self) -> None:
         with self._lock:
             if self._counter == 0:
                 self._providers.add(
-                    MutProvider[SyncMutContext[SyncConnection]],
-                    partial(_ConnProvider, self._conn_builder),
+                    SqlaSyncConnProvider, partial(_ConnProvider, self._conn_builder)
                 )
                 self._providers.add(
-                    MutProvider[SyncMutContext[SyncSession]],
-                    partial(_SessionProvider, self._session_builder),
+                    SqlaSyncSessionProvider, partial(_SessionProvider, self._session_builder)
                 )
                 logger.info(
                     tr(
@@ -166,8 +169,8 @@ class SyncSqlaEngine(DataStorageEngine):
     def stop(self) -> None:
         with self._lock:
             if self._counter == 1:
-                self._providers.remove(MutProvider[SyncMutContext[SyncConnection]])
-                self._providers.remove(MutProvider[SyncMutContext[SyncSession]])
+                self._providers.remove(SqlaSyncConnProvider)
+                self._providers.remove(SqlaSyncSessionProvider)
                 self._engine.dispose()
                 logger.info(
                     tr(
@@ -178,10 +181,6 @@ class SyncSqlaEngine(DataStorageEngine):
                     )
                 )
             self._counter = max(self._counter - 1, 0)
-
-    @override
-    def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
-        return self._providers.get(prov_type).map(lambda func: func())
 
     @contextmanager
     def _get_connection(self) -> AbstractContextManager[SyncConnection]:
