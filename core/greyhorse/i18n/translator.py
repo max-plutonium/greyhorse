@@ -8,8 +8,8 @@ from greyhorse.utils.dicts import build_dotted_keys_from_dict
 
 class StaticTranslator:
     def __init__(self) -> None:
-        self._data = dict()
-        self._defaults = dict()
+        self._data = {}
+        self._defaults = {}
 
     def load_string(self, content: str, namespace: str) -> None:
         parsed = tomlkit.parse(content)
