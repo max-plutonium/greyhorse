@@ -1,4 +1,5 @@
 import asyncio
+import threading
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from functools import partial
@@ -117,7 +118,7 @@ class AsyncSqlaEngine(DataStorageEngine):
         self._engine = engine
 
         self._registry = ScopedMutDictRegistry[type, Any](
-            factory=MutDictRegistry, scope_func=lambda: str(id(asyncio.current_task()))
+            factory=MutDictRegistry, scope_func=lambda: str(threading.current_thread().ident)
         )
 
         self._conn_builder = ContextBuilder[_AsyncConnCtx, AsyncConnection](
