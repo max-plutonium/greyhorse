@@ -2,7 +2,7 @@ import asyncio
 import signal
 import threading
 from asyncio import get_running_loop
-from collections.abc import Callable, Collection
+from collections.abc import Callable, Collection, Generator
 from contextlib import contextmanager
 from functools import partial
 from pathlib import Path
@@ -106,7 +106,7 @@ class Application:
                 lambda e: ApplicationError.Load(details=e.message)
             )
         ):
-            return res
+            return res  # type: ignore
 
         module = res.unwrap()
 
@@ -243,15 +243,17 @@ class Application:
 
         while not all([e.is_set() for e in all_events]):
             async with asyncio.TaskGroup() as tg:
-                for e in sync_events:
-                    tg.create_task(asyncio.to_thread(e.wait, 0.1))
-                for e in async_events:
-                    tg.create_task(e.wait())
+                for se in sync_events:
+                    tg.create_task(asyncio.to_thread(se.wait, 0.1))
+                for ae in async_events:
+                    tg.create_task(ae.wait())
 
         logger.info('{name}: Application running async STOPPED'.format(name=self._name))
 
     @contextmanager
-    def graceful_exit(self, signals: Collection[int] = (signal.SIGINT, signal.SIGTERM)) -> None:
+    def graceful_exit(
+        self, signals: Collection[int] = (signal.SIGINT, signal.SIGTERM)
+    ) -> Generator:
         signals = set(signals)
         flag: list[bool] = []
 

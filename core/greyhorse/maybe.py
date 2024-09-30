@@ -30,7 +30,7 @@ class Maybe[T](Enum):
         raise AssertionError()
 
     @classmethod
-    def __new_just__(cls, value: T):
+    def __new_just__(cls, value):
         return super().__new__(Maybe[type(value)].Just)
 
     def __bool__(self) -> bool:
@@ -341,7 +341,7 @@ class MaybeUnwrapError(Exception):
         super().__init__(message)
 
 
-def is_just[T](maybe: Maybe[T]) -> TypeGuard[Maybe[T].Just]:
+def is_just[T](maybe: Maybe[T]) -> TypeGuard[Maybe[T].Just]:  # type: ignore
     """A typeguard to check if a Maybe is a Just
 
     Usage:
@@ -354,7 +354,7 @@ def is_just[T](maybe: Maybe[T]) -> TypeGuard[Maybe[T].Just]:
     return maybe.is_just()
 
 
-def is_nothing[T](maybe: Maybe[T]) -> TypeGuard[Maybe[T].Nothing]:
+def is_nothing[T](maybe: Maybe[T]) -> TypeGuard[Maybe[T].Nothing]:  # type: ignore
     """A typeguard to check if a Maybe is a Nothing
 
     Usage:

@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 class Error(Enum):
-    _tr: ClassVar[StaticTranslator] = None
+    _tr: ClassVar[StaticTranslator] | None = None
     namespace: ClassVar[str] = ''
     code: Final[str] = ''
     msg: Final[str] = ''

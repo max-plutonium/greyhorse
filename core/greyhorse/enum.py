@@ -30,10 +30,10 @@ class Unit:
             match_args=False,
         )
 
-        dc.__orig_class__ = self.__class__
-        dc.__match_args__ = ()
-        dc.__repr__ = lambda _: f'{self._base.__name__}:{self._name}'
-        self._factory = dc()
+        dc.__orig_class__ = self.__class__  # type: ignore
+        dc.__match_args__ = ()  # type: ignore
+        dc.__repr__ = lambda _: f'{self._base.__name__}:{self._name}'  # type: ignore
+        self._factory = dc()  # type: ignore
         return self._factory
 
     def __repr__(self) -> str:
@@ -63,15 +63,16 @@ class Tuple[*Ts]:
         bases = [base]
 
         if self._types:
-            bases += [Generic[*self._types]]
+            bases += [Generic[*self._types]]  # type: ignore
 
-        fields = {f'_{i}': arg for i, arg in enumerate(self._types + self._fields)}
-        fields = list(fields.items())
+        fields = list(
+            {f'_{i}': arg for i, arg in enumerate(self._types + self._fields)}.items()
+        )  # type: ignore
         fields.append((
             '__orig_class__',
             Any,
             dataclass_field(default=self._base, init=True, repr=False),
-        ))
+        ))  # type: ignore
 
         dc = make_dataclass(
             name,
@@ -84,20 +85,19 @@ class Tuple[*Ts]:
             match_args=False,
         )
 
-        dc.__orig_class__ = self.__class__
-        dc.__match_args__ = tuple([f'_{i}' for i, _ in enumerate(self._types + self._fields)])
-        dc.__repr__ = lambda self0: self._repr_fn(self0)
-        self._factory = dc
+        dc.__orig_class__ = self.__class__  # type: ignore
+        dc.__match_args__ = tuple([f'_{i}' for i, _ in enumerate(self._types + self._fields)])  # type: ignore
+        dc.__repr__ = lambda self0: self._repr_fn(self0)  # type: ignore
+        self._factory = dc  # type: ignore
 
-        # noinspection PyUnresolvedReferences
         def __init__(self0, *args):
             if not args:
                 args = (None,)
             types = tuple(type(arg) for arg in args)
-            orig_class = self._factory[*types] if self._types else self.__class__
+            orig_class = self._factory[*types] if self._types else self.__class__  # type: ignore
             return old_init(self0, *args, __orig_class__=orig_class)
 
-        old_init, dc.__init__ = dc.__init__, __init__
+        old_init, dc.__init__ = dc.__init__, __init__  # type: ignore
         return self._factory
 
     def __repr__(self) -> str:
@@ -134,7 +134,7 @@ class Struct:
 
         for k, v in kwargs.items():
             if isinstance(v, type | TypeVar):
-                self._fields[k] = v
+                self._fields[k] = v  # type: ignore
             else:
                 self._values[k] = v
 
@@ -149,10 +149,10 @@ class Struct:
             '__orig_class__',
             Any,
             dataclass_field(default=self._base, init=True, repr=False),
-        ))
+        ))  # type: ignore
 
         for k, v in self._values.items():
-            fields.append((k, type(v), dataclass_field(default=v, init=False, repr=True)))
+            fields.append((k, type(v), dataclass_field(default=v, init=False, repr=True)))  # type: ignore
 
         dc = make_dataclass(
             name,
@@ -165,10 +165,10 @@ class Struct:
             match_args=False,
         )
 
-        dc.__orig_class__ = self.__class__
-        dc.__match_args__ = tuple([f'{k}' for k in self._fields])
-        dc.__repr__ = lambda self0: self._repr_fn(self0)
-        self._factory = dc
+        dc.__orig_class__ = self.__class__  # type: ignore
+        dc.__match_args__ = tuple([f'{k}' for k in self._fields])  # type: ignore
+        dc.__repr__ = lambda self0: self._repr_fn(self0)  # type: ignore
+        self._factory = dc  # type: ignore
         return self._factory
 
     def __repr__(self) -> str:
@@ -200,7 +200,7 @@ class Enum:
     """
 
     def __init_subclass__(cls, allow_init: bool = False, **kwargs):
-        fields: dict[str, ClassVar[Unit | Tuple | Struct]] = {}
+        fields: dict[str, ClassVar[Unit | Tuple | Struct]] = {}  # type: ignore
 
         for field_name in dir(cls):
             instance = getattr(cls, field_name)
@@ -221,7 +221,7 @@ class Enum:
             def __init__(*_, **__) -> NoReturn:
                 raise NotImplementedError()
 
-            cls.__init__ = __init__
+            cls.__init__ = __init__  # type: ignore
 
         return super().__init_subclass__(**kwargs)
 

@@ -1,3 +1,4 @@
+# mypy: warn_no_return=false,disable_error_code="arg-type,has-type,misc,return-value"
 from __future__ import annotations
 
 import inspect
@@ -33,11 +34,11 @@ class Result[T, E](Enum):
         raise AssertionError()
 
     @classmethod
-    def __new_ok__(cls, value: T):
+    def __new_ok__(cls, value):
         return super().__new__(Result[type(value), Any].Ok)
 
     @classmethod
-    def __new_err__(cls, value: E):
+    def __new_err__(cls, value):
         return super().__new__(Result[Any, type(value)].Err)
 
     def __bool__(self) -> bool:
@@ -423,11 +424,11 @@ class DoException(Exception):
     we just return `self` (the Err).
     """
 
-    def __init__(self, err: Result.Err) -> None:
+    def __init__[T, E](self, err: Result[T, E].Err) -> None:  # type: ignore
         self.err = err
 
 
-def is_ok[T, E](result: Result[T, E]) -> TypeGuard[Result[T, E].Ok]:
+def is_ok[T, E](result: Result[T, E]) -> TypeGuard[Result[T, E].Ok]:  # type: ignore
     """A typeguard to check if a result is an Ok
 
     Usage:
@@ -440,7 +441,7 @@ def is_ok[T, E](result: Result[T, E]) -> TypeGuard[Result[T, E].Ok]:
     return result.is_ok()
 
 
-def is_err[T, E](result: Result[T, E]) -> TypeGuard[Result[T, E].Err]:
+def is_err[T, E](result: Result[T, E]) -> TypeGuard[Result[T, E].Err]:  # type: ignore
     """A typeguard to check if a result is an Err
 
     Usage:
