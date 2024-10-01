@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, String, func
 from sqlalchemy.orm import DeclarativeBase, Mapped
 from sqlalchemy.orm import mapped_column as C
+from sqlalchemy_utils import EmailType
 
 
 class Base(DeclarativeBase):
@@ -20,5 +21,6 @@ class TestModel(Base):
     id: Mapped[int] = C(primary_key=True)
     data: Mapped[str] = C(String(128))
     create_date: Mapped[datetime] = C(DateTime(timezone=False), server_default=func.now())
+    email = C(EmailType, comment='Email')
 
     __mapper_args__ = {'eager_defaults': True}

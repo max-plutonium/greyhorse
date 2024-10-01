@@ -44,7 +44,11 @@ mysql = [
 ]
 migration = [
     "alembic>=1.13.3",
+    "typer>=0.12.5",
 ]
+
+[project.scripts]
+migration = 'greyhorse_sqla.migration.cmd:app'
 
 [project.urls]
 Homepage = "https://gitlab.com/max-plutonium/greyhorse"

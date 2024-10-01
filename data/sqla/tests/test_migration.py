@@ -3,13 +3,13 @@ from greyhorse.app.entities.application import Application
 from greyhorse.app.schemas.components import ModuleComponentConf
 from greyhorse_sqla.migration.visitor import MigrationVisitor
 
-from .conf import POSTGRES_URI
+from .conf import SQLITE_URI
 
 
 @pytest.fixture
 def application():
     app_conf = ModuleComponentConf(
-        enabled=True, path='..migration.module', args={'dsn': POSTGRES_URI}
+        enabled=True, path='..migration.module', args={'dsn': SQLITE_URI}
     )
 
     app = Application('TestApp')
