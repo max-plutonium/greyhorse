@@ -42,6 +42,9 @@ mysql = [
     "aiomysql>=0.2.0",
     "pymysql[rsa]>=1.1.1",
 ]
+migration = [
+    "alembic>=1.13.3",
+]
 
 [project.urls]
 Homepage = "https://gitlab.com/max-plutonium/greyhorse"
