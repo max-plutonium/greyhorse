@@ -195,6 +195,11 @@ class Application:
 
         return True
 
+    def run_visitor(self, visitor: Visitor) -> bool:
+        return self._root.map(lambda root: root.accept_visitor(visitor)).map_or(
+            False, lambda _: True
+        )
+
     def run_sync(self, callback: Callable[[], None] | None = None) -> None:
         sync_events: list[threading.Event] = []
         async_events: list[asyncio.Event] = []
