@@ -4,8 +4,6 @@ from sqlalchemy.sql.functions import Function
 
 def render_item(type_, obj, autogen_context) -> str | bool:
     """Apply custom rendering for selected items."""
-    from sqlalchemy_utils import ChoiceType
-
     sa_prefix = autogen_context.opts['sqlalchemy_module_prefix']
 
     if type_ == 'server_default':
@@ -25,8 +23,6 @@ def render_item(type_, obj, autogen_context) -> str | bool:
             return f'{sa_prefix}func.{obj.arg}'
 
     elif type_ == 'type':
-        if isinstance(obj, ChoiceType):
-            return f'{sa_prefix}{obj.impl!r}'
         if isinstance(obj, ARRAY):
             autogen_context.imports.add('import sqlalchemy_utils as su')
             return (
@@ -35,7 +31,7 @@ def render_item(type_, obj, autogen_context) -> str | bool:
                 f"'sqlite')"
             )
         if obj.__class__.__module__.startswith('sqlalchemy_utils'):
-            return f'sa.{obj.impl!r}'
+            return f'{sa_prefix}.{obj.impl!r}'
 
     # default rendering for other objects
     return False

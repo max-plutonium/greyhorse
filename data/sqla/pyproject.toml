@@ -24,7 +24,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "greyhorse>=0.0.0",
+    "greyhorse>=0.4.16",
     "pydantic-settings>=2.5.2",
     "sqlalchemy-utils>=0.41.2",
     "sqlalchemy[asyncio,mypy]>=2.0.35",
