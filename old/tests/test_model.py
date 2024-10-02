@@ -1,14 +1,13 @@
 from datetime import datetime
-from datetime import datetime
 from unittest import mock
 
 import pytest
-from sqlalchemy import DateTime, func, String
-from sqlalchemy.orm import Mapped, mapped_column as C
-
 from greyhorse_sqla.model import SqlaModel
 from greyhorse_sqla.query import SqlaFiltersQuery as Q
 from greyhorse_sqla.repository import SqlaModelRepository
+from sqlalchemy import DateTime, String, func
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column as C
 
 
 class TestModel(SqlaModel[int]):
@@ -16,15 +15,13 @@ class TestModel(SqlaModel[int]):
 
     id: Mapped[int] = C(primary_key=True)
     data: Mapped[str] = C(String(128))
-    create_date: Mapped[datetime] = C(
-        DateTime(timezone=False), server_default=func.now()
-    )
+    create_date: Mapped[datetime] = C(DateTime(timezone=False), server_default=func.now())
 
     __mapper_args__ = {'eager_defaults': True}
 
 
 @pytest.mark.asyncio
-async def test_model_fields():
+async def test_model_fields() -> None:
     m = TestModel()
     assert TestModel.get_fields() == {'id', 'create_date', 'data'}
     assert m.get_values() == {'id': None, 'create_date': None, 'data': None}
@@ -35,7 +32,7 @@ async def test_model_fields():
 
 
 @pytest.mark.asyncio
-async def test_get():
+async def test_get() -> None:
     repo_mock = mock.AsyncMock(spec=SqlaModelRepository)
     TestModel.bind(repo_mock)
 
@@ -48,7 +45,7 @@ async def test_get():
 
 
 @pytest.mark.asyncio
-async def test_get_any():
+async def test_get_any() -> None:
     repo_mock = mock.AsyncMock(spec=SqlaModelRepository)
     TestModel.bind(repo_mock)
 
@@ -61,7 +58,7 @@ async def test_get_any():
 
 
 @pytest.mark.asyncio
-async def test_list():
+async def test_list() -> None:
     repo_mock = mock.AsyncMock(spec=SqlaModelRepository)
     TestModel.bind(repo_mock)
 
@@ -74,17 +71,17 @@ async def test_list():
 
 
 @pytest.mark.asyncio
-async def test_count():
+async def test_count() -> None:
     repo_mock = mock.AsyncMock(spec=SqlaModelRepository)
     TestModel.bind(repo_mock)
 
     repo_mock.count.return_value = 3
-    assert 3 == await TestModel.count(Q([1]))
+    assert await TestModel.count(Q([1])) == 3
     repo_mock.count.assert_called_once_with(Q([1]))
 
 
 @pytest.mark.asyncio
-async def test_exists():
+async def test_exists() -> None:
     repo_mock = mock.AsyncMock(spec=SqlaModelRepository)
     TestModel.bind(repo_mock)
 
@@ -98,7 +95,7 @@ async def test_exists():
 
 
 @pytest.mark.asyncio
-async def test_load():
+async def test_load() -> None:
     repo_mock = mock.AsyncMock(spec=SqlaModelRepository)
     TestModel.bind(repo_mock)
 
@@ -110,7 +107,7 @@ async def test_load():
 
 
 @pytest.mark.asyncio
-async def test_create():
+async def test_create() -> None:
     repo_mock = mock.AsyncMock(spec=SqlaModelRepository)
     TestModel.bind(repo_mock)
 
@@ -123,7 +120,7 @@ async def test_create():
 
 
 @pytest.mark.asyncio
-async def test_get_or_create():
+async def test_get_or_create() -> None:
     repo_mock = mock.AsyncMock(spec=SqlaModelRepository)
     TestModel.bind(repo_mock)
 
@@ -150,7 +147,7 @@ async def test_get_or_create():
 
 
 @pytest.mark.asyncio
-async def test_update():
+async def test_update() -> None:
     repo_mock = mock.AsyncMock(spec=SqlaModelRepository)
     TestModel.bind(repo_mock)
 
@@ -163,7 +160,7 @@ async def test_update():
 
 
 @pytest.mark.asyncio
-async def test_update_by_id():
+async def test_update_by_id() -> None:
     repo_mock = mock.AsyncMock(spec=SqlaModelRepository)
     TestModel.bind(repo_mock)
 
@@ -173,17 +170,17 @@ async def test_update_by_id():
 
 
 @pytest.mark.asyncio
-async def test_update_by():
+async def test_update_by() -> None:
     repo_mock = mock.AsyncMock(spec=SqlaModelRepository)
     TestModel.bind(repo_mock)
 
     repo_mock.update_by.return_value = 1
-    assert 1 == await TestModel.update_by(Q([0]), {'data': '123'})
+    assert await TestModel.update_by(Q([0]), {'data': '123'}) == 1
     repo_mock.update_by.assert_called_once_with(Q([0]), {'data': '123'})
 
 
 @pytest.mark.asyncio
-async def test_save():
+async def test_save() -> None:
     repo_mock = mock.AsyncMock(spec=SqlaModelRepository)
     TestModel.bind(repo_mock)
 
@@ -195,7 +192,7 @@ async def test_save():
 
 
 @pytest.mark.asyncio
-async def test_save_all():
+async def test_save_all() -> None:
     repo_mock = mock.AsyncMock(spec=SqlaModelRepository)
     TestModel.bind(repo_mock)
 
@@ -205,7 +202,7 @@ async def test_save_all():
 
 
 @pytest.mark.asyncio
-async def test_delete():
+async def test_delete() -> None:
     repo_mock = mock.AsyncMock(spec=SqlaModelRepository)
     TestModel.bind(repo_mock)
 
@@ -217,17 +214,17 @@ async def test_delete():
 
 
 @pytest.mark.asyncio
-async def test_delete_all():
+async def test_delete_all() -> None:
     repo_mock = mock.AsyncMock(spec=SqlaModelRepository)
     TestModel.bind(repo_mock)
 
     repo_mock.delete_all.return_value = 2
-    assert 2 == await TestModel.delete_all([1, 2])
+    assert await TestModel.delete_all([1, 2]) == 2
     repo_mock.delete_all.assert_called_once_with([1, 2])
 
 
 @pytest.mark.asyncio
-async def test_delete_by_id():
+async def test_delete_by_id() -> None:
     repo_mock = mock.AsyncMock(spec=SqlaModelRepository)
     TestModel.bind(repo_mock)
 
@@ -237,10 +234,10 @@ async def test_delete_by_id():
 
 
 @pytest.mark.asyncio
-async def test_delete_by():
+async def test_delete_by() -> None:
     repo_mock = mock.AsyncMock(spec=SqlaModelRepository)
     TestModel.bind(repo_mock)
 
     repo_mock.delete_by.return_value = 1
-    assert 1 == await TestModel.delete_by(Q([0]))
+    assert await TestModel.delete_by(Q([0])) == 1
     repo_mock.delete_by.assert_called_once_with(Q([0]))

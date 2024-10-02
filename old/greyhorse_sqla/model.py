@@ -1,12 +1,13 @@
-from typing import Any, Mapping, Self, TYPE_CHECKING, Tuple
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, Self
 
+from greyhorse.data.models.base import IdType
+from greyhorse.data.models.filterable import FilterableModel
 from sqlalchemy import Column, ColumnCollection
 from sqlalchemy.orm import DeclarativeBase, joinedload, selectinload
 from sqlalchemy.orm.decl_api import DeclarativeAttributeIntercept
 from sqlalchemy.sql.base import ReadOnlyColumnCollection
 
-from greyhorse.data.models.base import IdType
-from greyhorse.data.models.filterable import FilterableModel
 from greyhorse_sqla.query import SqlaFiltersQuery, SqlaSortingQuery
 
 if TYPE_CHECKING:
@@ -42,14 +43,16 @@ class SqlaModel(
         cls.Meta.private_fields.update({'metadata', 'registry'})
         cls.Meta.non_serializable_fields.update({'metadata', 'registry'})
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__()
 
         for k, v in kwargs.items():
             setattr(self, k, v)
 
     @classmethod
-    def bind(cls, repository: 'SqlaModelRepository[IdType, Self, SqlaFiltersQuery, SqlaSortingQuery]'):
+    def bind(
+        cls, repository: 'SqlaModelRepository[IdType, Self, SqlaFiltersQuery, SqlaSortingQuery]'
+    ) -> None:
         cls._repo = repository
 
     def get_id_value(self) -> IdType:
@@ -80,8 +83,8 @@ class SqlaModel(
         return cls._repo._column_names_map.get(c.name)
 
     def _get_column_values(
-        self, columns: ColumnCollection, force_tuple: bool = False,
-    ) -> Any | Tuple[Any]:
+        self, columns: ColumnCollection, force_tuple: bool = False
+    ) -> Any | tuple[Any]:
         rv = []
         for c in columns:
             rv.append(getattr(self, self._get_field_by_column(c)))
