@@ -1,7 +1,12 @@
 from abc import ABC, abstractmethod
-from contextlib import AbstractAsyncContextManager, asynccontextmanager, contextmanager, AbstractContextManager
+from collections.abc import Callable
+from contextlib import (
+    AbstractAsyncContextManager,
+    AbstractContextManager,
+    asynccontextmanager,
+    contextmanager,
+)
 from dataclasses import dataclass
-from typing import Callable
 
 from .adapters import AsyncProcessAdapter, SyncProcessAdapter
 
@@ -22,22 +27,29 @@ class SyncSession(ABC):
     @contextmanager
     @abstractmethod
     def create_process(
-        self, command: str, shell: bool = False,
-        sudo: bool = False, as_bytes: bool = False,
+        self,
+        command: str,
+        shell: bool = False,
+        sudo: bool = False,
+        as_bytes: bool = False,
         input: str | bytes | None = None,
-    ) -> Callable[..., AbstractContextManager[SyncProcessAdapter]]:
-        ...
+    ) -> Callable[..., AbstractContextManager[SyncProcessAdapter]]: ...
 
     @abstractmethod
     def run(
-        self, command: str, shell: bool = False,
-        sudo: bool = False, as_bytes: bool = False,
+        self,
+        command: str,
+        shell: bool = False,
+        sudo: bool = False,
+        as_bytes: bool = False,
         input: str | bytes | None = None,
-    ) -> CompletedProcess:
-        ...
+    ) -> CompletedProcess: ...
 
     def sudo(
-        self, command: str, shell: bool = False, as_bytes: bool = False,
+        self,
+        command: str,
+        shell: bool = False,
+        as_bytes: bool = False,
         input: str | bytes | None = None,
     ) -> CompletedProcess:
         return self.run(command, shell=shell, sudo=True, as_bytes=as_bytes, input=input)
@@ -47,22 +59,29 @@ class AsyncSession(ABC):
     @asynccontextmanager
     @abstractmethod
     async def create_process(
-        self, command: str, shell: bool = False,
-        sudo: bool = False, as_bytes: bool = False,
+        self,
+        command: str,
+        shell: bool = False,
+        sudo: bool = False,
+        as_bytes: bool = False,
         input: str | bytes | None = None,
-    ) -> Callable[..., AbstractAsyncContextManager[AsyncProcessAdapter]]:
-        ...
+    ) -> Callable[..., AbstractAsyncContextManager[AsyncProcessAdapter]]: ...
 
     @abstractmethod
     async def run(
-        self, command: str, shell: bool = False,
-        sudo: bool = False, as_bytes: bool = False,
+        self,
+        command: str,
+        shell: bool = False,
+        sudo: bool = False,
+        as_bytes: bool = False,
         input: str | bytes | None = None,
-    ) -> CompletedProcess:
-        ...
+    ) -> CompletedProcess: ...
 
     async def sudo(
-        self, command: str, shell: bool = False, as_bytes: bool = False,
+        self,
+        command: str,
+        shell: bool = False,
+        as_bytes: bool = False,
         input: str | bytes | None = None,
     ) -> CompletedProcess:
         return await self.run(command, shell=shell, sudo=True, as_bytes=as_bytes, input=input)
@@ -71,12 +90,10 @@ class AsyncSession(ABC):
 class SyncConnection(ABC):
     @abstractmethod
     @asynccontextmanager
-    def session(self) -> Callable[[], AbstractContextManager[SyncSession]]:
-        ...
+    def session(self) -> Callable[[], AbstractContextManager[SyncSession]]: ...
 
 
 class AsyncConnection(ABC):
     @abstractmethod
     @asynccontextmanager
-    async def session(self) -> Callable[[], AbstractAsyncContextManager[AsyncSession]]:
-        ...
+    async def session(self) -> Callable[[], AbstractAsyncContextManager[AsyncSession]]: ...

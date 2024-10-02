@@ -1,22 +1,24 @@
 import shlex
+from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from datetime import timedelta
-from typing import Callable, override
+from typing import override
 
 import asyncssh
 from asyncssh import SSHClientConnection, SSHClientConnectionOptions
-
 from greyhorse.logging import logger
-from .abc import CompletedProcess, AsyncConnection, AsyncSession
+
+from .abc import AsyncConnection, AsyncSession, CompletedProcess
 from .adapters import AsyncProcessAdapter
 
 
 class AsyncSshSession(AsyncSession):
     def __init__(
-        self, connection: SSHClientConnection,
+        self,
+        connection: SSHClientConnection,
         server_string: str,
         sudo_password: str | None = None,
-    ):
+    ) -> None:
         self._connection = connection
         self._sudo_password = sudo_password
         self._server_string = server_string
@@ -28,8 +30,11 @@ class AsyncSshSession(AsyncSession):
     @override
     @asynccontextmanager
     async def create_process(
-        self, command: str, shell: bool = False,
-        sudo: bool = False, as_bytes: bool = False,
+        self,
+        command: str,
+        shell: bool = False,
+        sudo: bool = False,
+        as_bytes: bool = False,
         input: str | bytes | None = None,
     ) -> Callable[..., AbstractAsyncContextManager[AsyncProcessAdapter]]:
         use_terminal = False
@@ -42,8 +47,7 @@ class AsyncSshSession(AsyncSession):
             command = f'sudo -S {shlex.quote(command)}'
 
         async with self._connection.create_process(
-            command, encoding=None, input=input,
-            term_type='term' if use_terminal else None,
+            command, encoding=None, input=input, term_type='term' if use_terminal else None
         ) as process:
             proc = AsyncProcessAdapter(process, encoding=None if as_bytes else 'utf-8')
             if sudo and self._sudo_password:
@@ -53,14 +57,17 @@ class AsyncSshSession(AsyncSession):
 
     @override
     async def run(
-        self, command: str, shell: bool = False,
-        sudo: bool = False, as_bytes: bool = False,
+        self,
+        command: str,
+        shell: bool = False,
+        sudo: bool = False,
+        as_bytes: bool = False,
         input: str | bytes | None = None,
     ) -> CompletedProcess:
         encoding = None if as_bytes else 'utf-8'
 
         async with self.create_process(
-            command, shell, sudo=sudo, as_bytes=as_bytes, input=input,
+            command, shell, sudo=sudo, as_bytes=as_bytes, input=input
         ) as process:
             logger.debug(f'SSH proc started: {command!r} server: "{self._server_string}"')
             process = await process.wait()
@@ -70,37 +77,40 @@ class AsyncSshSession(AsyncSession):
         if process.returncode == 0:
             logger.debug(f'SSH proc done: {command!r} server: "{self._server_string}"')
         else:
-            logger.debug(f'SSH proc failed: {command!r} server: "{self._server_string}" '
-                         f'code: {process.returncode}')
+            logger.debug(
+                f'SSH proc failed: {command!r} server: "{self._server_string}" '
+                f'code: {process.returncode}'
+            )
 
         if encoding:
             if isinstance(stdout, bytes):
                 stdout = stdout.decode(encoding)
             elif not stdout:
-                stdout = str()
+                stdout = ''
             if isinstance(stderr, bytes):
                 stderr = stderr.decode(encoding)
             elif not stderr:
-                stderr = str()
+                stderr = ''
 
             stdout, stderr = stdout.rstrip(), stderr.rstrip()
         else:
-            stdout, stderr = stdout if stdout else bytes(), stderr if stderr else bytes()
+            stdout, stderr = stdout if stdout else b'', stderr if stderr else b''
 
         return CompletedProcess(
-            command=command, returncode=process.returncode,
-            stdout=stdout, stderr=stderr,
+            command=command, returncode=process.returncode, stdout=stdout, stderr=stderr
         )
 
 
 class AsyncSshConnection(AsyncConnection):
     def __init__(
-        self, host: str, port: int = 22,
+        self,
+        host: str,
+        port: int = 22,
         username: str | None = None,
         password: str | None = None,
         sudo_password: str | None = None,
-        connect_timeout: timedelta | None = None
-    ):
+        connect_timeout: timedelta | None = None,
+    ) -> None:
         self._host = host
         self._port = port or 22
         self._username = username
@@ -112,12 +122,16 @@ class AsyncSshConnection(AsyncConnection):
     @asynccontextmanager
     async def session(self) -> AbstractAsyncContextManager[AsyncSshSession]:
         options = SSHClientConnectionOptions(
-            username=self._username, password=self._password, known_hosts=None,
-            connect_timeout=self._connect_timeout.total_seconds() if self._connect_timeout else None,
+            username=self._username,
+            password=self._password,
+            known_hosts=None,
+            connect_timeout=self._connect_timeout.total_seconds()
+            if self._connect_timeout
+            else None,
         )
 
         async with asyncssh.connect(
-            host=self._host, port=self._port or (), options=options,
+            host=self._host, port=self._port or (), options=options
         ) as connection:  # type: SSHClientConnection
             yield AsyncSshSession(
                 connection=connection,
