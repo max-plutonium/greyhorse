@@ -11,12 +11,12 @@ class Base(DeclarativeBase):
 
 
 metadata = Base.metadata
-metadata.schema = 'tests'
+# metadata.schema = 'tests'
 
 
 class TestModel(Base):
     __tablename__ = 'test_migration'
-    __table_args__ = {'schema': 'tests'}
+    # __table_args__ = {'schema': 'tests'}
 
     id: Mapped[int] = C(primary_key=True)
     data: Mapped[str] = C(String(128))

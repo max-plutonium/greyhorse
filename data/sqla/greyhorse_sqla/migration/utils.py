@@ -31,7 +31,7 @@ def render_item(type_, obj, autogen_context) -> str | bool:
                 f"'sqlite')"
             )
         if obj.__class__.__module__.startswith('sqlalchemy_utils'):
-            return f'{sa_prefix}.{obj.impl!r}'
+            return f'{sa_prefix}{obj.impl!r}'
 
     # default rendering for other objects
     return False
