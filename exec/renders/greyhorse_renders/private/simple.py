@@ -1,12 +1,13 @@
 from pathlib import Path
 from typing import override
 
-from greyhorse.result import Result, Ok
-from ..abc import AsyncRender, SyncRender, RenderError
+from greyhorse.result import Ok, Result
+
+from ..abc import AsyncRender, RenderError, SyncRender
 
 
 class SimpleSyncRender(SyncRender):
-    def __init__(self, templates_dirs: list[Path]):
+    def __init__(self, templates_dirs: list[Path]) -> None:
         super().__init__(templates_dirs)
 
     @override
@@ -29,7 +30,7 @@ class SimpleSyncRender(SyncRender):
 
 
 class SimpleAsyncRender(AsyncRender):
-    def __init__(self, templates_dirs: list[Path]):
+    def __init__(self, templates_dirs: list[Path]) -> None:
         super().__init__(templates_dirs)
 
     @override

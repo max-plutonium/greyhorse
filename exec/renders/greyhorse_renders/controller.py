@@ -1,10 +1,14 @@
 from pathlib import Path
-from typing import override
+from typing import Any, override
 
+from greyhorse.app.abc.collectors import Collector, MutCollector
+from greyhorse.app.abc.controllers import ControllerError
+from greyhorse.app.entities.controllers import SyncController
 from greyhorse.logging import logger
-from greyhorse.result import Result
+from greyhorse.result import Ok, Result
 from greyhorse.utils.imports import import_path
-from .abc import SyncRender, AsyncRender, SyncRenderFactory, AsyncRenderFactory
+
+from .abc import AsyncRender, AsyncRenderFactory, SyncRender, SyncRenderFactory
 
 _RENDER_PACKAGES = {
     '': ('simple:SimpleSyncRender', 'simple:SimpleAsyncRender'),
@@ -13,7 +17,7 @@ _RENDER_PACKAGES = {
 
 
 class SyncRenderFactoryImpl(SyncRenderFactory):
-    def __init__(self, renders: dict[str, type[SyncRender]]):
+    def __init__(self, renders: dict[str, type[SyncRender]]) -> None:
         self._renders = renders
 
     @override
@@ -24,7 +28,7 @@ class SyncRenderFactoryImpl(SyncRenderFactory):
 
 
 class AsyncRenderFactoryImpl(AsyncRenderFactory):
-    def __init__(self, renders: dict[str, type[AsyncRender]]):
+    def __init__(self, renders: dict[str, type[AsyncRender]]) -> None:
         self._renders = renders
 
     @override
@@ -34,22 +38,16 @@ class AsyncRenderFactoryImpl(AsyncRenderFactory):
         return self._renders[''](templates_dirs)
 
 
-class RendersController(Controller):
-    def __init__(self, name: str):
-        super().__init__(name)
+class RendersController(SyncController):
+    def __init__(self) -> None:
+        super().__init__()
         self._sync_renders: dict[str, type[SyncRender]] = {}
         self._async_renders: dict[str, type[AsyncRender]] = {}
 
-        self._op_factories.set(
-            SyncRenderFactory, lambda: SyncRenderFactoryImpl(self._sync_renders),
-        )
-        self._op_factories.set(
-            AsyncRenderFactory, lambda: AsyncRenderFactoryImpl(self._async_renders),
-        )
-
-    def create(self) -> Result:
+    @override
+    def setup(self, collector: Collector[type, Any]) -> Result[bool, ControllerError]:
         for key, class_paths in _RENDER_PACKAGES.items():
-            for class_path, is_async in zip(class_paths, (False, True)):
+            for class_path, is_async in zip(class_paths, (False, True), strict=False):
                 if not class_path:
                     continue
 
@@ -57,10 +55,7 @@ class RendersController(Controller):
                     class_obj = import_path(f'..private.{class_path}', __name__)
 
                 except (ImportError, AttributeError):
-                    error = DependencyCreationFailure(
-                        type='controller', name=self.name, dep_name=class_path,
-                    )
-                    logger.warn(error.message)
+                    logger.warn(f'Render not found for {class_path}')
                     continue
 
                 if is_async:
@@ -68,15 +63,17 @@ class RendersController(Controller):
                 else:
                     self._sync_renders[key] = class_obj
 
-        return Result.from_ok()
+        res = collector.add(SyncRenderFactory, SyncRenderFactoryImpl(self._sync_renders))
+        res &= collector.add(AsyncRenderFactory, AsyncRenderFactoryImpl(self._async_renders))
+        return Ok(res)
 
-    def destroy(self) -> Result:
+    @override
+    def teardown(self, collector: MutCollector[type, Any]) -> Result[bool, ControllerError]:
         del self._sync_renders
         del self._async_renders
         self._sync_renders = {}
         self._async_renders = {}
-        return Result.from_ok()
 
-    @property
-    def active(self) -> bool:
-        return len(self._sync_renders) > 0 or len(self._async_renders) > 0
+        res = collector.remove(SyncRenderFactory)
+        res &= collector.remove(AsyncRenderFactory)
+        return Ok(res)

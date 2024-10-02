@@ -1,14 +1,18 @@
 from enum import Enum
 from pathlib import Path
-from typing import Literal, Annotated, Union
+from typing import Annotated, Any, Literal
 
 import pytest
-from pydantic import AnyHttpUrl, BaseModel, Field, IPvAnyAddress
-
-from greyhorse.app.contexts import SyncContext, AsyncContext
-from greyhorse_renders.abc import SyncRenderFactory, AsyncRenderFactory
-from greyhorse_renders.conf.loader import SyncDictLoader, AsyncDictLoader, SyncPydanticLoader, AsyncPydanticLoader
+from greyhorse.app.registries import MutDictRegistry
+from greyhorse_renders.abc import AsyncRenderFactory, SyncRenderFactory
+from greyhorse_renders.conf.loader import (
+    AsyncDictLoader,
+    AsyncPydanticLoader,
+    SyncDictLoader,
+    SyncPydanticLoader,
+)
 from greyhorse_renders.controller import RendersController
+from pydantic import AnyHttpUrl, BaseModel, Field, IPvAnyAddress
 
 
 class EntryType(str, Enum):
@@ -38,10 +42,7 @@ class EntryItem(BaseModel):
     model: str = ''
     method: str = ''
 
-    map_to: Annotated[
-        Union[LegacyBackendItem, GRPCBackendItem],
-        Field(discriminator='type'),
-    ]
+    map_to: Annotated[LegacyBackendItem | GRPCBackendItem, Field(discriminator='type')]
 
 
 class Document(BaseModel):
@@ -54,11 +55,7 @@ ROUTES_DICT = {
             'module': 'module1',
             'model': 'model1',
             'method': 'method1',
-            'map_to': {
-                'type': 'legacy',
-                'url': '127.0.0.1',
-                'port': 50001,
-            },
+            'map_to': {'type': 'legacy', 'url': '127.0.0.1', 'port': 50001},
         },
         {
             'module': 'module2',
@@ -75,135 +72,111 @@ ROUTES_DICT = {
 }
 
 
-@pytest.mark.parametrize(
-    'param',
-    ('', 'jinja'),
-    ids=('Simple', 'Jinja'),
-)
-def test_sync_dict(param):
-    ctrl = RendersController('test')
-    assert ctrl.create().success
+@pytest.fixture
+def registry():
+    ctrl = RendersController()
 
-    sync_render_factory = ctrl.operator_factories.get(SyncRenderFactory)
-    render_ctx = SyncContext[SyncRenderFactory](sync_render_factory)
+    registry = MutDictRegistry[type, Any]()
+    assert ctrl.setup(registry).unwrap()
+    assert len(registry) > 0
+
+    yield registry
+
+    assert ctrl.teardown(registry).unwrap()
+    assert len(registry) == 0
+
+
+@pytest.mark.parametrize('param', ('', 'jinja'), ids=('Simple', 'Jinja'))
+def test_sync_dict(param, registry) -> None:
+    render_factory = registry.get(SyncRenderFactory).unwrap()
 
     conf_loader = SyncDictLoader(
-        root_dir=Path('tests/data'),
-        render_ctx=render_ctx, default_render_key=param,
+        root_dir=Path('tests/data'), render_factory=render_factory, default_render_key=param
     )
 
     res = conf_loader.load_yaml(Path('routes.yml'))
-    assert res.success
-    assert res.result == ROUTES_DICT
+    assert res.is_ok()
+    assert res.unwrap() == ROUTES_DICT
 
     res = conf_loader.load_yaml_list(Path('routes_list.yml'))
-    assert res.success
-    for item in res.result:
+    assert res.is_ok()
+    for item in res.unwrap():
         assert item == ROUTES_DICT
 
     res = conf_loader.load_toml(Path('routes.toml'))
-    assert res.success
-    assert res.result == ROUTES_DICT
-
-    assert ctrl.destroy().success
+    assert res.is_ok()
+    assert res.unwrap() == ROUTES_DICT
 
 
-@pytest.mark.parametrize(
-    'param',
-    ('', 'jinja'),
-    ids=('Simple', 'Jinja'),
-)
+@pytest.mark.parametrize('param', ('', 'jinja'), ids=('Simple', 'Jinja'))
 @pytest.mark.asyncio
-async def test_async_dict(param):
-    ctrl = RendersController('test')
-    assert ctrl.create().success
-
-    async_render_factory = ctrl.operator_factories.get(AsyncRenderFactory)
-    render_ctx = AsyncContext[AsyncRenderFactory](async_render_factory)
+async def test_async_dict(param, registry) -> None:
+    render_factory = registry.get(AsyncRenderFactory).unwrap()
 
     conf_loader = AsyncDictLoader(
-        root_dir=Path('tests/data'),
-        render_ctx=render_ctx, default_render_key=param,
+        root_dir=Path('tests/data'), render_factory=render_factory, default_render_key=param
     )
 
     res = await conf_loader.load_yaml(Path('routes.yml'))
-    assert res.success
-    assert res.result == ROUTES_DICT
+    assert res.is_ok()
+    assert res.unwrap() == ROUTES_DICT
 
     res = await conf_loader.load_yaml_list(Path('routes_list.yml'))
-    assert res.success
-    for item in res.result:
+    assert res.is_ok()
+    for item in res.unwrap():
         assert item == ROUTES_DICT
 
     res = await conf_loader.load_toml(Path('routes.toml'))
-    assert res.success
-    assert res.result == ROUTES_DICT
-
-    assert ctrl.destroy().success
+    assert res.is_ok()
+    assert res.unwrap() == ROUTES_DICT
 
 
-@pytest.mark.parametrize(
-    'param',
-    ('', 'jinja'),
-    ids=('Simple', 'Jinja'),
-)
-def test_sync_pydantic(param):
-    ctrl = RendersController('test')
-    assert ctrl.create().success
-
-    sync_render_factory = ctrl.operator_factories.get(SyncRenderFactory)
-    render_ctx = SyncContext[SyncRenderFactory](sync_render_factory)
+@pytest.mark.parametrize('param', ('', 'jinja'), ids=('Simple', 'Jinja'))
+def test_sync_pydantic(param, registry) -> None:
+    render_factory = registry.get(SyncRenderFactory).unwrap()
 
     conf_loader = SyncPydanticLoader(
-        doc_schema=Document, root_dir=Path('tests/data'),
-        render_ctx=render_ctx, default_render_key=param,
+        doc_schema=Document,
+        root_dir=Path('tests/data'),
+        render_factory=render_factory,
+        default_render_key=param,
     )
 
     res = conf_loader.load_yaml(Path('routes.yml'))
-    assert res.success
-    assert isinstance(res.result, Document)
+    assert res.is_ok()
+    assert isinstance(res.unwrap(), Document)
 
     res = conf_loader.load_yaml_list(Path('routes_list.yml'))
-    assert res.success
-    for item in res.result:
+    assert res.is_ok()
+    for item in res.unwrap():
         assert isinstance(item, Document)
 
     res = conf_loader.load_toml(Path('routes.toml'))
-    assert res.success
-    assert isinstance(res.result, Document)
-
-    assert ctrl.destroy().success
+    assert res.is_ok()
+    assert isinstance(res.unwrap(), Document)
 
 
-@pytest.mark.parametrize(
-    'param',
-    ('', 'jinja'),
-    ids=('Simple', 'Jinja'),
-)
+@pytest.mark.parametrize('param', ('', 'jinja'), ids=('Simple', 'Jinja'))
 @pytest.mark.asyncio
-async def test_async_pydantic(param):
-    ctrl = RendersController('test')
-    assert ctrl.create().success
-
-    async_render_factory = ctrl.operator_factories.get(AsyncRenderFactory)
-    render_ctx = AsyncContext[AsyncRenderFactory](async_render_factory)
+async def test_async_pydantic(param, registry) -> None:
+    render_factory = registry.get(AsyncRenderFactory).unwrap()
 
     conf_loader = AsyncPydanticLoader(
-        doc_schema=Document, root_dir=Path('tests/data'),
-        render_ctx=render_ctx, default_render_key=param,
+        doc_schema=Document,
+        root_dir=Path('tests/data'),
+        render_factory=render_factory,
+        default_render_key=param,
     )
 
     res = await conf_loader.load_yaml(Path('routes.yml'))
-    assert res.success
-    assert isinstance(res.result, Document)
+    assert res.is_ok()
+    assert isinstance(res.unwrap(), Document)
 
     res = await conf_loader.load_yaml_list(Path('routes_list.yml'))
-    assert res.success
-    for item in res.result:
+    assert res.is_ok()
+    for item in res.unwrap():
         assert isinstance(item, Document)
 
     res = await conf_loader.load_toml(Path('routes.toml'))
-    assert res.success
-    assert isinstance(res.result, Document)
-
-    assert ctrl.destroy().success
+    assert res.is_ok()
+    assert isinstance(res.unwrap(), Document)

@@ -1,23 +1,26 @@
 import base64
 from pathlib import Path
-from typing import override, cast
+from typing import Any, cast, override
 
 import yaml
+from greyhorse.result import Ok, Result
+from greyhorse.utils import json
 from jinja2 import Environment, FileSystemLoader, exceptions
 
-from greyhorse.result import Result, Ok
-from greyhorse.utils import json
-from ..abc import AsyncRender, SyncRender, RenderError
+from ..abc import AsyncRender, RenderError, SyncRender
 
 
 class JinjaBasicRender:
-    def __init__(self, templates_dirs: list[Path], enable_async: bool = False):
+    def __init__(self, templates_dirs: list[Path], enable_async: bool = False) -> None:
         self._templates_env = Environment(
-            loader=FileSystemLoader(templates_dirs),
-            enable_async=enable_async,
+            loader=FileSystemLoader(templates_dirs), enable_async=enable_async
         )
-        self._templates_env.filters['b64encode'] = lambda s: base64.b64encode(s.encode('utf-8')).decode('utf-8')
-        self._templates_env.filters['b64decode'] = lambda s: base64.b64decode(s.encode('utf-8')).decode('utf-8')
+        self._templates_env.filters['b64encode'] = lambda s: base64.b64encode(
+            s.encode('utf-8')
+        ).decode('utf-8')
+        self._templates_env.filters['b64decode'] = lambda s: base64.b64decode(
+            s.encode('utf-8')
+        ).decode('utf-8')
         self._templates_env.filters['toYaml'] = self.to_yaml
         self._templates_env.filters['toJson'] = self.to_json
         self._templates_env.globals['readBinary'] = self.read_binary
@@ -32,7 +35,7 @@ class JinjaBasicRender:
 
     @staticmethod
     def to_json(data: dict, indent: int = 0) -> str:
-        dump = json.dumps(data, use_indent=True).decode('utf-8')
+        dump = json.dumps(data, use_indent=True)
         res = []
         for line in dump.splitlines():
             res.append(' ' * indent + line)
@@ -52,7 +55,7 @@ class JinjaBasicRender:
 
 
 class JinjaSyncRender(SyncRender, JinjaBasicRender):
-    def __init__(self, templates_dirs: list[Path]):
+    def __init__(self, templates_dirs: list[Path]) -> None:
         SyncRender.__init__(self, templates_dirs)
         JinjaBasicRender.__init__(self, templates_dirs, enable_async=False)
 
@@ -72,14 +75,14 @@ class JinjaSyncRender(SyncRender, JinjaBasicRender):
             return RenderError.TemplateFileNotFound(file=template).to_result()
         except exceptions.TemplateSyntaxError as e:
             return RenderError.TemplateSyntaxError(
-                filename=e.filename, lineno=e.lineno, details=e.message,
+                filename=e.filename, lineno=e.lineno, details=e.message
             ).to_result()
 
         return Ok(rendered)
 
     # noinspection PyProtectedMember
     @override
-    def eval_string(self, source: str, **kwargs) -> Result[str, RenderError]:
+    def eval_string(self, source: str, **kwargs) -> Result[Any, RenderError]:
         try:
             tmpl = self._templates_env.compile_expression(source)
             context = tmpl._template.new_context(kwargs)
@@ -88,14 +91,14 @@ class JinjaSyncRender(SyncRender, JinjaBasicRender):
 
         except exceptions.TemplateSyntaxError as e:
             return RenderError.TemplateSyntaxError(
-                filename=e.filename, lineno=e.lineno, details=e.message,
+                filename=e.filename, lineno=e.lineno, details=e.message
             ).to_result()
 
         return Ok(context.vars['result'])
 
 
 class JinjaAsyncRender(AsyncRender, JinjaBasicRender):
-    def __init__(self, templates_dirs: list[Path]):
+    def __init__(self, templates_dirs: list[Path]) -> None:
         AsyncRender.__init__(self, templates_dirs)
         JinjaBasicRender.__init__(self, templates_dirs, enable_async=True)
 
@@ -115,14 +118,14 @@ class JinjaAsyncRender(AsyncRender, JinjaBasicRender):
             return RenderError.TemplateFileNotFound(file=template).to_result()
         except exceptions.TemplateSyntaxError as e:
             return RenderError.TemplateSyntaxError(
-                filename=e.filename, lineno=e.lineno, details=e.message,
+                filename=e.filename, lineno=e.lineno, details=e.message
             ).to_result()
 
         return Ok(rendered)
 
     # noinspection PyProtectedMember
     @override
-    async def eval_string(self, source: str, **kwargs) -> Result[str, RenderError]:
+    async def eval_string(self, source: str, **kwargs) -> Result[Any, RenderError]:
         try:
             tmpl = self._templates_env.compile_expression(source)
             context = tmpl._template.new_context(kwargs)
@@ -132,7 +135,7 @@ class JinjaAsyncRender(AsyncRender, JinjaBasicRender):
 
         except exceptions.TemplateSyntaxError as e:
             return RenderError.TemplateSyntaxError(
-                filename=e.filename, lineno=e.lineno, details=e.message,
+                filename=e.filename, lineno=e.lineno, details=e.message
             ).to_result()
 
         return Ok(context.vars['result'])

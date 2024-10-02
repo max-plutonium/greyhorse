@@ -1,6 +1,0 @@
-default = "en"
-
-[greyhorse-renders]
-yaml-error = "YAML error raised: {exc}"
-toml-error = "TOML error raised: {exc}"
-validation-error = "Config schema validation error: {exc}"
