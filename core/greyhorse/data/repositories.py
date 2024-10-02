@@ -10,7 +10,7 @@ from greyhorse.utils.types import TypeWrapper
 
 
 class EntityError(Error):
-    namespace = 'greyhorse.app'
+    namespace = 'greyhorse.data'
 
     Validation = ErrorCase(msg='Entity validation error: "{details}"', details=str)
     AlreadyExists = ErrorCase(msg='Entity already exists')

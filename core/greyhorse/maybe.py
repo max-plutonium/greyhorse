@@ -1,3 +1,4 @@
+# mypy: warn_no_return=false,disable_error_code="arg-type,has-type,misc,return-value"
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable

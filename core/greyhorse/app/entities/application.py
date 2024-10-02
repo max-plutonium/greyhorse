@@ -171,13 +171,13 @@ class Application:
         if not self._root:
             return False
 
-        for ctrl in self._controllers:
-            if hasattr(ctrl, 'start'):
-                invoke_sync(ctrl.start)
-
         for svc in self._services:
             if hasattr(svc, 'start'):
                 invoke_sync(svc.start)
+
+        for ctrl in self._controllers:
+            if hasattr(ctrl, 'start'):
+                invoke_sync(ctrl.start)
 
         return True
 

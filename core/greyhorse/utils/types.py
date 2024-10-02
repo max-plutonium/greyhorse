@@ -1,5 +1,5 @@
-from types import new_class
-from typing import TypeVar
+from types import EllipsisType, NoneType, UnionType, new_class
+from typing import TypeVar, TypeVarTuple
 
 from .strings import capitalize
 
@@ -15,13 +15,22 @@ class TypeWrapper[T]:
 
     @classmethod
     def __generate_typename__(
-        cls, types: type | TypeVar | tuple[type | TypeVar, ...], include_base_name: bool = True
+        cls,
+        types: type | TypeVar | TypeVarTuple | tuple[type | TypeVar | TypeVarTuple, ...],
+        include_base_name: bool = True,
     ) -> str:
         if isinstance(types, tuple):
             type_args = [cls.__generate_typename__(a, False) for a in types]
             type_name = f'{''.join(type_args)}'
         elif isinstance(types, TypeVar):
             type_name = '~'
+        elif isinstance(types, NoneType):
+            type_name = 'None'
+        elif isinstance(types, UnionType):
+            type_args = [cls.__generate_typename__(a, False) for a in types.__args__]
+            type_name = f'{''.join(type_args)}Union'
+        elif isinstance(types, EllipsisType):
+            type_name = '...'
         elif hasattr(types, '__args__'):
             type_args = [cls.__generate_typename__(a, False) for a in types.__args__]
             type_name = f'{''.join(type_args)}{capitalize(types.__name__)}'
@@ -43,8 +52,10 @@ class TypeWrapper[T]:
 
         super().__init_subclass__(**kwargs)
 
-    def __class_getitem__(cls, types: type | TypeVar | tuple[type | TypeVar, ...]):
-        if isinstance(types, TypeVar):
+    def __class_getitem__(
+        cls, types: type | TypeVar | TypeVarTuple | tuple[type | TypeVar | TypeVarTuple, ...]
+    ):
+        if isinstance(types, TypeVar | TypeVarTuple):
             # noinspection PyUnresolvedReferences
             return super().__class_getitem__(types)
 

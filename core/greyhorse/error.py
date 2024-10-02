@@ -1,3 +1,4 @@
+# mypy: warn_no_return=false,disable_error_code="arg-type,valid-type"
 from __future__ import annotations
 
 from dataclasses import fields as dataclass_fields
