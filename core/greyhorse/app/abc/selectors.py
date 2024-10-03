@@ -16,3 +16,18 @@ class Selector[K, T](TypeWrapper[K, T], ABC):
 class ListSelector[K, T](Selector[K, T], ABC):
     @abstractmethod
     def items(self, filter_fn: Callable[[K], bool] | None = None) -> list[tuple[K, T]]: ...
+
+
+class NamedSelector[K, T](TypeWrapper[K, T], ABC):
+    @abstractmethod
+    def has(self, key: K, name: str | None = None) -> bool: ...
+
+    @abstractmethod
+    def get(self, key: K, name: str | None = None) -> Maybe[T]: ...
+
+
+class NamedListSelector[K, T](NamedSelector[K, T], ABC):
+    @abstractmethod
+    def items(
+        self, filter_fn: Callable[[K, str], bool] | None = None
+    ) -> list[tuple[K, str, T]]: ...

@@ -2,7 +2,7 @@ from typing import Any, get_type_hints, override
 
 from greyhorse.result import Ok, Result
 
-from ..abc.collectors import Collector, MutCollector
+from ..abc.collectors import MutNamedCollector, NamedCollector
 from ..abc.controllers import Controller, ControllerError, OperatorMember
 
 
@@ -21,21 +21,25 @@ def operator(resource_type: type):
 
 class SyncController(Controller):
     @override
-    def setup(self, collector: Collector[type, Any]) -> Result[bool, ControllerError]:
+    def setup(self, collector: NamedCollector[type, Any]) -> Result[bool, ControllerError]:
         return Ok(True)
 
     @override
-    def teardown(self, collector: MutCollector[type, Any]) -> Result[bool, ControllerError]:
+    def teardown(
+        self, collector: MutNamedCollector[type, Any]
+    ) -> Result[bool, ControllerError]:
         return Ok(True)
 
 
 class AsyncController(Controller):
     @override
-    async def setup(self, collector: Collector[type, Any]) -> Result[bool, ControllerError]:
+    async def setup(
+        self, collector: NamedCollector[type, Any]
+    ) -> Result[bool, ControllerError]:
         return Ok(True)
 
     @override
     async def teardown(
-        self, collector: MutCollector[type, Any]
+        self, collector: MutNamedCollector[type, Any]
     ) -> Result[bool, ControllerError]:
         return Ok(True)

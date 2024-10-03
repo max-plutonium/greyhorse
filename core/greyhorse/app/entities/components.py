@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any
 from greyhorse.app.abc.controllers import Controller, ControllerError, ControllerFactoryFn
 from greyhorse.app.abc.providers import Provider
 from greyhorse.app.abc.services import Service, ServiceError, ServiceFactoryFn
-from greyhorse.app.registries import MutDictRegistry
+from greyhorse.app.registries import MutDictRegistry, MutNamedDictRegistry
 from greyhorse.app.schemas.components import ComponentConf, ModuleComponentConf
 from greyhorse.app.schemas.elements import CtrlConf, SvcConf
 from greyhorse.error import Error, ErrorCase
@@ -59,7 +59,7 @@ class Component:
         self._controllers: list[Controller] = []
         self._services: list[Service] = []
 
-        self._resources = MutDictRegistry[type, Any]()
+        self._resources = MutNamedDictRegistry[type, Any]()
         self._providers = MutDictRegistry[type[Provider], Provider]()
 
     @property
@@ -87,11 +87,11 @@ class Component:
     def remove_provider[T](self, prov_type: type[Provider[T]]) -> bool:
         return self._providers.remove(prov_type)
 
-    def add_resource(self, res_type: type, resource: Any) -> bool:
-        return self._resources.add(res_type, resource)
+    def add_resource(self, res_type: type, resource: Any, name: str | None = None) -> bool:
+        return self._resources.add(res_type, resource, name=name)
 
-    def remove_resource(self, res_type: type) -> bool:
-        return self._resources.remove(res_type)
+    def remove_resource(self, res_type: type, name: str | None = None) -> bool:
+        return self._resources.remove(res_type, name=name)
 
     def add_controller(self, controller: Controller) -> bool:
         if self._controllers.count(controller):
@@ -383,8 +383,8 @@ class ModuleComponent(Component):
         for op in self._rm.get_operators():
             self._module.add_operator(op)
 
-        for res_type, res in self._resources.items():
-            self._module.add_resource(res_type, res)
+        for res_type, res_name, res in self._resources.items():
+            self._module.add_resource(res_type, res, res_name)
 
         for prov_type, prov in self._providers.items():
             self._module.add_provider(prov_type, prov)
@@ -413,8 +413,8 @@ class ModuleComponent(Component):
         for prov_type, _ in self._providers.items():  # noqa: PERF102
             self._module.remove_provider(prov_type)
 
-        for res_type, _ in self._resources.items():  # noqa: PERF102
-            self._module.remove_resource(res_type)
+        for res_type, res_name, _ in self._resources.items():
+            self._module.remove_resource(res_type, res_name)
 
         for op in self._rm.get_operators():
             self._module.remove_operator(op)

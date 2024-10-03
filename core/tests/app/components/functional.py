@@ -1,6 +1,6 @@
 from typing import Any, override
 
-from greyhorse.app.abc.collectors import Collector, MutCollector
+from greyhorse.app.abc.collectors import MutNamedCollector, NamedCollector
 from greyhorse.app.abc.controllers import ControllerError
 from greyhorse.app.abc.operators import AssignOperator
 from greyhorse.app.abc.providers import FactoryError, FactoryProvider
@@ -113,14 +113,16 @@ class DictOperatorCtrl(SyncController):
         self._a = value
 
     @override
-    def setup(self, collector: Collector[type, Any]) -> Result[bool, ControllerError]:
+    def setup(self, collector: NamedCollector[type, Any]) -> Result[bool, ControllerError]:
         if not self._a:
             return ControllerError.NoSuchResource(name='DictResContext').to_result()
         collector.add(DictResContext, self._a.unwrap())
         return super().setup(collector)
 
     @override
-    def teardown(self, collector: MutCollector[type, Any]) -> Result[bool, ControllerError]:
+    def teardown(
+        self, collector: MutNamedCollector[type, Any]
+    ) -> Result[bool, ControllerError]:
         if not self._a:
             return ControllerError.NoSuchResource(name='DictResContext').to_result()
         collector.remove(DictResContext, self._a.unwrap())

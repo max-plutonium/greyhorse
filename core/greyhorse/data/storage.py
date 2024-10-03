@@ -1,44 +1,10 @@
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Mapping
-from typing import NewType, override
+from typing import override
 
-from greyhorse.app.abc.providers import Provider
+from greyhorse.app.contexts import Context
 from greyhorse.app.registries import MutDictRegistry
-from greyhorse.maybe import Just, Maybe, Nothing
-
-
-class ProviderRegistry:
-    __slots__ = ('_storage',)
-
-    def __init__(self) -> None:
-        self._storage = MutDictRegistry[tuple[type, str], Provider]()
-
-    def add(self, conn_type: type, name: str, provider: Provider) -> bool:
-        return self._storage.add((conn_type, name), provider)
-
-    def remove(self, conn_type: type, name: str) -> bool:
-        return self._storage.remove((conn_type, name))
-
-    def has(self, conn_type: type, name: str | None = None) -> bool:
-        items = self._storage.items(
-            lambda key: key[0] == conn_type and (key[1] == name if name else True)
-        )
-        return len(items) > 0
-
-    def get[T: Provider](self, conn_type: type, name: str | None = None) -> Maybe[T]:
-        items = self._storage.items(
-            lambda key: key[0] == conn_type and (key[1] == name if name else True)
-        )
-        if items:
-            return Just(items[0][1])
-        return Nothing
-
-    def __len__(self) -> int:
-        return len(self._storage)
-
-
-ConnectionProviderRegistry = NewType('ConnectionProviderRegistry', ProviderRegistry)
-SessionProviderRegistry = NewType('SessionProviderRegistry', ProviderRegistry)
+from greyhorse.maybe import Maybe
 
 
 class DataStorageEngine(ABC):
@@ -54,7 +20,7 @@ class DataStorageEngine(ABC):
     def active(self) -> bool: ...
 
     @abstractmethod
-    def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]: ...
+    def get_context[T: Context](self, kind: type[T]) -> Maybe[T]: ...
 
     def start(self) -> Awaitable[None] | None:
         pass

@@ -5,7 +5,7 @@ from greyhorse.app.abc.providers import Provider
 from greyhorse.app.abc.visitor import Visitor
 from greyhorse.app.entities.components import Component
 from greyhorse.app.private.res_manager import ResourceManager
-from greyhorse.app.registries import MutDictRegistry
+from greyhorse.app.registries import MutDictRegistry, MutNamedDictRegistry
 from greyhorse.app.schemas.components import ModuleConf
 from greyhorse.error import Error, ErrorCase
 from greyhorse.logging import logger
@@ -32,7 +32,7 @@ class Module:
 
         self._operators: list[Operator] = []
 
-        self._resources = MutDictRegistry[type, Any]()
+        self._resources = MutNamedDictRegistry[type, Any]()
         self._providers = MutDictRegistry[type[Provider], Provider]()
         self._components: dict[str, Component] = {c.name: c for c in components}
 
@@ -58,14 +58,14 @@ class Module:
                 return self._providers.remove(prov_type)
         return False
 
-    def add_resource(self, res_type: type, resource: Any) -> bool:
+    def add_resource(self, res_type: type, resource: Any, name: str | None = None) -> bool:
         if res_type in self._conf.resource_claims:
-            return self._resources.add(res_type, resource)
+            return self._resources.add(res_type, resource, name=name)
         return False
 
-    def remove_resource(self, res_type: type) -> bool:
+    def remove_resource(self, res_type: type, name: str | None = None) -> bool:
         if res_type in self._conf.resource_claims:
-            return self._resources.remove(res_type)
+            return self._resources.remove(res_type, name=name)
         return False
 
     def add_operator[T](self, operator: Operator[T]) -> bool:
