@@ -1,23 +1,18 @@
 import asyncio
 import threading
-from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from functools import partial
 from typing import Any, override
 
-from greyhorse.app.abc.providers import BorrowMutError, Provider
-from greyhorse.app.contexts import AsyncMutContext, ContextBuilder, current_scope_id
+from greyhorse.app.contexts import AsyncMutContext, Context, ContextBuilder, current_scope_id
 from greyhorse.app.registries import MutDictRegistry, ScopedMutDictRegistry
 from greyhorse.data.storage import DataStorageEngine
 from greyhorse.i18n import tr
 from greyhorse.logging import logger
-from greyhorse.maybe import Maybe
-from greyhorse.result import Ok, Result
+from greyhorse.maybe import Just, Maybe, Nothing
 from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session, async_sessionmaker
 from sqlalchemy.ext.asyncio.engine import AsyncConnection, AsyncEngine, AsyncTransaction
 
 from .config import EngineConf
-from .providers import SqlaAsyncConnProvider, SqlaAsyncSessionProvider
 
 
 class _AsyncConnCtx(AsyncMutContext[AsyncConnection]):
@@ -79,36 +74,6 @@ class _AsyncSessionCtx(AsyncMutContext[AsyncSession]):
         await instance.rollback()
 
 
-class _ConnProvider(SqlaAsyncConnProvider):
-    __slots__ = ('_builder',)
-
-    def __init__(self, builder: ContextBuilder[_AsyncConnCtx, AsyncConnection]) -> None:
-        self._builder = builder
-
-    @override
-    def acquire(self) -> Result[AsyncMutContext[AsyncConnection], BorrowMutError]:
-        return Ok(self._builder.build())
-
-    @override
-    def release(self, instance: AsyncMutContext[AsyncConnection]) -> None:
-        del instance
-
-
-class _SessionProvider(SqlaAsyncSessionProvider):
-    __slots__ = ('_builder',)
-
-    def __init__(self, builder: ContextBuilder[_AsyncSessionCtx, AsyncSession]) -> None:
-        self._builder = builder
-
-    @override
-    def acquire(self) -> Result[AsyncMutContext[AsyncSession], BorrowMutError]:
-        return Ok(self._builder.build())
-
-    @override
-    def release(self, instance: AsyncMutContext[AsyncSession]) -> None:
-        del instance
-
-
 class AsyncSqlaEngine(DataStorageEngine):
     def __init__(self, name: str, config: EngineConf, engine: AsyncEngine) -> None:
         super().__init__(name)
@@ -135,26 +100,22 @@ class AsyncSqlaEngine(DataStorageEngine):
         )
         self._session_builder.add_param('session', self._get_session)
 
-        self._providers = MutDictRegistry[type[Provider], Callable[[], Provider]]()
-
     @property
     def active(self) -> bool:
         return self._counter > 0
 
     @override
-    def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
-        return self._providers.get(prov_type).map(lambda func: func())
+    def get_context[T: Context](self, kind: type[T]) -> Maybe[T]:
+        if kind is AsyncMutContext[AsyncConnection]:
+            return Just(self._conn_builder.build())
+        if kind is AsyncMutContext[AsyncSession]:
+            return Just(self._session_builder.build())
+        return Nothing
 
     @override
     async def start(self) -> None:
         async with self._lock:
             if self._counter == 0:
-                self._providers.add(
-                    SqlaAsyncConnProvider, partial(_ConnProvider, self._conn_builder)
-                )
-                self._providers.add(
-                    SqlaAsyncSessionProvider, partial(_SessionProvider, self._session_builder)
-                )
                 logger.info(
                     tr(
                         'greyhorse.engines.sqla.engine.started',
@@ -169,8 +130,6 @@ class AsyncSqlaEngine(DataStorageEngine):
     async def stop(self) -> None:
         async with self._lock:
             if self._counter == 1:
-                self._providers.remove(SqlaAsyncConnProvider)
-                self._providers.remove(SqlaAsyncSessionProvider)
                 await self._engine.dispose()
                 logger.info(
                     tr(

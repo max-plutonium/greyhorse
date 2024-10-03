@@ -4,8 +4,8 @@ import pytest
 from greyhorse.data.repositories import EntityError
 from greyhorse.result import Err
 from greyhorse_sqla.config import EngineConf, SqlEngineType
+from greyhorse_sqla.contexts import SqlaSyncConnCtx, SqlaSyncSessionCtx
 from greyhorse_sqla.factory import SyncSqlaEngineFactory
-from greyhorse_sqla.providers import SqlaSyncConnProvider, SqlaSyncSessionProvider
 from greyhorse_sqla.query import SqlaQuery as Q
 from greyhorse_sqla.repositories import SyncSqlaRepository
 from sqlalchemy import DateTime, String, func, text
@@ -56,7 +56,7 @@ def sqla_engine(request):
     engine = factory.create_engine('test', config)
     engine.start()
 
-    conn_ctx = engine.get_provider(SqlaSyncConnProvider).unwrap().acquire().unwrap()
+    conn_ctx = engine.get_context(SqlaSyncConnCtx).unwrap()
 
     with conn_ctx as conn:
         Base.metadata.drop_all(conn, tables=[TestModel.__table__])
@@ -74,7 +74,7 @@ def sqla_engine(request):
 
 @pytest.fixture(scope='function')
 def session_ctx(sqla_engine):
-    session_ctx = sqla_engine.get_provider(SqlaSyncSessionProvider).unwrap().acquire().unwrap()
+    session_ctx = sqla_engine.get_context(SqlaSyncSessionCtx).unwrap()
 
     with session_ctx:
         yield session_ctx

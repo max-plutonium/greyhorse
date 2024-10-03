@@ -5,8 +5,8 @@ import pytest_asyncio
 from greyhorse.data.repositories import EntityError
 from greyhorse.result import Err
 from greyhorse_sqla.config import EngineConf, SqlEngineType
+from greyhorse_sqla.contexts import SqlaAsyncConnCtx, SqlaAsyncSessionCtx
 from greyhorse_sqla.factory import AsyncSqlaEngineFactory
-from greyhorse_sqla.providers import SqlaAsyncConnProvider, SqlaAsyncSessionProvider
 from greyhorse_sqla.query import SqlaQuery as Q
 from greyhorse_sqla.repositories import AsyncSqlaRepository
 from sqlalchemy import DateTime, String, func, text
@@ -58,7 +58,7 @@ async def sqla_engine(request):
     engine = factory.create_engine('test', config)
     await engine.start()
 
-    conn_ctx = engine.get_provider(SqlaAsyncConnProvider).unwrap().acquire().unwrap()
+    conn_ctx = engine.get_context(SqlaAsyncConnCtx).unwrap()
 
     async with conn_ctx as conn:
         await conn.run_sync(Base.metadata.drop_all, tables=[TestModel.__table__])
@@ -76,7 +76,7 @@ async def sqla_engine(request):
 
 @pytest_asyncio.fixture(scope='function', loop_scope='module')
 async def session_ctx(sqla_engine):
-    session_ctx = sqla_engine.get_provider(SqlaAsyncSessionProvider).unwrap().acquire().unwrap()
+    session_ctx = sqla_engine.get_context(SqlaAsyncSessionCtx).unwrap()
 
     async with session_ctx:
         yield session_ctx

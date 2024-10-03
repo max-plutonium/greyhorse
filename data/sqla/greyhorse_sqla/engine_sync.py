@@ -1,17 +1,13 @@
 import threading
-from collections.abc import Callable
 from contextlib import AbstractContextManager, contextmanager
-from functools import partial
 from typing import Any, override
 
-from greyhorse.app.abc.providers import BorrowMutError, Provider
-from greyhorse.app.contexts import ContextBuilder, SyncMutContext, current_scope_id
+from greyhorse.app.contexts import Context, ContextBuilder, SyncMutContext, current_scope_id
 from greyhorse.app.registries import MutDictRegistry, ScopedMutDictRegistry
 from greyhorse.data.storage import DataStorageEngine
 from greyhorse.i18n import tr
 from greyhorse.logging import logger
-from greyhorse.maybe import Maybe
-from greyhorse.result import Ok, Result
+from greyhorse.maybe import Just, Maybe, Nothing
 from sqlalchemy.engine import Connection as SyncConnection
 from sqlalchemy.engine import Engine as SyncEngine
 from sqlalchemy.engine.base import NestedTransaction, RootTransaction
@@ -19,7 +15,6 @@ from sqlalchemy.orm import Session as SyncSession
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from .config import EngineConf
-from .providers import SqlaSyncConnProvider, SqlaSyncSessionProvider
 
 
 class _SyncConnCtx(SyncMutContext[SyncConnection]):
@@ -79,36 +74,6 @@ class _SyncSessionCtx(SyncMutContext[SyncSession]):
         instance.rollback()
 
 
-class _ConnProvider(SqlaSyncConnProvider):
-    __slots__ = ('_builder',)
-
-    def __init__(self, builder: ContextBuilder[_SyncConnCtx, SyncConnection]) -> None:
-        self._builder = builder
-
-    @override
-    def acquire(self) -> Result[SyncMutContext[SyncConnection], BorrowMutError]:
-        return Ok(self._builder.build())
-
-    @override
-    def release(self, instance: SyncMutContext[SyncConnection]) -> None:
-        del instance
-
-
-class _SessionProvider(SqlaSyncSessionProvider):
-    __slots__ = ('_builder',)
-
-    def __init__(self, builder: ContextBuilder[_SyncSessionCtx, SyncSession]) -> None:
-        self._builder = builder
-
-    @override
-    def acquire(self) -> Result[SyncMutContext[SyncSession], BorrowMutError]:
-        return Ok(self._builder.build())
-
-    @override
-    def release(self, instance: SyncMutContext[SyncSession]) -> None:
-        del instance
-
-
 class SyncSqlaEngine(DataStorageEngine):
     def __init__(self, name: str, config: EngineConf, engine: SyncEngine) -> None:
         super().__init__(name)
@@ -135,26 +100,22 @@ class SyncSqlaEngine(DataStorageEngine):
         )
         self._session_builder.add_param('session', self._get_session)
 
-        self._providers = MutDictRegistry[type[Provider], Callable[[], Provider]]()
-
     @property
     def active(self) -> bool:
         return self._counter > 0
 
     @override
-    def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
-        return self._providers.get(prov_type).map(lambda func: func())
+    def get_context[T: Context](self, kind: type[T]) -> Maybe[T]:
+        if kind is SyncMutContext[SyncConnection]:
+            return Just(self._conn_builder.build())
+        if kind is SyncMutContext[SyncSession]:
+            return Just(self._session_builder.build())
+        return Nothing
 
     @override
     def start(self) -> None:
         with self._lock:
             if self._counter == 0:
-                self._providers.add(
-                    SqlaSyncConnProvider, partial(_ConnProvider, self._conn_builder)
-                )
-                self._providers.add(
-                    SqlaSyncSessionProvider, partial(_SessionProvider, self._session_builder)
-                )
                 logger.info(
                     tr(
                         'greyhorse.engines.sqla.engine.started',
@@ -169,8 +130,6 @@ class SyncSqlaEngine(DataStorageEngine):
     def stop(self) -> None:
         with self._lock:
             if self._counter == 1:
-                self._providers.remove(SqlaSyncConnProvider)
-                self._providers.remove(SqlaSyncSessionProvider)
                 self._engine.dispose()
                 logger.info(
                     tr(

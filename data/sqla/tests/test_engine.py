@@ -1,15 +1,15 @@
 import pytest
 from greyhorse.app.contexts import AsyncContext, SyncContext
 from greyhorse_sqla.config import EngineConf, SqlEngineType
+from greyhorse_sqla.contexts import (
+    SqlaAsyncConnCtx,
+    SqlaAsyncSessionCtx,
+    SqlaSyncConnCtx,
+    SqlaSyncSessionCtx,
+)
 from greyhorse_sqla.engine_async import AsyncSqlaEngine
 from greyhorse_sqla.engine_sync import SyncSqlaEngine
 from greyhorse_sqla.factory import AsyncSqlaEngineFactory, SyncSqlaEngineFactory
-from greyhorse_sqla.providers import (
-    SqlaAsyncConnProvider,
-    SqlaAsyncSessionProvider,
-    SqlaSyncConnProvider,
-    SqlaSyncSessionProvider,
-)
 from sqlalchemy import text
 
 from .conf import MYSQL_URI, POSTGRES_URI, SQLITE_URI
@@ -93,14 +93,10 @@ def test_sync_connection(param) -> None:
     engine.start()
     assert engine.active
 
-    conn_ctx = engine.get_provider(SqlaSyncConnProvider)
-    assert conn_ctx.is_just()
-    conn_ctx = conn_ctx.unwrap().acquire().unwrap()
+    conn_ctx = engine.get_context(SqlaSyncConnCtx).unwrap()
     assert isinstance(conn_ctx, SyncContext)
 
-    session_ctx = engine.get_provider(SqlaSyncSessionProvider)
-    assert session_ctx.is_just()
-    session_ctx = session_ctx.unwrap().acquire().unwrap()
+    session_ctx = engine.get_context(SqlaSyncSessionCtx).unwrap()
     assert isinstance(session_ctx, SyncContext)
 
     with session_ctx as s1:
@@ -151,14 +147,10 @@ async def test_async_connection(param) -> None:
     await engine.start()
     assert engine.active
 
-    conn_ctx = engine.get_provider(SqlaAsyncConnProvider)
-    assert conn_ctx.is_just()
-    conn_ctx = conn_ctx.unwrap().acquire().unwrap()
+    conn_ctx = engine.get_context(SqlaAsyncConnCtx).unwrap()
     assert isinstance(conn_ctx, AsyncContext)
 
-    session_ctx = engine.get_provider(SqlaAsyncSessionProvider)
-    assert session_ctx.is_just()
-    session_ctx = session_ctx.unwrap().acquire().unwrap()
+    session_ctx = engine.get_context(SqlaAsyncSessionCtx).unwrap()
     assert isinstance(session_ctx, AsyncContext)
 
     async with session_ctx as s1:

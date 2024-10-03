@@ -22,7 +22,7 @@ from sqlalchemy import (
 from sqlalchemy.exc import NoInspectionAvailable
 from sqlalchemy.orm.base import instance_state
 
-from greyhorse_sqla.providers import SyncSession
+from greyhorse_sqla.contexts import SyncSession
 
 
 class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, ID]):

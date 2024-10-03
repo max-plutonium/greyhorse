@@ -22,7 +22,7 @@ from sqlalchemy import (
 from sqlalchemy.exc import NoInspectionAvailable
 from sqlalchemy.orm.base import instance_state
 
-from greyhorse_sqla.providers import AsyncSession
+from greyhorse_sqla.contexts import AsyncSession
 
 
 class AsyncSqlaRepository[E, ID](AsyncMutRepository[E, ID], AsyncMutFilterable[E, ID]):
