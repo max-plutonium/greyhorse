@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from greyhorse.app.registries import MutDictRegistry
+from greyhorse.app.registries import MutNamedDictRegistry
 from greyhorse_renders.abc import AsyncRender, AsyncRenderFactory, SyncRender, SyncRenderFactory
 from greyhorse_renders.controller import RendersController
 
@@ -11,7 +11,7 @@ from greyhorse_renders.controller import RendersController
 def registry():
     ctrl = RendersController()
 
-    registry = MutDictRegistry[type, Any]()
+    registry = MutNamedDictRegistry[type, Any]()
     assert ctrl.setup(registry).unwrap()
     assert len(registry) > 0
 
