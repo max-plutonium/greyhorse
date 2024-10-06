@@ -188,8 +188,8 @@ class NamedDictRegistry[K, T](NamedCollector[K, T], NamedListSelector[K, T]):
     ) -> list[tuple[K, str, T]]:
         result = []
 
-        for (k, name), values in self._storage.items():
-            for v in values:
+        for k, values in self._storage.items():
+            for name, v in values.items():
                 if not filter_fn or filter_fn(k, name):
                     result.append((k, name, v))
 

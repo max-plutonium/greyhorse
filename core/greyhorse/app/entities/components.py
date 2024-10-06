@@ -13,6 +13,7 @@ from greyhorse.utils.injectors import ParamsInjector
 
 from ...maybe import Just, Maybe, Nothing
 from ...utils.invoke import invoke_sync
+from ..abc.selectors import NamedListSelector, NamedSelector
 from ..abc.visitor import Visitor
 from ..private.res_manager import ResourceManager
 
@@ -157,6 +158,9 @@ class Component:
             ):
                 return res
 
+        injector.add_type_provider(NamedSelector[type, Any], self._resources)
+        injector.add_type_provider(NamedListSelector[type, Any], self._resources)
+
         for svc, svc_conf in zip(self._services, self._conf.services, strict=False):
             for res_type in svc_conf.resources:
                 injector.add_type_provider(Maybe[res_type], self._resources.get(res_type))
@@ -177,6 +181,9 @@ class Component:
             for res_type in svc_conf.resources:
                 injector.remove_type_provider(Maybe[res_type])
 
+        injector.remove_type_provider(NamedSelector[type, Any])
+        injector.remove_type_provider(NamedListSelector[type, Any])
+
         logger.info(
             '{path}: Component "{name}" setup successful'.format(
                 path=self._path, name=self.name
@@ -191,6 +198,9 @@ class Component:
         logger.info(
             '{path}: Component "{name}" teardown'.format(path=self._path, name=self.name)
         )
+
+        injector.add_type_provider(NamedSelector[type, Any], self._resources)
+        injector.add_type_provider(NamedListSelector[type, Any], self._resources)
 
         for svc, svc_conf in zip(
             reversed(self._services), reversed(self._conf.services), strict=False
@@ -213,6 +223,9 @@ class Component:
 
             for res_type in svc_conf.resources:
                 injector.remove_type_provider(Maybe[res_type])
+
+        injector.remove_type_provider(NamedSelector[type, Any])
+        injector.remove_type_provider(NamedListSelector[type, Any])
 
         for ctrl, _ctrl_conf in zip(
             reversed(self._controllers), reversed(self._conf.controllers), strict=False

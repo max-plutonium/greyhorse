@@ -4,6 +4,7 @@ from greyhorse.app.abc.collectors import MutNamedCollector, NamedCollector
 from greyhorse.app.abc.controllers import ControllerError
 from greyhorse.app.abc.operators import AssignOperator
 from greyhorse.app.abc.providers import FactoryError, FactoryProvider
+from greyhorse.app.abc.selectors import NamedListSelector, NamedSelector
 from greyhorse.app.abc.services import ProvisionError, ServiceError, ServiceState
 from greyhorse.app.entities.controllers import SyncController, operator
 from greyhorse.app.entities.services import SyncService, provider
@@ -80,14 +81,32 @@ class FunctionalOpProviderImpl(FactoryProvider[FunctionalOperator]):
 
 class DictOperatorService(SyncService):
     @override
-    def setup(self, res: Maybe[DictResContext]) -> Result[ServiceState, ServiceError]:
+    def setup(
+        self,
+        res: Maybe[DictResContext],
+        selector: NamedSelector[type, Any],
+        list_selector: NamedListSelector[type, Any],
+    ) -> Result[ServiceState, ServiceError]:
         if not res:
+            return ServiceError.NoSuchResource(name='DictResContext').to_result()
+        if not selector.has(DictResContext):
+            return ServiceError.NoSuchResource(name='DictResContext').to_result()
+        if not list_selector.has(DictResContext):
             return ServiceError.NoSuchResource(name='DictResContext').to_result()
         return super().setup()
 
     @override
-    def teardown(self, res: Maybe[DictResContext]) -> Result[ServiceState, ServiceError]:
+    def teardown(
+        self,
+        res: Maybe[DictResContext],
+        selector: NamedSelector[type, Any],
+        list_selector: NamedListSelector[type, Any],
+    ) -> Result[ServiceState, ServiceError]:
         if not res:
+            return ServiceError.NoSuchResource(name='DictResContext').to_result()
+        if not selector.has(DictResContext):
+            return ServiceError.NoSuchResource(name='DictResContext').to_result()
+        if not list_selector.has(DictResContext):
             return ServiceError.NoSuchResource(name='DictResContext').to_result()
         return super().teardown()
 
