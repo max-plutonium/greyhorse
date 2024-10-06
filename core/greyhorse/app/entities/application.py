@@ -20,6 +20,7 @@ from greyhorse.logging import logger
 from greyhorse.maybe import Just, Maybe, Nothing
 from greyhorse.result import Ok, Result
 from greyhorse.utils.invoke import get_asyncio_loop, invoke_sync
+from greyhorse.utils.project import get_project_path, get_version
 
 
 class ApplicationError(Error):
@@ -47,29 +48,15 @@ class _ElementsVisitor(Visitor):
 
 
 class Application:
-    def __init__(self, name: str, version: str = '', debug: bool = False) -> None:
+    def __init__(self, name: str, version: str | None = None, debug: bool = False) -> None:
         self._name = name
-        self._version = version
         self._debug = debug
-        self._path = self._inspect_cwd()
+        self._path = get_project_path().parent
+        self._version = version or get_version()
         self._controllers: list[Controller] = []
         self._services: list[Service] = []
         self._root: Maybe[ModuleComponent] = Nothing
         self._conf: Maybe[ModuleComponentConf] = Nothing
-
-    @staticmethod
-    def _inspect_cwd():
-        import inspect
-
-        for frame in reversed(inspect.stack()):
-            path = Path(frame.filename).absolute()
-
-            while path.parent != path:
-                path = path.parent
-                pyproject_toml_path = path / 'pyproject.toml'
-                if pyproject_toml_path.exists():
-                    return path
-        return None
 
     @property
     def name(self) -> str:
