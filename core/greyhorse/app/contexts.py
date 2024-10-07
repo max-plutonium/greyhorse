@@ -841,11 +841,18 @@ class AsyncMutContextWithCallbacks[T](AsyncMutContext[T]):
 
 
 class ContextBuilder[T](TypeWrapper[T]):
-    def __init__[**P](self, factory: Callable[P, T], **kwargs) -> None:
+    def __init__[**P](
+        self,
+        factory: Callable[P, T],
+        fields: dict[str, FieldFactory[T]] | None = None,
+        finalizers: list[Callable[[], Awaitable[None] | None]] | None = None,
+        contexts: list[ContextManagerLike[T]] | None = None,
+        **kwargs,
+    ) -> None:
         self._factory = factory
-        self._fields = {}
-        self._finalizers = []
-        self._contexts = []
+        self._fields = fields or {}
+        self._finalizers = finalizers or []
+        self._contexts = contexts or []
         self._kwargs = kwargs
 
     def add_param(self, name: str, value: FieldFactory[T]) -> None:
