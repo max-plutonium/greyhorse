@@ -73,11 +73,13 @@ class Application:
     def get_cwd(self) -> Path:
         return self._path.absolute()
 
-    def add_resource(self, res_type: type, resource: Any) -> bool:
-        return self._root.map_or(False, lambda root: root.add_resource(res_type, resource))
+    def add_resource(self, res_type: type, resource: Any, name: str | None = None) -> bool:
+        return self._root.map_or(
+            False, lambda root: root.add_resource(res_type, resource, name)
+        )
 
-    def remove_resource(self, res_type: type) -> bool:
-        return self._root.map_or(False, lambda root: root.remove_resource(res_type))
+    def remove_resource(self, res_type: type, name: str | None = None) -> bool:
+        return self._root.map_or(False, lambda root: root.remove_resource(res_type, name=name))
 
     def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
         return self._root.and_then(lambda root: root.get_provider(prov_type))
