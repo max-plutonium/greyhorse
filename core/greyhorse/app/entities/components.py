@@ -208,7 +208,7 @@ class Component:
             for res_type in svc_conf.resources:
                 injector.add_type_provider(Maybe[res_type], self._resources.get(res_type))
 
-            injected_args = injector(svc.setup)
+            injected_args = injector(svc.teardown)
 
             if not (
                 res := invoke_sync(

@@ -31,8 +31,8 @@ ignore = ["F402", "E701", "UP032", "Q000", "Q003", "COM812"]
 
 explicit-preview-rules = true
 
-  [pylint]
-  max-args = 10
+[tool.ruff.lint.pylint]
+max-args = 10
 
 [tool.mypy]
 python_version = "3.12"
