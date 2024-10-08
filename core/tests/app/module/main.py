@@ -27,14 +27,15 @@ def __init__():
             ),
             'app': ComponentConf(
                 enabled=True,
-                provider_grants=[
-                    ProvidersConf(resource=DictResContext, providers=[DictCtxProvider]),
-                    ProvidersConf(resource=MutDictResContext, providers=[DictMutCtxProvider]),
-                ],
                 provider_imports=[
                     ProvidersConf(resource=FunctionalOperator, providers=[FunctionalOpProvider])
                 ],
-                services=[SvcConf(type=DictOperatorService, resources=[DictResContext])],
+                operator_imports=[DictResContext, MutDictResContext],
+                services=[
+                    SvcConf(
+                        type=DictOperatorService, resources=[DictResContext, MutDictResContext]
+                    )
+                ],
                 controllers=[CtrlConf(type=DictOperatorCtrl)],
             ),
         },

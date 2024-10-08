@@ -18,8 +18,8 @@ class ComponentConf(BaseModel):
     enabled: bool = Field(default=True)
 
     resource_grants: list[type] = Field(default_factory=list)
-    provider_grants: list[ProvidersConf] = Field(default_factory=list)
     provider_imports: list[ProvidersConf] = Field(default_factory=list)
+    operator_imports: list[type] = Field(default_factory=list)
 
     controllers: list[CtrlConf] = Field(default_factory=list)
     services: list[SvcConf] = Field(default_factory=list)
@@ -32,6 +32,7 @@ class ModuleConf(BaseModel):
     enabled: bool = Field(default=True)
 
     resource_claims: list[type] = Field(default_factory=list)
+    # XXX: module providers
     provider_claims: list[ProvidersConf] = Field(default_factory=list)
     can_provide: list[type] = Field(default_factory=list)
 

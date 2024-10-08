@@ -6,6 +6,7 @@ from greyhorse.app.abc.operators import AssignOperator
 from greyhorse.app.abc.providers import FactoryError, FactoryProvider
 from greyhorse.app.abc.selectors import NamedListSelector, NamedSelector
 from greyhorse.app.abc.services import ProvisionError, ServiceError, ServiceState
+from greyhorse.app.boxes import ForwardBox
 from greyhorse.app.entities.controllers import SyncController, operator
 from greyhorse.app.entities.services import SyncService, provider
 from greyhorse.maybe import Maybe, Nothing
@@ -80,19 +81,29 @@ class FunctionalOpProviderImpl(FactoryProvider[FunctionalOperator]):
 
 
 class DictOperatorService(SyncService):
+    def __init__(self) -> None:
+        super().__init__()
+        self._res1 = None
+        self._res2 = None
+
     @override
     def setup(
         self,
-        res: Maybe[DictResContext],
+        res1: Maybe[DictResContext],
+        res2: Maybe[MutDictResContext],
         selector: NamedSelector[type, Any],
         list_selector: NamedListSelector[type, Any],
     ) -> Result[ServiceState, ServiceError]:
-        if not res:
+        if not res1:
             return ServiceError.NoSuchResource(name='DictResContext').to_result()
+        if not res2:
+            return ServiceError.NoSuchResource(name='MutDictResContext').to_result()
         if not selector.has(DictResContext):
             return ServiceError.NoSuchResource(name='DictResContext').to_result()
         if not list_selector.has(DictResContext):
             return ServiceError.NoSuchResource(name='DictResContext').to_result()
+        self._res1 = res1.unwrap()
+        self._res2 = res2.unwrap()
         return super().setup()
 
     @override
@@ -108,6 +119,8 @@ class DictOperatorService(SyncService):
             return ServiceError.NoSuchResource(name='DictResContext').to_result()
         if not list_selector.has(DictResContext):
             return ServiceError.NoSuchResource(name='DictResContext').to_result()
+        self._res1 = None
+        self._res2 = None
         return super().teardown()
 
     def start(self) -> None:
@@ -117,25 +130,30 @@ class DictOperatorService(SyncService):
         self._switch_to_active(False)
 
     @provider(FunctionalOpProvider)
-    def create_prov(
-        self, ctx_prov: DictCtxProvider, mut_ctx_prov: DictMutCtxProvider
-    ) -> Result[FunctionalOpProvider, ProvisionError]:
-        return Ok(FunctionalOpProviderImpl(ctx_prov, mut_ctx_prov))
+    def create_prov(self) -> Result[FunctionalOpProvider, ProvisionError]:
+        return Ok(ForwardBox(FunctionalOperatorImpl(self._res1, self._res2)))
 
 
 class DictOperatorCtrl(SyncController):
     def __init__(self) -> None:
         super().__init__()
         self._a = Nothing
+        self._b = Nothing
 
-    def _setter(self, value) -> None:
+    def _setter1(self, value) -> None:
         self._a = value
+
+    def _setter2(self, value) -> None:
+        self._b = value
 
     @override
     def setup(self, collector: NamedCollector[type, Any]) -> Result[bool, ControllerError]:
         if not self._a:
             return ControllerError.NoSuchResource(name='DictResContext').to_result()
+        if not self._b:
+            return ControllerError.NoSuchResource(name='MutDictResContext').to_result()
         collector.add(DictResContext, self._a.unwrap())
+        collector.add(MutDictResContext, self._b.unwrap())
         return super().setup(collector)
 
     @override
@@ -144,9 +162,16 @@ class DictOperatorCtrl(SyncController):
     ) -> Result[bool, ControllerError]:
         if not self._a:
             return ControllerError.NoSuchResource(name='DictResContext').to_result()
+        if not self._b:
+            return ControllerError.NoSuchResource(name='MutDictResContext').to_result()
         collector.remove(DictResContext, self._a.unwrap())
+        collector.remove(MutDictResContext, self._b.unwrap())
         return super().teardown(collector)
 
     @operator(DictResContext)
-    def create_op(self):
-        return AssignOperator[DictResContext](lambda: self._a, self._setter)
+    def create_op1(self):
+        return AssignOperator[DictResContext](lambda: self._a, self._setter1)
+
+    @operator(MutDictResContext)
+    def create_op2(self):
+        return AssignOperator[MutDictResContext](lambda: self._b, self._setter2)

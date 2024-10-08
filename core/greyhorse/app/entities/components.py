@@ -1,9 +1,11 @@
+from collections import defaultdict
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 from greyhorse.app.abc.controllers import Controller, ControllerError, ControllerFactoryFn
 from greyhorse.app.abc.providers import Provider
 from greyhorse.app.abc.services import Service, ServiceError, ServiceFactoryFn
-from greyhorse.app.registries import MutDictRegistry, MutNamedDictRegistry
+from greyhorse.app.registries import MutNamedDictRegistry
 from greyhorse.app.schemas.components import ComponentConf, ModuleComponentConf
 from greyhorse.app.schemas.elements import CtrlConf, SvcConf
 from greyhorse.error import Error, ErrorCase
@@ -13,6 +15,7 @@ from greyhorse.utils.injectors import ParamsInjector
 
 from ...maybe import Just, Maybe, Nothing
 from ...utils.invoke import invoke_sync
+from ..abc.operators import Operator
 from ..abc.selectors import NamedListSelector, NamedSelector
 from ..abc.visitor import Visitor
 from ..private.res_manager import ResourceManager
@@ -61,7 +64,9 @@ class Component:
         self._services: list[Service] = []
 
         self._resources = MutNamedDictRegistry[type, Any]()
-        self._providers = MutDictRegistry[type[Provider], Provider]()
+        # XXX: component providers
+        # self._providers = MutDictRegistry[type[Provider], Provider]()
+        self._operators: dict[type, list[Operator]] = defaultdict(list)
 
     @property
     def name(self) -> str:
@@ -80,13 +85,20 @@ class Component:
         visitor.finish_component(self)
 
     def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
-        return self._rm.find_provider(prov_type, self._providers).map(Just).unwrap_or(Nothing)
+        return self._rm.find_provider(prov_type).map(Just).unwrap_or(Nothing)
 
-    def add_provider[T](self, prov_type: type[Provider[T]], provider: Provider[T]) -> bool:
-        return self._providers.add(prov_type, provider)
+    def get_operators[T](self, res_type: type[T]) -> Iterable[Operator[T]]:
+        if res_type in self._conf.operator_imports:
+            return self._operators[res_type].copy()
+        return []
 
-    def remove_provider[T](self, prov_type: type[Provider[T]]) -> bool:
-        return self._providers.remove(prov_type)
+    # XXX: component providers
+    # def add_provider[T](self, prov_type: type[Provider[T]], provider: Provider[T]) -> bool:
+    #     return self._providers.add(prov_type, provider)
+
+    # XXX: component providers
+    # def remove_provider[T](self, prov_type: type[Provider[T]]) -> bool:
+    #     return self._providers.remove(prov_type)
 
     def add_resource(self, res_type: type, resource: Any, name: str | None = None) -> bool:
         return self._resources.add(res_type, resource, name=name)
@@ -118,20 +130,20 @@ class Component:
         self._services.remove(service)
         return self._rm.remove_service(service)
 
-    def setup(self) -> Result[None, ComponentError]:
+    def create(self) -> Result[None, ComponentError]:
+        logger.info('{path}: Component "{name}" create'.format(path=self._path, name=self.name))
+
         injector = ParamsInjector()
 
-        logger.info('{path}: Component "{name}" setup'.format(path=self._path, name=self.name))
-
         if not (res := self._create_services(injector)):
-            return res
+            return res  # type: ignore
 
         for svc in res.unwrap():
             injector.add_type_provider(type(svc), svc)
             self.add_service(svc)
 
         if not (res := self._create_controllers(injector)):
-            return res
+            return res  # type: ignore
 
         for svc in self._services:
             injector.remove_type_provider(type(svc))
@@ -140,13 +152,29 @@ class Component:
             self.add_controller(ctrl)
 
         if not (
-            res := self._rm.setup(self._providers).map_err(
+            res := self._rm.setup().map_err(
                 lambda e: ComponentError.Resource(
                     path=self._path, name=self.name, details=e.message
                 )
             )
         ):
             return res
+
+        for op in self._rm.get_operators():
+            self._operators[op.wrapped_type].append(op)
+
+        logger.info(
+            '{path}: Component "{name}" create successful'.format(
+                path=self._path, name=self.name
+            )
+        )
+
+        return Ok()
+
+    def setup(self) -> Result[None, ComponentError]:
+        logger.info('{path}: Component "{name}" setup'.format(path=self._path, name=self.name))
+
+        injector = ParamsInjector()
 
         for ctrl, _ctrl_conf in zip(self._controllers, self._conf.controllers, strict=False):
             if not (
@@ -239,6 +267,22 @@ class Component:
             ):
                 return res
 
+        logger.info(
+            '{path}: Component "{name}" teardown successful'.format(
+                path=self._path, name=self.name
+            )
+        )
+
+        return Ok()
+
+    def destroy(self) -> Result[None, ComponentError]:
+        logger.info(
+            '{path}: Component "{name}" destroy'.format(path=self._path, name=self.name)
+        )
+
+        for op in self._rm.get_operators():
+            self._operators[op.wrapped_type].remove(op)
+
         if not (
             res := self._rm.teardown().map_err(
                 lambda e: ComponentError.Resource(
@@ -258,7 +302,7 @@ class Component:
         assert not self._services
 
         logger.info(
-            '{path}: Component "{name}" teardown successful'.format(
+            '{path}: Component "{name}" destroy successful'.format(
                 path=self._path, name=self.name
             )
         )
@@ -393,14 +437,18 @@ class ModuleComponent(Component):
         if not (res := super().setup()):
             return res
 
-        for op in self._rm.get_operators():
-            self._module.add_operator(op)
+        for res_type in self._module.conf.can_provide:
+            for op in self._operators[res_type]:
+                self._module.add_operator(op)
 
         for res_type, res_name, res in self._resources.items():
             self._module.add_resource(res_type, res, res_name)
 
-        for prov_type, prov in self._providers.items():
-            self._module.add_provider(prov_type, prov)
+        # XXX: module providers
+        for prov_claim in self._module.conf.provider_claims:
+            for prov_type in prov_claim.providers:
+                if prov := self.get_provider(prov_type).unwrap_or_none():
+                    self._module.add_provider(prov_type, prov)
 
         if not (
             res := self._module.setup().map_err(
@@ -423,13 +471,16 @@ class ModuleComponent(Component):
         ):
             return res
 
-        for prov_type, _ in self._providers.items():  # noqa: PERF102
-            self._module.remove_provider(prov_type)
+        # XXX: module providers
+        for prov_claim in self._module.conf.provider_claims:
+            for prov_type in prov_claim.providers:
+                self._module.remove_provider(prov_type)
 
         for res_type, res_name, _ in self._resources.items():
             self._module.remove_resource(res_type, res_name)
 
-        for op in self._rm.get_operators():
-            self._module.remove_operator(op)
+        for res_type in self._module.conf.can_provide:
+            for op in self._operators[res_type]:
+                self._module.remove_operator(op)
 
         return super().teardown()

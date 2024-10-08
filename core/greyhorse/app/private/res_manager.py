@@ -1,4 +1,5 @@
 from collections import OrderedDict, defaultdict
+from collections.abc import Iterable
 from functools import partial
 
 import networkx as nx
@@ -42,7 +43,7 @@ class ResourceManager:
         self._operator_map: dict[type, dict[Controller, OperatorMember]] = defaultdict(dict)
         self._public_operators: list[Operator] = []
 
-    def get_operators(self):
+    def get_operators(self) -> Iterable[Operator]:
         return self._public_operators.copy()
 
     def add_service(self, service: Service) -> bool:
@@ -125,7 +126,7 @@ class ResourceManager:
         providers: Selector[type[Provider], Provider] | None = None,
     ) -> Result[Provider, ResourceError]:
         if (prov := self._cached_providers.get(prov_type).unwrap_or_none()) or (
-            prov := providers.get(prov_type).unwrap_or_none()
+            prov := providers.get(prov_type).unwrap_or_none() if providers is not None else None
         ):
             return Ok(prov)
 
@@ -186,7 +187,7 @@ class ResourceManager:
                 if (
                     self._resource_graph.has_node(prov_type)
                     or self._cached_providers.has(prov_type)
-                    or providers.has(prov_type)
+                    or (providers.has(prov_type) if providers is not None else False)
                 ):
                     found = True
                     break
@@ -196,12 +197,14 @@ class ResourceManager:
 
         if (prov := self._cached_providers.get(prov_type).unwrap_or_none()) or (
             prov := providers.get(prov_type).unwrap_or_none()
+            if providers is not None
+            else False
         ):
             mapper = SyncResourceMapper[prov_type](prov, operator)
 
         else:
             if not (res := self.find_provider(prov_type, providers)):
-                return res
+                return res  # type: ignore
 
             prov = res.unwrap()
             mapper = SyncResourceMapper[prov_type](prov, operator)

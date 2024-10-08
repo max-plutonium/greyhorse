@@ -40,18 +40,24 @@ class Module:
     def path(self) -> str:
         return self._path
 
+    @property
+    def conf(self) -> ModuleConf:
+        return self._conf
+
     def accept_visitor(self, visitor: Visitor) -> None:
         visitor.start_module(self)
         for comp in self._components.values():
             comp.accept_visitor(visitor)
         visitor.finish_module(self)
 
+    # XXX: module providers
     def add_provider[T](self, prov_type: type[Provider[T]], provider: Provider[T]) -> bool:
         for prov_claim in self._conf.provider_claims:
             if prov_type in prov_claim.providers:
                 return self._providers.add(prov_type, provider)
         return False
 
+    # XXX: module providers
     def remove_provider[T](self, prov_type: type[Provider[T]]) -> bool:
         for prov_claim in self._conf.provider_claims:
             if prov_type in prov_claim.providers:
@@ -92,12 +98,29 @@ class Module:
                 if res := self._resources.get(res_type).unwrap_or_none():
                     component.add_resource(res_type, res)
 
-            for prov_conf in comp_conf.provider_grants:
-                for prov_type in prov_conf.providers:
-                    for _, prov in self._providers.items(
-                        lambda t, pt=prov_type: issubclass(t, pt)
+            # XXX: component providers
+            # for prov_conf in comp_conf.provider_grants:
+            #     for prov_type in prov_conf.providers:
+            #         for _, prov in self._providers.items(
+            #             lambda t, pt=prov_type: issubclass(t, pt)
+            #         ):
+            #             component.add_provider(prov_type, prov)
+
+            if not (
+                res := component.create().map_err(
+                    lambda e: ModuleError.Component(path=self._path, details=e.message)
+                )
+            ):
+                return res
+
+            for res_type in comp_conf.operator_imports:
+                for op in component.get_operators(res_type):
+                    if not (
+                        res := self._rm.setup_resource(op, self._providers).map_err(
+                            lambda e: ModuleError.Resource(path=self._path, details=e.message)
+                        )
                     ):
-                        component.add_provider(prov_type, prov)
+                        return res  # type: ignore
 
             if not (
                 res := component.setup().map_err(
@@ -117,7 +140,7 @@ class Module:
                     lambda e: ModuleError.Resource(path=self._path, details=e.message)
                 )
             ):
-                return res
+                return res  # type: ignore
 
         logger.info('{path}: Module setup successful'.format(path=self._path))
         return Ok()
@@ -125,20 +148,20 @@ class Module:
     def teardown(self) -> Result[None, ModuleError]:
         logger.info('{path}: Module teardown'.format(path=self._path))
 
-        if not (
-            res := self._rm.teardown().map_err(
-                lambda e: ModuleError.Resource(path=self._path, details=e.message)
-            )
-        ):
-            return res
+        for op in reversed(self._operators):
+            if not (
+                res := self._rm.teardown_resource(op).map_err(
+                    lambda e: ModuleError.Resource(path=self._path, details=e.message)
+                )
+            ):
+                return res  # type: ignore
 
         for component in reversed(self._components.values()):
             comp_conf = self._conf.components[component.name]
 
             for prov_conf in reversed(comp_conf.provider_imports):
                 for prov_type in reversed(prov_conf.providers):
-                    if prov := component.get_provider(prov_type).unwrap_or_none():
-                        self._providers.remove(prov_type, prov)
+                    self._providers.remove(prov_type)
 
             if not (
                 res := component.teardown().map_err(
@@ -147,12 +170,36 @@ class Module:
             ):
                 return res
 
-            for prov_conf in reversed(comp_conf.provider_grants):
-                for prov_type in reversed(prov_conf.providers):
-                    component.remove_provider(prov_type)
+            for res_type in reversed(comp_conf.operator_imports):
+                for op in component.get_operators(res_type):
+                    if not (
+                        res := self._rm.teardown_resource(op).map_err(
+                            lambda e: ModuleError.Resource(path=self._path, details=e.message)
+                        )
+                    ):
+                        return res  # type: ignore
+
+            if not (
+                res := component.destroy().map_err(
+                    lambda e: ModuleError.Component(path=self._path, details=e.message)
+                )
+            ):
+                return res
+
+            # XXX: component providers
+            # for prov_conf in reversed(comp_conf.provider_grants):
+            #     for prov_type in reversed(prov_conf.providers):
+            #         component.remove_provider(prov_type)
 
             for res_type in reversed(comp_conf.resource_grants):
                 component.remove_resource(res_type)
+
+        if not (
+            res := self._rm.teardown().map_err(
+                lambda e: ModuleError.Resource(path=self._path, details=e.message)
+            )
+        ):
+            return res
 
         logger.info('{path}: Module teardown successful'.format(path=self._path))
         return Ok()
