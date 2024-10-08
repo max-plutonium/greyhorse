@@ -1,17 +1,16 @@
 import importlib.metadata
-import inspect
+import sys
 from pathlib import Path
 
 
 def get_project_path() -> Path:
-    for frame in reversed(inspect.stack()):
-        path = Path(frame.filename).absolute()
+    path = Path(sys.path[0]).absolute()
 
-        while path.parent != path:
-            path = path.parent
-            pyproject_toml_path = path / 'pyproject.toml'
-            if pyproject_toml_path.exists():
-                return pyproject_toml_path
+    while path.parent != path:
+        pyproject_toml_path = path / 'pyproject.toml'
+        if pyproject_toml_path.exists():
+            return pyproject_toml_path
+        path = path.parent
 
     raise AssertionError('Could not find pyproject.toml')
 
