@@ -1,0 +1,2 @@
+def {method_name}():
+    return AssignOperator[res_conf.type](partial(self._getter, idx), partial(self._setter, idx))
