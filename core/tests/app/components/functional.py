@@ -2,7 +2,7 @@ from typing import Any, override
 
 from greyhorse.app.abc.collectors import MutNamedCollector, NamedCollector
 from greyhorse.app.abc.controllers import ControllerError
-from greyhorse.app.abc.operators import AssignOperator
+from greyhorse.app.abc.operators import AssignOperator, Operator
 from greyhorse.app.abc.providers import FactoryError, FactoryProvider
 from greyhorse.app.abc.selectors import NamedListSelector, NamedSelector
 from greyhorse.app.abc.services import ProvisionError, ServiceError, ServiceState
@@ -140,10 +140,10 @@ class DictOperatorCtrl(SyncController):
         self._a = Nothing
         self._b = Nothing
 
-    def _setter1(self, value) -> None:
+    def _setter1(self, value: Maybe[DictResContext]) -> None:
         self._a = value
 
-    def _setter2(self, value) -> None:
+    def _setter2(self, value: Maybe[MutDictResContext]) -> None:
         self._b = value
 
     @override
@@ -169,9 +169,9 @@ class DictOperatorCtrl(SyncController):
         return super().teardown(collector)
 
     @operator(DictResContext)
-    def create_op1(self):
+    def create_op1(self) -> Operator[DictResContext]:
         return AssignOperator[DictResContext](lambda: self._a, self._setter1)
 
     @operator(MutDictResContext)
-    def create_op2(self):
+    def create_op2(self) -> Operator[MutDictResContext]:
         return AssignOperator[MutDictResContext](lambda: self._b, self._setter2)

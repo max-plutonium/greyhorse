@@ -7,8 +7,8 @@ from .common.functional import FunctionalOperator
 from .root import FunctionalOperatorCtrl, FunctionalOperatorService
 
 
-def __init__():
-    return ModuleComponentConf(
+def test_app() -> None:
+    app_conf = ModuleComponentConf(
         enabled=True,
         path='..module.main',
         provider_imports=[
@@ -19,10 +19,6 @@ def __init__():
         services=[SvcConf(type=FunctionalOperatorService)],
         controllers=[CtrlConf(type=FunctionalOperatorCtrl)],
     )
-
-
-def test_app() -> None:
-    app_conf = __init__()
 
     app = Application('TestApp')
 

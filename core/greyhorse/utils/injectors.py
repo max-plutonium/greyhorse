@@ -11,10 +11,10 @@ class ParamsInjector:
     def __init__(self, type_providers: TypeProviderFactory | None = None) -> None:
         self._types_providers: dict[type, TypeProviderFactory | Any] = type_providers or {}
 
-    def get_type_provider(self, t: type) -> Maybe[TypeProviderFactory | Any]:
+    def get_type_provider(self, t: type) -> Maybe[TypeProviderFactory | object]:
         return Maybe(self._types_providers.get(t))
 
-    def add_type_provider(self, t: type, p: TypeProviderFactory | Any) -> None:
+    def add_type_provider(self, t: type, p: TypeProviderFactory | object) -> None:
         self._types_providers[t] = p
 
     def remove_type_provider(self, t: type) -> None:
@@ -25,7 +25,7 @@ class ParamsInjector:
         func: Callable[[...], ...],
         values: Mapping[str, Any] | None = None,
         types: Mapping[type, Any] | None = None,
-    ):
+    ) -> inspect.BoundArguments:
         values = values or {}
         types = types or {}
 

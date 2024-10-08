@@ -17,7 +17,7 @@ class Maybe[T](Enum):
     Just = Tuple(T)
     Nothing = Unit()
 
-    def __new__(cls, value: T | None = None):
+    def __new__(cls, value: T | None = None) -> Maybe:
         match cls.__name__:
             case 'Maybe':
                 if value is None:
@@ -31,7 +31,7 @@ class Maybe[T](Enum):
         raise AssertionError()
 
     @classmethod
-    def __new_just__(cls, value):
+    def __new_just__(cls, value: T | None) -> Maybe:
         return super().__new__(Maybe[type(value)].Just)
 
     def __bool__(self) -> bool:
@@ -110,7 +110,8 @@ class Maybe[T](Enum):
 
     def expect(self, message: str) -> T:
         """
-        Returns the contained `Just` value if the `Maybe` is a `Just` or raises a `MaybeUnwrapError`.
+        Returns the contained `Just` value if the `Maybe` is a `Just` or raises a
+        `MaybeUnwrapError`.
         """
         match self:
             case Maybe.Just(v):
@@ -120,7 +121,8 @@ class Maybe[T](Enum):
 
     def unwrap(self) -> T:
         """
-        Returns the contained value if the `Maybe` is a `Just` or raises a `MaybeUnwrapError`.
+        Returns the contained value if the `Maybe` is a `Just` or raises a
+        `MaybeUnwrapError`.
         """
         match self:
             case Maybe.Just(v):
@@ -224,8 +226,8 @@ class Maybe[T](Enum):
 
     def and_then[U](self, f: Callable[[T], Maybe[U]]) -> Maybe[U]:
         """
-        Returns `Nothing` if the Maybe is `Nothing`, otherwise calls `f` with the wrapped value and returns the result.
-        Some languages call this operation flatmap.
+        Returns `Nothing` if the Maybe is `Nothing`, otherwise calls `f` with the
+        wrapped value and returns the result. Some languages call this operation flatmap.
         """
         match self:
             case Maybe.Just(v):
@@ -235,8 +237,8 @@ class Maybe[T](Enum):
 
     async def and_then_async[U](self, f: Callable[[T], Awaitable[Maybe[U]]]) -> Maybe[U]:
         """
-        Returns `Nothing` if the Maybe is `Nothing`, otherwise calls `f` with the wrapped value and returns the result.
-        Some languages call this operation flatmap.
+        Returns `Nothing` if the Maybe is `Nothing`, otherwise calls `f` with the
+        wrapped value and returns the result. Some languages call this operation flatmap.
         """
         match self:
             case Maybe.Just(v):
@@ -246,7 +248,8 @@ class Maybe[T](Enum):
 
     def filter(self, predicate: Callable[[T], bool]) -> Maybe[T]:
         """
-        Returns `Nothing` if the Maybe is `Nothing`, otherwise calls `predicate` with the wrapped value and returns:
+        Returns `Nothing` if the Maybe is `Nothing`, otherwise calls `predicate` with the
+        wrapped value and returns:
         * `Just(t)` if predicate returns true (where t is the wrapped value), and
         * `Nothing` if predicate returns false.
         """

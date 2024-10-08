@@ -13,7 +13,7 @@ def test_sync_context_scalar() -> None:
     mock_context = MagicMock(spec=contextlib.AbstractContextManager)
 
     @contextlib.contextmanager
-    def mock_fn():
+    def mock_fn() -> None:
         with mock_context:
             yield
 
@@ -45,7 +45,7 @@ def test_sync_context_complex() -> None:
     mock_context = MagicMock(spec=contextlib.AbstractContextManager)
 
     @contextlib.contextmanager
-    def mock_fn():
+    def mock_fn() -> None:
         with mock_context:
             yield
 
@@ -78,7 +78,7 @@ async def test_async_context_scalar() -> None:
     mock_context = MagicMock(spec=contextlib.AbstractAsyncContextManager)
 
     @contextlib.asynccontextmanager
-    async def mock_fn():
+    async def mock_fn() -> None:
         async with mock_context:
             yield
 
@@ -104,7 +104,7 @@ async def test_async_context_complex() -> None:
     mock_context = MagicMock(spec=contextlib.AbstractAsyncContextManager)
 
     @contextlib.asynccontextmanager
-    async def mock_fn():
+    async def mock_fn() -> None:
         async with mock_context:
             yield
 

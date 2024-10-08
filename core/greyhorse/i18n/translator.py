@@ -1,5 +1,6 @@
 from importlib.resources import Package, as_file, files
 from pathlib import Path
+from typing import Any
 
 import tomlkit
 
@@ -52,7 +53,7 @@ class StaticTranslator:
         return frozenset(self._defaults.keys())
 
     def __call__(
-        self, key: str, /, lang: str | None = None, default: str = '', **kwargs
+        self, key: str, /, lang: str | None = None, default: str = '', **kwargs: dict[str, Any]
     ) -> str:
         if len(self._defaults) == 1:
             ns = next(iter(self._defaults.keys()))

@@ -20,7 +20,7 @@ class Result[T, E](Enum):
     Ok = Tuple(T)
     Err = Tuple(E)
 
-    def __new__(cls, value: T | E | None = None):
+    def __new__(cls, value: T | E | None = None) -> Result:
         match cls.__name__:
             case 'Result':
                 if isinstance(value, Error):
@@ -34,11 +34,11 @@ class Result[T, E](Enum):
         raise AssertionError()
 
     @classmethod
-    def __new_ok__(cls, value):
+    def __new_ok__(cls, value: T | None) -> Result:
         return super().__new__(Result[type(value), Any].Ok)
 
     @classmethod
-    def __new_err__(cls, value):
+    def __new_err__(cls, value: E) -> Result:
         return super().__new__(Result[Any, type(value)].Err)
 
     def __bool__(self) -> bool:
@@ -58,8 +58,9 @@ class Result[T, E](Enum):
             case Result.Err(_):
 
                 def _iter() -> Iterator[NoReturn]:
-                    # Exception will be raised when the iterator is advanced, not when it's created
-                    raise DoException(self)
+                    # Exception will be raised when the iterator
+                    # is advanced, not when it's created
+                    raise DoError(self)
 
                 return _iter()
 
@@ -141,7 +142,8 @@ class Result[T, E](Enum):
 
     def expect(self, message: str) -> T:
         """
-        Returns the contained `Ok` value if the `Result` is `Ok` or raises a `ResultUnwrapError`.
+        Returns the contained `Ok` value if the `Result` is `Ok` or raises a
+        `ResultUnwrapError`.
         """
         match self:
             case Result.Ok(v):
@@ -151,7 +153,8 @@ class Result[T, E](Enum):
 
     def expect_err(self, message: str) -> E:
         """
-        Returns the contained `Err` value if the `Result` is `Err` or raises a `ResultUnwrapError`.
+        Returns the contained `Err` value if the `Result` is `Err` or raises a
+        `ResultUnwrapError`.
         """
         match self:
             case Result.Ok(v):
@@ -161,7 +164,8 @@ class Result[T, E](Enum):
 
     def unwrap(self) -> T:
         """
-        Returns the contained `Ok` value if the `Result` is `Ok` or raises a `ResultUnwrapError`.
+        Returns the contained `Ok` value if the `Result` is `Ok` or raises a
+        `ResultUnwrapError`.
         """
         match self:
             case Result.Ok(v):
@@ -171,7 +175,8 @@ class Result[T, E](Enum):
 
     def unwrap_err(self) -> E:
         """
-        Returns the contained `Err` value if the `Result` is `Err` or raises a `ResultUnwrapError`.
+        Returns the contained `Err` value if the `Result` is `Err` or raises a
+        `ResultUnwrapError`.
         """
         match self:
             case Result.Ok(v):
@@ -233,8 +238,8 @@ class Result[T, E](Enum):
 
     def map[U](self, f: Callable[[T], U]) -> Result[U, E]:
         """
-        Maps a `Result[T, E]` to `Result[U, E]` by applying a function to a contained `Ok` value,
-        leaving an `Err` value untouched.
+        Maps a `Result[T, E]` to `Result[U, E]` by applying a function to a
+        contained `Ok` value, leaving an `Err` value untouched.
 
         This function can be used to compose the results of two functions.
         """
@@ -246,8 +251,8 @@ class Result[T, E](Enum):
 
     async def map_async[U](self, f: Callable[[T], Awaitable[U]]) -> Result[U, E]:
         """
-        Maps a `Result[T, E]` to `Result[U, E]` by applying a function to a contained `Ok` value,
-        leaving an `Err` value untouched.
+        Maps a `Result[T, E]` to `Result[U, E]` by applying a function to a
+        contained `Ok` value, leaving an `Err` value untouched.
 
         This function can be used to compose the results of two functions.
         """
@@ -270,8 +275,8 @@ class Result[T, E](Enum):
 
     def map_or_else[U](self, default_f: Callable[[E], U], f: Callable[[T], U]) -> U:
         """
-        Maps a `Result[T, E]` to `U` by applying fallback function `default` to a contained `Err` value,
-        or function `f` to a contained `Ok` value.
+        Maps a `Result[T, E]` to `U` by applying fallback function `default` to a
+        contained `Err` value, or function `f` to a contained `Ok` value.
 
         This function can be used to unpack a successful result while handling an error.
         """
@@ -283,8 +288,8 @@ class Result[T, E](Enum):
 
     def map_err[F](self, f: Callable[[E], F]) -> Result[T, F]:
         """
-        Maps a `Result[T, E]` to `Result[T, F]` by applying a function to a contained `Err` value,
-        leaving an `Ok` value untouched.
+        Maps a `Result[T, E]` to `Result[T, F]` by applying a function to a
+        contained `Err` value, leaving an `Ok` value untouched.
 
         This function can be used to pass through a successful result while handling an error.
         """
@@ -415,7 +420,7 @@ class ResultUnwrapError[V](Exception):
         return self._value
 
 
-class DoException(Exception):
+class DoError(Exception):
     """
     This is used to signal to `do()` that the result is an `Err`,
     which short-circuits the generator and returns that Err.
@@ -547,7 +552,7 @@ def do[T, E](gen: Generator[Result[T, E], None, None]) -> Result[T, E]:
     """
     try:
         return next(gen)
-    except DoException as e:
+    except DoError as e:
         out: Err[E] = e.err  # type: ignore
         return out
     except TypeError as te:
@@ -558,7 +563,7 @@ def do[T, E](gen: Generator[Result[T, E], None, None]) -> Result[T, E]:
             raise TypeError(
                 'Got async_generator but expected generator.'
                 'See the section on do notation in the README.'
-            )
+            ) from te
         raise te
 
 
@@ -615,6 +620,6 @@ async def do_async[T, E](
         if isinstance(gen, AsyncGenerator):
             return await gen.__anext__()
         return next(gen)
-    except DoException as e:
+    except DoError as e:
         out: Err[E] = e.err  # type: ignore
         return out

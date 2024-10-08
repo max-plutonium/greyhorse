@@ -11,7 +11,7 @@ from .common.functional import FunctionalOperator
 from .root import FunctionalOperatorCtrl, FunctionalOperatorService
 
 
-def __init__():
+def __init__() -> ModuleConf:  # noqa: N807
     return ModuleConf(
         enabled=True,
         can_provide=[FunctionalOperator],
@@ -42,7 +42,7 @@ def test_module() -> None:
 
     op_maybe: Maybe[FunctionalOperator] = Nothing
 
-    def assign(value) -> None:
+    def assign(value: Maybe) -> None:
         nonlocal op_maybe
         op_maybe = value
 

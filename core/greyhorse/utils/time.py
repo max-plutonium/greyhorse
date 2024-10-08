@@ -19,11 +19,12 @@ def calc_next_interval(
 
     initial_period: Initial value of the period.
     iteration: Current iteration number.
-    iteration_divisor: Iteration divider, for the ability to change the interval not every iteration, but after several.
+    iteration_divisor: Iteration divider, for the ability to change the interval
+    not every iteration, but after several.
     max_seconds: Maximum period duration in seconds.
     """
 
-    def calc_interval(initial: float, iterations: int):
+    def calc_interval(initial: float, iterations: int) -> float:
         f = initial
         for i in range(iterations):
             f *= 2.0 if i % 2 == 0 else 1.5

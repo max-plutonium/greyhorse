@@ -1,8 +1,9 @@
+from collections.abc import Callable
 from functools import partial
 from importlib import import_module
 
 
-def import_path(dotted_path: str, package: str | None = None):
+def import_path(dotted_path: str, package: str | None = None) -> object:
     if ':' in dotted_path:
         module_path, attr_path = dotted_path.rsplit(':', maxsplit=1)
     else:
@@ -19,17 +20,20 @@ def import_path(dotted_path: str, package: str | None = None):
     return getattr(module, attr_path)
 
 
-def lazy_import(dotted_path: str, callable: bool = False, as_partial: bool = False):
+def lazy_import(
+    dotted_path: str, callable: bool = False, as_partial: bool = False
+) -> Callable[[], object]:
     if callable:
 
-        def inner(*args, **kwargs):
+        def inner(*args, **kwargs) -> object:  # noqa: ANN002,ANN003
+            obj = import_path(dotted_path)
             if as_partial:
-                return partial(import_path(dotted_path), *args, **kwargs)
-            return import_path(dotted_path)(*args, **kwargs)
+                return partial(obj, *args, **kwargs)
+            return obj(*args, **kwargs)
 
     else:
 
-        def inner():
+        def inner() -> object:
             return import_path(dotted_path)
 
     return inner

@@ -2,20 +2,20 @@ from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
 
-def dict_values_to_str(data: dict):
-    result = dict()
+def dict_values_to_str(data: dict) -> dict:
+    result = {}
 
     for k, v in data.items():
         if isinstance(v, str):
-            pass
+            value = v
         elif isinstance(v, dict):
-            v = dict_values_to_str(v)
+            value = dict_values_to_str(v)
         elif isinstance(v, list):
-            v = [str(i) for i in v]
+            value = [str(i) for i in v]
         else:
-            v = str(v)
+            value = str(v)
 
-        result[str(k)] = v
+        result[str(k)] = value
 
     return result
 
@@ -23,7 +23,7 @@ def dict_values_to_str(data: dict):
 def build_dict_from_dotted_keys(
     iterable: Iterable, key_getter: Callable[[Any], Any], value_getter: Callable[[Any], Any]
 ) -> Mapping[str, Any]:
-    result = dict()
+    result = {}
 
     for obj in iterable:
         keys = key_getter(obj).split('.')
@@ -46,16 +46,16 @@ def build_dotted_keys_from_dict(
     dict_: Mapping[str, Any], root_key: str | None = None
 ) -> Mapping[str, Any]:
     def traverse(key_stack: list[str], values: Mapping[str, Any]) -> Mapping[str, Any]:
-        result = dict()
+        result = {}
 
         for k, v in values.items():
             if isinstance(v, dict):
                 result.update(traverse([*key_stack, k], v))
             elif isinstance(v, list):
                 for i in v:
-                    i = traverse([*key_stack, k], i)
-                    if isinstance(i, dict):
-                        result |= i
+                    res = traverse([*key_stack, k], i)
+                    if isinstance(res, dict):
+                        result |= res
             else:
                 result['.'.join([*key_stack, k])] = v
 
@@ -66,7 +66,7 @@ def build_dotted_keys_from_dict(
 
 def obj_dict_to_str_dict(data: dict, value_getter: Callable[[Any], Any]) -> Mapping[str, Any]:
     def traverse(values: Mapping[str, Any]) -> Mapping[str, Any]:
-        result = dict()
+        result = {}
 
         for k, v in values.items():
             if isinstance(v, dict):

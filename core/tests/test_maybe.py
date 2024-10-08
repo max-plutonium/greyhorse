@@ -71,8 +71,8 @@ def test_maybe() -> None:
 
     assert maybe_just.unwrap_or_raise(Exception) == 123
 
-    with pytest.raises(Exception):
-        maybe_none.unwrap_or_raise(Exception)
+    with pytest.raises(ArithmeticError):
+        maybe_none.unwrap_or_raise(ArithmeticError)
 
     assert Just(134) == maybe_just.map(lambda i: i + 11)
     assert Nothing is maybe_none.map(lambda i: i + 11)

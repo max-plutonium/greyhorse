@@ -114,8 +114,8 @@ def test_result() -> None:
 
     assert result_ok.unwrap_or_raise(Exception) == 123
 
-    with pytest.raises(Exception):
-        result_err.unwrap_or_raise(Exception)
+    with pytest.raises(ArithmeticError):
+        result_err.unwrap_or_raise(ArithmeticError)
 
     assert Ok(134) == result_ok.map(lambda i: i + 11)
     assert Err('err') == result_err.map(lambda i: i + 11)
@@ -170,7 +170,7 @@ def test_as_result_sync() -> None:
     assert isinstance(f(0).unwrap_err(), ValueError)
     assert isinstance(f(1).unwrap_err(), IndexError)
 
-    with pytest.raises(Exception):
+    with pytest.raises(KeyError):
         f(2)
 
     assert Ok(3) == f(3)
@@ -191,14 +191,14 @@ async def test_as_result_async() -> None:
     assert isinstance((await f(0)).unwrap_err(), ValueError)
     assert isinstance((await f(1)).unwrap_err(), IndexError)
 
-    with pytest.raises(Exception):
+    with pytest.raises(KeyError):
         await f(2)
 
     assert Ok(3) == await f(3)
 
 
 def test_do_sync() -> None:
-    def get_result(i: int = 1):
+    def get_result(i: int = 1) -> Result:
         if i < 3:
             return Ok(i)
         return Err(i)
@@ -216,7 +216,7 @@ def test_do_sync() -> None:
 
 @pytest.mark.asyncio
 async def test_do_async() -> None:
-    async def get_result(i: int = 1):
+    async def get_result(i: int = 1) -> Result:
         if i < 3:
             return Ok(i)
         return Err(i)

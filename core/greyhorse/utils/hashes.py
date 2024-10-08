@@ -1,12 +1,11 @@
 import hashlib
-from typing import Any
 
 from orjson import orjson
 
 from greyhorse.utils.dicts import dict_values_to_str
 
 
-def calculate_digest(data: Any, size: int = 0) -> str:
+def calculate_digest(data: object, size: int = 0) -> str:
     if isinstance(data, dict):
         dumped = orjson.dumps(dict_values_to_str(data))
     else:

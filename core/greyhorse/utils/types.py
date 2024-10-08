@@ -1,5 +1,5 @@
 from types import EllipsisType, NoneType, UnionType, new_class
-from typing import TypeVar, TypeVarTuple
+from typing import Any, TypeVar, TypeVarTuple
 
 from .strings import capitalize
 
@@ -41,7 +41,7 @@ class TypeWrapper[T]:
             type_name = type_name + cls.__name__
         return type_name
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: dict[str, Any]) -> None:
         if spec := kwargs.pop('spec', None):
             if not isinstance(spec, list):
                 spec = [spec]
@@ -54,7 +54,7 @@ class TypeWrapper[T]:
 
     def __class_getitem__(
         cls, types: type | TypeVar | TypeVarTuple | tuple[type | TypeVar | TypeVarTuple, ...]
-    ):
+    ) -> type:
         if isinstance(types, TypeVar | TypeVarTuple):
             # noinspection PyUnresolvedReferences
             return super().__class_getitem__(types)

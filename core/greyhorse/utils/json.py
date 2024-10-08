@@ -5,18 +5,18 @@ from typing import Any
 from orjson import orjson
 
 
-def stringify(obj):
+def stringify(obj: object) -> str:
     if isinstance(obj, decimal.Decimal):
         return str(obj)
     raise TypeError
 
 
 def dumps_raw(
-    content: Any,
+    content: object,
     use_indent: bool = False,
     sort_keys: bool = False,
     stringify_fn: Callable[[Any], str] | None = None,
-    **kwargs,
+    **kwargs: dict[str, Any],
 ) -> bytes:
     option = orjson.OPT_SERIALIZE_UUID
     if use_indent:
@@ -27,14 +27,14 @@ def dumps_raw(
 
 
 def dumps(
-    content: Any,
+    content: object,
     use_indent: bool = False,
     sort_keys: bool = False,
     stringify_fn: Callable[[Any], str] | None = None,
-    **kwargs,
+    **kwargs: dict[str, Any],
 ) -> str:
     return dumps_raw(content, use_indent, sort_keys, stringify_fn, **kwargs).decode('utf-8')
 
 
-def loads(data: bytes | bytearray | memoryview | str) -> Any:
+def loads(data: bytes | bytearray | memoryview | str) -> object:
     return orjson.loads(data)

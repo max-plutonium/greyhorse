@@ -1,4 +1,4 @@
-from greyhorse.app.abc.operators import AssignOperator
+from greyhorse.app.abc.operators import AssignOperator, Operator
 from greyhorse.app.abc.providers import SharedProvider
 from greyhorse.app.boxes import SharedRefBox
 from greyhorse.app.entities.controllers import SyncController, operator
@@ -20,7 +20,7 @@ class FunctionalOperatorService(SyncService):
         self._res = res
 
     @provider(SharedProvider[FunctionalOperator])
-    def create_op(self):
+    def create_op(self) -> SharedProvider[FunctionalOperator] | None:
         if not self._res:
             return None
         return SharedRefBox(self.get_res, lambda v: v)
@@ -32,5 +32,5 @@ class FunctionalOperatorCtrl(SyncController):
         self._svc = svc
 
     @operator(FunctionalOperator)
-    def create_op(self):
+    def create_op(self) -> Operator[FunctionalOperator]:
         return AssignOperator[FunctionalOperator](self._svc.get_res, self._svc.set_res)

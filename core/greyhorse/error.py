@@ -35,11 +35,11 @@ class Error(Enum):
 
         return msg.format(**values)
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: dict[str, Any]) -> None:
         if 'tr' in kwargs:
             assert isinstance(kwargs['tr'], StaticTranslator)
             cls._tr = kwargs.pop('tr')
-        return super().__init_subclass__(**kwargs)
+        super().__init_subclass__(**kwargs)
 
     def to_result(self) -> Result[Any, Self]:
         from .result import Err
@@ -50,5 +50,5 @@ class Error(Enum):
 class ErrorCase(Struct):
     __slots__ = ('msg', 'code')
 
-    def _repr_fn(self, instance) -> str:
+    def _repr_fn(self, instance: Error) -> str:
         return f'{self._base.__name__}:{self._name}("{instance.message}")'

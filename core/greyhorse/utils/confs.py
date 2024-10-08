@@ -1,10 +1,9 @@
 import os
-from collections.abc import Mapping
-from typing import Any
+from collections.abc import Callable, Mapping
 
 
-def default_value(type_: type):
-    def getter(value: Any, default: Any):
+def default_value(type_: type) -> Callable[[object, object], object]:
+    def getter(value: object, default: object) -> object:
         return type_(value) if value is not None else default
 
     return getter

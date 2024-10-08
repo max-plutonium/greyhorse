@@ -1,30 +1,36 @@
 import asyncio
 import inspect
-from asyncio import Future, get_running_loop, iscoroutine, iscoroutinefunction
+from asyncio import (
+    AbstractEventLoop,
+    Future,
+    get_running_loop,
+    iscoroutine,
+    iscoroutinefunction,
+)
 from asyncio import run as run_main
 from collections.abc import Callable
 from functools import partial
 
 
-def is_awaitable(f):
+def is_awaitable(f: object) -> bool:
     while isinstance(f, partial):
         f = f.func
     return iscoroutinefunction(f) or inspect.isawaitable(f)
 
 
-def is_like_sync_context_manager(instance) -> bool:
+def is_like_sync_context_manager(instance: object) -> bool:
     if callable(instance) and inspect.isgeneratorfunction(inspect.unwrap(instance)):
         instance = instance()
     return hasattr(instance, '__enter__') and hasattr(instance, '__exit__')
 
 
-def is_like_async_context_manager(instance) -> bool:
+def is_like_async_context_manager(instance: object) -> bool:
     if callable(instance) and inspect.isasyncgenfunction(inspect.unwrap(instance)):
         instance = instance()
     return hasattr(instance, '__aenter__') and hasattr(instance, '__aexit__')
 
 
-def get_asyncio_loop():
+def get_asyncio_loop() -> AbstractEventLoop | None:
     try:
         return get_running_loop()
     except RuntimeError:
