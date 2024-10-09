@@ -1,4 +1,6 @@
 import sys
+from collections.abc import Callable
+from typing import cast
 
 import pydantic
 
@@ -93,7 +95,7 @@ class ModuleLoader:
         logger.info('ModuleLoader: Try to load module "{path}"'.format(path=module_path))
 
         try:
-            func = import_path(f'{module_path}:__init__')
+            func = cast(Callable[[...], ModuleConf], import_path(f'{module_path}:__init__'))
 
         except (ImportError, AttributeError) as e:
             error = ModuleLoadError.WrongImport(path=module_path, details=str(e))
@@ -130,7 +132,7 @@ class ModuleLoader:
         logger.info('ModuleLoader: Try to unload module "{path}"'.format(path=module_path))
 
         try:
-            func = import_path(f'{module_path}:__fini__')
+            func = cast(Callable[[...], None], import_path(f'{module_path}:__fini__'))
 
         except (ImportError, AttributeError):
             pass

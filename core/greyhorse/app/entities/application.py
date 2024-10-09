@@ -92,7 +92,7 @@ class Application:
 
         if not (
             res := load_module(self._name, conf).map_err(
-                lambda e: ApplicationError.Load(details=e.message)
+                lambda err: ApplicationError.Load(details=err.message)
             )
         ):
             return res  # type: ignore
@@ -197,9 +197,9 @@ class Application:
         for svc in self._services:
             match svc.waiter:
                 case ServiceWaiter.Sync() as event:
-                    sync_events.append(event._0)
+                    sync_events.append(event._0)  # noqa
                 case ServiceWaiter.Async() as event:
-                    async_events.append(event._0)
+                    async_events.append(event._0)  # noqa
 
         all_events = sync_events + async_events
 
@@ -228,9 +228,9 @@ class Application:
         for svc in self._services:
             match svc.waiter:
                 case ServiceWaiter.Sync() as event:
-                    sync_events.append(event._0)
+                    sync_events.append(event._0)  # noqa
                 case ServiceWaiter.Async() as event:
-                    async_events.append(event._0)
+                    async_events.append(event._0)  # noqa
 
         all_events = sync_events + async_events
 

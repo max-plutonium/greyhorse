@@ -58,7 +58,7 @@ class ModuleBuilder:
         logger.info('{path}: Module create'.format(path=self._path))
 
         if not (res := self._create_components()):
-            return res
+            return res  # type: ignore
 
         components = res.unwrap()
 
@@ -119,12 +119,12 @@ class ModuleBuilder:
 
         if not (
             res := load_module(f'{self._path}.{name}', conf).map_err(
-                lambda e: ComponentBuildError.Submodule(
-                    path=self._path, name=name, details=e.message
+                lambda err: ComponentBuildError.Submodule(
+                    path=self._path, name=name, details=err.message
                 )
             )
         ):
-            return res
+            return res  # type: ignore
 
         module = res.unwrap()
 
@@ -225,7 +225,7 @@ def load_module(path: str, conf: ModuleComponentConf) -> Result[Module, ModuleBu
             lambda e: ModuleBuildError.LoadError(path=conf.path, details=e.message)
         )
     ):
-        return res
+        return res  # type: ignore
 
     module_conf = res.unwrap()
     builder = ModuleBuilder(module_conf, path)
@@ -238,7 +238,7 @@ def load_module(path: str, conf: ModuleComponentConf) -> Result[Module, ModuleBu
 
 
 def unload_module(path: str, conf: ModuleComponentConf) -> Result[None, ModuleBuildError]:
-    builder = ModuleBuilder(conf._conf, path)
+    builder = ModuleBuilder(conf._conf, path)  # noqa
 
     if not (res := builder.destroy_pass()):
         return res
