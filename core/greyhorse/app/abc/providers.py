@@ -23,6 +23,17 @@ class BorrowError(Error):
         name=str,
     )
 
+    Unexpected = ErrorCase(
+        msg='Cannot borrow "{name}" as immutable because an unexpected error occurred: "{details}"',
+        name=str,
+        details=str,
+    )
+
+    InsufficientDeps = ErrorCase(
+        msg='Cannot borrow "{name}" as immutable because dependencies are not enough to satisfy',
+        name=str,
+    )
+
 
 class BorrowMutError(Error):
     namespace = 'greyhorse.app'
@@ -44,14 +55,29 @@ class BorrowMutError(Error):
         name=str,
     )
 
+    Unexpected = ErrorCase(
+        msg='Cannot borrow "{name}" as mutable because an unexpected error occurred: "{details}"',
+        name=str,
+        details=str,
+    )
+
+    InsufficientDeps = ErrorCase(
+        msg='Cannot borrow "{name}" as mutable because dependencies are not enough to satisfy',
+        name=str,
+    )
+
 
 class FactoryError(Error):
     namespace = 'greyhorse.app'
 
-    Internal = ErrorCase(
-        msg='Cannot construct "{name}" because an internal error occurred: "{details}"',
+    Unexpected = ErrorCase(
+        msg='Cannot construct "{name}" because an unexpected error occurred: "{details}"',
         name=str,
         details=str,
+    )
+
+    InsufficientDeps = ErrorCase(
+        msg='Cannot construct "{name}" because dependencies are not enough to satisfy', name=str
     )
 
 
@@ -62,6 +88,16 @@ class ForwardError(Error):
 
     MovedOut = ErrorCase(
         msg='Cannot forward "{name}" because the value was moved out', name=str
+    )
+
+    Unexpected = ErrorCase(
+        msg='Cannot forward "{name}" because an unexpected error occurred: "{details}"',
+        name=str,
+        details=str,
+    )
+
+    InsufficientDeps = ErrorCase(
+        msg='Cannot forward "{name}" because dependencies are not enough to satisfy', name=str
     )
 
 
