@@ -52,16 +52,14 @@ class Module:
 
     # XXX: module providers
     def add_provider[T](self, prov_type: type[Provider[T]], provider: Provider[T]) -> bool:
-        for prov_claim in self._conf.provider_claims:
-            if prov_type in prov_claim.providers:
-                return self._providers.add(prov_type, provider)
+        if prov_type in self._conf.provider_claims:
+            return self._providers.add(prov_type, provider)
         return False
 
     # XXX: module providers
     def remove_provider[T](self, prov_type: type[Provider[T]]) -> bool:
-        for prov_claim in self._conf.provider_claims:
-            if prov_type in prov_claim.providers:
-                return self._providers.remove(prov_type)
+        if prov_type in self._conf.provider_claims:
+            return self._providers.remove(prov_type)
         return False
 
     def add_resource(self, res_type: type, resource: Any, name: str | None = None) -> bool:
@@ -114,7 +112,7 @@ class Module:
                 return res
 
             for res_type in comp_conf.operator_imports:
-                for op in component.get_operators(res_type):
+                for op in component.get_operators(res_type):  # type: ignore
                     if not (
                         res := self._rm.setup_resource(op, self._providers).map_err(
                             lambda e: ModuleError.Resource(path=self._path, details=e.message)
@@ -129,10 +127,9 @@ class Module:
             ):
                 return res
 
-            for prov_conf in comp_conf.provider_imports:
-                for prov_type in prov_conf.providers:
-                    if prov := component.get_provider(prov_type).unwrap_or_none():
-                        self._providers.add(prov_type, prov)
+            for prov_type in comp_conf.providers:
+                if prov := component.get_provider(prov_type).unwrap_or_none():
+                    self._providers.add(prov_type, prov)
 
         for op in self._operators:
             if not (
@@ -159,9 +156,8 @@ class Module:
         for component in reversed(self._components.values()):
             comp_conf = self._conf.components[component.name]
 
-            for prov_conf in reversed(comp_conf.provider_imports):
-                for prov_type in reversed(prov_conf.providers):
-                    self._providers.remove(prov_type)
+            for prov_type in reversed(comp_conf.providers):
+                self._providers.remove(prov_type)
 
             if not (
                 res := component.teardown().map_err(
@@ -171,7 +167,7 @@ class Module:
                 return res
 
             for res_type in reversed(comp_conf.operator_imports):
-                for op in component.get_operators(res_type):
+                for op in component.get_operators(res_type):  # type: ignore
                     if not (
                         res := self._rm.teardown_resource(op).map_err(
                             lambda e: ModuleError.Resource(path=self._path, details=e.message)
@@ -187,9 +183,8 @@ class Module:
                 return res
 
             # XXX: component providers
-            # for prov_conf in reversed(comp_conf.provider_grants):
-            #     for prov_type in reversed(prov_conf.providers):
-            #         component.remove_provider(prov_type)
+            # for prov_type in reversed(comp_conf.provider_grants):
+            #     component.remove_provider(prov_type)
 
             for res_type in reversed(comp_conf.resource_grants):
                 component.remove_resource(res_type)

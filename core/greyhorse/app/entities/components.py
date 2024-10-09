@@ -437,18 +437,17 @@ class ModuleComponent(Component):
         if not (res := super().setup()):
             return res
 
-        for res_type in self._module.conf.can_provide:
-            for op in self._operators[res_type]:
-                self._module.add_operator(op)
+        # XXX: module providers
+        for prov_type in self._module.conf.provider_claims:
+            if prov := self.get_provider(prov_type).unwrap_or_none():
+                self._module.add_provider(prov_type, prov)
 
         for res_type, res_name, res in self._resources.items():
             self._module.add_resource(res_type, res, res_name)
 
-        # XXX: module providers
-        for prov_claim in self._module.conf.provider_claims:
-            for prov_type in prov_claim.providers:
-                if prov := self.get_provider(prov_type).unwrap_or_none():
-                    self._module.add_provider(prov_type, prov)
+        for res_type in self._module.conf.can_provide:
+            for op in self._operators[res_type]:
+                self._module.add_operator(op)
 
         if not (
             res := self._module.setup().map_err(
@@ -471,16 +470,15 @@ class ModuleComponent(Component):
         ):
             return res
 
-        # XXX: module providers
-        for prov_claim in self._module.conf.provider_claims:
-            for prov_type in prov_claim.providers:
-                self._module.remove_provider(prov_type)
+        for res_type in self._module.conf.can_provide:
+            for op in self._operators[res_type]:
+                self._module.remove_operator(op)
 
         for res_type, res_name, _ in self._resources.items():
             self._module.remove_resource(res_type, res_name)
 
-        for res_type in self._module.conf.can_provide:
-            for op in self._operators[res_type]:
-                self._module.remove_operator(op)
+        # XXX: module providers
+        for prov_type in self._module.conf.provider_claims:
+            self._module.remove_provider(prov_type)
 
         return super().teardown()

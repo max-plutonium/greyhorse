@@ -1,6 +1,6 @@
 from greyhorse.app.abc.providers import SharedProvider
 from greyhorse.app.entities.application import Application
-from greyhorse.app.schemas.components import ModuleComponentConf, ProvidersConf
+from greyhorse.app.schemas.components import ModuleComponentConf
 from greyhorse.app.schemas.elements import CtrlConf, SvcConf
 
 from .common.functional import FunctionalOperator
@@ -11,11 +11,7 @@ def test_app() -> None:
     app_conf = ModuleComponentConf(
         enabled=True,
         path='..module.main',
-        provider_imports=[
-            ProvidersConf(
-                resource=FunctionalOperator, providers=[SharedProvider[FunctionalOperator]]
-            )
-        ],
+        providers=[SharedProvider[FunctionalOperator]],
         services=[SvcConf(type=FunctionalOperatorService)],
         controllers=[CtrlConf(type=FunctionalOperatorCtrl)],
     )

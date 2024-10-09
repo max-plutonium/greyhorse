@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from greyhorse.app.abc.operators import AssignOperator
 from greyhorse.app.abc.providers import SharedProvider
+from greyhorse.app.boxes import PermanentForwardBox
 from greyhorse.app.builders.module import ModuleBuilder
-from greyhorse.app.schemas.components import ModuleComponentConf, ModuleConf, ProvidersConf
+from greyhorse.app.schemas.components import ModuleComponentConf, ModuleConf
 from greyhorse.app.schemas.elements import CtrlConf, SvcConf
-from greyhorse.maybe import Maybe, Nothing
 
 from .common.functional import FunctionalOperator
 from .root import FunctionalOperatorCtrl, FunctionalOperatorService
@@ -19,12 +18,7 @@ def __init__() -> ModuleConf:  # noqa: N807
             'dict': ModuleComponentConf(
                 enabled=True,
                 path='..module.main',
-                provider_imports=[
-                    ProvidersConf(
-                        resource=FunctionalOperator,
-                        providers=[SharedProvider[FunctionalOperator]],
-                    )
-                ],
+                providers=[SharedProvider[FunctionalOperator]],
                 services=[SvcConf(type=FunctionalOperatorService)],
                 controllers=[CtrlConf(type=FunctionalOperatorCtrl)],
             )
@@ -40,22 +34,16 @@ def test_module() -> None:
     assert res.is_ok()
     module = res.unwrap()
 
-    op_maybe: Maybe[FunctionalOperator] = Nothing
+    op_box = PermanentForwardBox[FunctionalOperator]()
 
-    def assign(value: Maybe) -> None:
-        nonlocal op_maybe
-        op_maybe = value
-
-    sub_operator = AssignOperator[FunctionalOperator](lambda: op_maybe, assign)
-
-    assert module.add_operator(sub_operator)
+    assert module.add_operator(op_box)
 
     res = module.setup()
     assert res.is_ok()
 
     print('OK')
 
-    op = op_maybe.unwrap()
+    op = op_box.take().unwrap()
 
     res = op.add_number(123)
     assert res.is_ok()
