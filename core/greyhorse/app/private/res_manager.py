@@ -1,6 +1,7 @@
 from collections import OrderedDict, defaultdict
 from collections.abc import Iterable
 from functools import partial
+from types import GeneratorType
 
 import networkx as nx
 
@@ -19,6 +20,7 @@ from ..abc.providers import (
 )
 from ..abc.selectors import Selector
 from ..abc.services import ProviderMember, Service
+from ..boxes import FactoryGenBox, ForwardGenBox, MutGenBox, SharedGenBox
 from ..registries import MutDictRegistry
 from .mappers import SyncResourceMapper
 
@@ -147,7 +149,8 @@ class ResourceManager:
 
         match invoke_sync(factory, *injected_args.args, **injected_args.kwargs):
             case Ok(prov) | (Provider() as prov):
-                self._cached_providers.add(prov_type, prov)
+                if not issubclass(prov_type, ForwardProvider):
+                    self._cached_providers.add(prov_type, prov)
                 return Ok(prov)
 
             case Err(e):
@@ -156,8 +159,30 @@ class ResourceManager:
             case None:
                 return ResourceError.NoSuchResource(resource=prov_type.__name__).to_result()
 
-            case _:
-                raise AssertionError()
+            case GeneratorType() as gen:
+                if issubclass(prov_type, SharedProvider):
+                    prov = SharedGenBox[prov_type.__wrapped_type__](
+                        partial(factory, *injected_args.args, **injected_args.kwargs)
+                    )
+                    self._cached_providers.add(prov_type, prov)
+                    return Ok(prov)
+                if issubclass(prov_type, MutProvider):
+                    prov = MutGenBox[prov_type.__wrapped_type__](
+                        partial(factory, *injected_args.args, **injected_args.kwargs)
+                    )
+                    self._cached_providers.add(prov_type, prov)
+                    return Ok(prov)
+                if issubclass(prov_type, FactoryProvider):
+                    prov = FactoryGenBox[prov_type.__wrapped_type__](
+                        partial(factory, *injected_args.args, **injected_args.kwargs)
+                    )
+                    self._cached_providers.add(prov_type, prov)
+                    return Ok(prov)
+                if issubclass(prov_type, ForwardProvider):
+                    prov = ForwardGenBox[prov_type.__wrapped_type__](gen)
+                    return Ok(prov)
+
+        raise AssertionError('Unexpected return value returned from provider method')
 
     def setup_resource[T](
         self, operator: Operator[T], providers: Selector[type[Provider], Provider] | None = None
