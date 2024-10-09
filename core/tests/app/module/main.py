@@ -15,7 +15,7 @@ from ..components.resources import DictProviderService
 def __init__() -> ModuleConf:  # noqa: N807
     return ModuleConf(
         enabled=True,
-        can_provide=[FunctionalOperator],
+        operators=[FunctionalOperator],
         components={
             'domain': ComponentConf(
                 enabled=True,

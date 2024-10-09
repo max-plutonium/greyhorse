@@ -85,7 +85,9 @@ class Component:
         visitor.finish_component(self)
 
     def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
-        return self._rm.find_provider(prov_type).map(Just).unwrap_or(Nothing)
+        if prov_type in self._conf.providers:
+            return self._rm.find_provider(prov_type).map(Just).unwrap_or(Nothing)
+        return Nothing
 
     def get_operators[T](self, res_type: type[T]) -> Iterable[Operator[T]]:
         if res_type in self._conf.operators:
@@ -101,10 +103,14 @@ class Component:
     #     return self._providers.remove(prov_type)
 
     def add_resource(self, res_type: type, resource: Any, name: str | None = None) -> bool:
-        return self._resources.add(res_type, resource, name=name)
+        if res_type in self._conf.resource_claims:
+            return self._resources.add(res_type, resource, name=name)
+        return False
 
     def remove_resource(self, res_type: type, name: str | None = None) -> bool:
-        return self._resources.remove(res_type, name=name)
+        if res_type in self._conf.resource_claims:
+            return self._resources.remove(res_type, name=name)
+        return False
 
     def add_controller(self, controller: Controller) -> bool:
         if self._controllers.count(controller):
@@ -437,15 +443,15 @@ class ModuleComponent(Component):
         if not (res := super().setup()):
             return res
 
-        # XXX: module providers
         for prov_type in self._module.conf.provider_claims:
             if prov := self.get_provider(prov_type).unwrap_or_none():
                 self._module.add_provider(prov_type, prov)
 
-        for res_type, res_name, res in self._resources.items():
-            self._module.add_resource(res_type, res, res_name)
+        for res_type in self._module.conf.resource_claims:
+            if res := self._resources.get(res_type).unwrap_or_none():
+                self._module.add_resource(res_type, res)
 
-        for res_type in self._module.conf.can_provide:
+        for res_type in self._module.conf.operators:
             for op in self._operators[res_type]:
                 self._module.add_operator(op)
 
@@ -470,15 +476,14 @@ class ModuleComponent(Component):
         ):
             return res
 
-        for res_type in self._module.conf.can_provide:
+        for res_type in reversed(self._module.conf.operators):
             for op in self._operators[res_type]:
                 self._module.remove_operator(op)
 
-        for res_type, res_name, _ in self._resources.items():
-            self._module.remove_resource(res_type, res_name)
+        for res_type in reversed(self._module.conf.resource_claims):
+            self._module.remove_resource(res_type)
 
-        # XXX: module providers
-        for prov_type in self._module.conf.provider_claims:
+        for prov_type in reversed(self._module.conf.provider_claims):
             self._module.remove_provider(prov_type)
 
         return super().teardown()

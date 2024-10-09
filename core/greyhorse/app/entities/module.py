@@ -9,6 +9,7 @@ from greyhorse.app.registries import MutDictRegistry, MutNamedDictRegistry
 from greyhorse.app.schemas.components import ModuleConf
 from greyhorse.error import Error, ErrorCase
 from greyhorse.logging import logger
+from greyhorse.maybe import Maybe, Just, Nothing
 from greyhorse.result import Ok, Result
 
 
@@ -50,13 +51,16 @@ class Module:
             comp.accept_visitor(visitor)
         visitor.finish_module(self)
 
-    # XXX: module providers
+    def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
+        if prov_type in self._conf.providers:
+            return self._rm.find_provider(prov_type, self._providers).map(Just).unwrap_or(Nothing)
+        return Nothing
+
     def add_provider[T](self, prov_type: type[Provider[T]], provider: Provider[T]) -> bool:
         if prov_type in self._conf.provider_claims:
             return self._providers.add(prov_type, provider)
         return False
 
-    # XXX: module providers
     def remove_provider[T](self, prov_type: type[Provider[T]]) -> bool:
         if prov_type in self._conf.provider_claims:
             return self._providers.remove(prov_type)
@@ -73,14 +77,14 @@ class Module:
         return False
 
     def add_operator[T](self, operator: Operator[T]) -> bool:
-        for res_type in self._conf.can_provide:
+        for res_type in self._conf.operators:
             if issubclass(res_type, operator.wrapped_type):
                 self._operators.append(operator)
                 return True
         return False
 
     def remove_operator[T](self, operator: Operator[T]) -> bool:
-        for res_type in self._conf.can_provide:
+        for res_type in self._conf.operators:
             if issubclass(res_type, operator.wrapped_type):
                 self._operators.remove(operator)
                 return True
@@ -97,12 +101,11 @@ class Module:
                     component.add_resource(res_type, res)
 
             # XXX: component providers
-            # for prov_conf in comp_conf.provider_grants:
-            #     for prov_type in prov_conf.providers:
-            #         for _, prov in self._providers.items(
-            #             lambda t, pt=prov_type: issubclass(t, pt)
-            #         ):
-            #             component.add_provider(prov_type, prov)
+            # for prov_type in prov_conf.providers:
+            #     for _, prov in self._providers.items(
+            #         lambda t, pt=prov_type: issubclass(t, pt)
+            #     ):
+            #         component.add_provider(prov_type, prov)
 
             if not (
                 res := component.create().map_err(

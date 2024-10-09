@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from greyhorse.app.abc.providers import SharedProvider
+from greyhorse.app.abc.providers import SharedProvider, FactoryProvider
 from greyhorse.app.boxes import PermanentForwardBox
 from greyhorse.app.builders.module import ModuleBuilder
 from greyhorse.app.schemas.components import ModuleComponentConf, ModuleConf
@@ -13,12 +13,13 @@ from .root import FunctionalOperatorCtrl, FunctionalOperatorService
 def __init__() -> ModuleConf:  # noqa: N807
     return ModuleConf(
         enabled=True,
-        can_provide=[FunctionalOperator],
+        operators=[FunctionalOperator],
+        providers=[FactoryProvider[FunctionalOperator]],
         components={
             'dict': ModuleComponentConf(
                 enabled=True,
                 path='..module.main',
-                providers=[SharedProvider[FunctionalOperator]],
+                providers=[SharedProvider[FunctionalOperator], FactoryProvider[FunctionalOperator]],
                 services=[SvcConf(type=FunctionalOperatorService)],
                 controllers=[CtrlConf(type=FunctionalOperatorCtrl)],
             )
@@ -41,9 +42,11 @@ def test_module() -> None:
     res = module.setup()
     assert res.is_ok()
 
+    prov = module.get_provider(FactoryProvider[FunctionalOperator]).unwrap()
+
     print('OK')
 
-    op = op_box.take().unwrap()
+    op = prov.create().unwrap()
 
     res = op.add_number(123)
     assert res.is_ok()
@@ -59,6 +62,8 @@ def test_module() -> None:
     res = op.get_number()
     assert res.is_err()
     assert res.unwrap_err() == 'Number is not initialized'
+
+    prov.destroy(op)
 
     res = module.teardown()
     assert res.is_ok()

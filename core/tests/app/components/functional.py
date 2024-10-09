@@ -119,7 +119,7 @@ class DictOperatorService2(SyncService):
     @provider(FunctionalOpProvider)
     def create_prov(
         self, dependency: ForwardProvider[DictResContext]
-    ) -> Result[FunctionalOpProvider, FactoryError]:
+    ) -> Result[FunctionalOpProvider, FactoryError] | None:
         if not dependency:
             return FactoryError.InsufficientDeps(name='DictResContext').to_result()
         if not self._res2:
