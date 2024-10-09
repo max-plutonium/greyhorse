@@ -9,7 +9,7 @@ from greyhorse.app.registries import MutDictRegistry, MutNamedDictRegistry
 from greyhorse.app.schemas.components import ModuleConf
 from greyhorse.error import Error, ErrorCase
 from greyhorse.logging import logger
-from greyhorse.maybe import Maybe, Just, Nothing
+from greyhorse.maybe import Just, Maybe, Nothing
 from greyhorse.result import Ok, Result
 
 
@@ -53,7 +53,9 @@ class Module:
 
     def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
         if prov_type in self._conf.providers:
-            return self._rm.find_provider(prov_type, self._providers).map(Just).unwrap_or(Nothing)
+            return (
+                self._rm.find_provider(prov_type, self._providers).map(Just).unwrap_or(Nothing)
+            )
         return Nothing
 
     def add_provider[T](self, prov_type: type[Provider[T]], provider: Provider[T]) -> bool:
@@ -66,7 +68,7 @@ class Module:
             return self._providers.remove(prov_type)
         return False
 
-    def add_resource(self, res_type: type, resource: Any, name: str | None = None) -> bool:
+    def add_resource(self, res_type: type, resource: Any, name: str | None = None) -> bool:  # noqa: ANN401
         if res_type in self._conf.resource_claims:
             return self._resources.add(res_type, resource, name=name)
         return False

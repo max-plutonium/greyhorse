@@ -1,5 +1,5 @@
 from greyhorse.app.abc.operators import AssignOperator, Operator
-from greyhorse.app.abc.providers import SharedProvider, FactoryProvider, FactoryError
+from greyhorse.app.abc.providers import FactoryError, FactoryProvider, SharedProvider
 from greyhorse.app.boxes import SharedRefBox
 from greyhorse.app.entities.controllers import SyncController, operator
 from greyhorse.app.entities.services import SyncService, provider

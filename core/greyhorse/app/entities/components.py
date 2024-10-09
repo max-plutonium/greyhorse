@@ -102,7 +102,7 @@ class Component:
     # def remove_provider[T](self, prov_type: type[Provider[T]]) -> bool:
     #     return self._providers.remove(prov_type)
 
-    def add_resource(self, res_type: type, resource: Any, name: str | None = None) -> bool:
+    def add_resource(self, res_type: type, resource: Any, name: str | None = None) -> bool:  # noqa: ANN401
         if res_type in self._conf.resource_claims:
             return self._resources.add(res_type, resource, name=name)
         return False

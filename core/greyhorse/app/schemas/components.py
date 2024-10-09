@@ -3,7 +3,13 @@ from typing import Any
 from pydantic import BaseModel, Field, PrivateAttr
 
 from greyhorse.app.abc.controllers import ControllerFactories
-from greyhorse.app.abc.providers import Provider, ForwardProvider, SharedProvider, FactoryProvider, MutProvider
+from greyhorse.app.abc.providers import (
+    FactoryProvider,
+    ForwardProvider,
+    MutProvider,
+    Provider,
+    SharedProvider,
+)
 from greyhorse.app.abc.services import ServiceFactories
 from greyhorse.app.schemas.elements import CtrlConf, SvcConf
 from greyhorse.utils.invoke import caller_path
@@ -26,7 +32,9 @@ class ComponentConf(BaseModel):
 class ModuleConf(BaseModel):
     enabled: bool = Field(default=True)
 
-    provider_claims: list[type[ForwardProvider] | type[SharedProvider]] = Field(default_factory=list)
+    provider_claims: list[type[ForwardProvider] | type[SharedProvider]] = Field(
+        default_factory=list
+    )
     resource_claims: list[type] = Field(default_factory=list)
 
     operators: list[type] = Field(default_factory=list)

@@ -116,7 +116,7 @@ class ResourceController(SyncController):
         for idx, res_conf in enumerate(self._res_types):
             method_name = f'_create_op_{res_conf.type.__name__}'
 
-            def func(idx=idx, res_conf=res_conf):
+            def func(self, idx=idx, res_conf=res_conf):  # noqa
                 return AssignOperator[res_conf.type](
                     partial(self._getter, idx), partial(self._setter, idx)
                 )

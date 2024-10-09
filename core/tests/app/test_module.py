@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from greyhorse.app.abc.providers import SharedProvider, FactoryProvider
+from greyhorse.app.abc.providers import FactoryProvider, SharedProvider
 from greyhorse.app.boxes import PermanentForwardBox
 from greyhorse.app.builders.module import ModuleBuilder
 from greyhorse.app.schemas.components import ModuleComponentConf, ModuleConf
@@ -19,7 +19,10 @@ def __init__() -> ModuleConf:  # noqa: N807
             'dict': ModuleComponentConf(
                 enabled=True,
                 path='..module.main',
-                providers=[SharedProvider[FunctionalOperator], FactoryProvider[FunctionalOperator]],
+                providers=[
+                    SharedProvider[FunctionalOperator],
+                    FactoryProvider[FunctionalOperator],
+                ],
                 services=[SvcConf(type=FunctionalOperatorService)],
                 controllers=[CtrlConf(type=FunctionalOperatorCtrl)],
             )
