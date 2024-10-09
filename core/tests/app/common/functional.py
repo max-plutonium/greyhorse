@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from greyhorse.app.abc.providers import ForwardProvider
+from greyhorse.app.abc.providers import FactoryProvider
 from greyhorse.result import Result
 
 
@@ -15,4 +15,4 @@ class FunctionalOperator(ABC):
     def remove_number(self) -> Result[bool, str]: ...
 
 
-FunctionalOpProvider = ForwardProvider[FunctionalOperator]
+FunctionalOpProvider = FactoryProvider[FunctionalOperator]

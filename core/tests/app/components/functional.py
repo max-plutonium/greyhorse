@@ -3,22 +3,17 @@ from typing import Any, override
 from greyhorse.app.abc.collectors import MutNamedCollector, NamedCollector
 from greyhorse.app.abc.controllers import ControllerError
 from greyhorse.app.abc.operators import AssignOperator, Operator
-from greyhorse.app.abc.providers import FactoryError, FactoryProvider
+from greyhorse.app.abc.providers import FactoryError, ForwardProvider
 from greyhorse.app.abc.selectors import NamedListSelector, NamedSelector
 from greyhorse.app.abc.services import ServiceError, ServiceState
 from greyhorse.app.boxes import ForwardBox
 from greyhorse.app.entities.controllers import SyncController, operator
 from greyhorse.app.entities.services import SyncService, provider
 from greyhorse.maybe import Maybe, Nothing
-from greyhorse.result import Err, Ok, Result, do
+from greyhorse.result import Ok, Result
 
 from ..common.functional import FunctionalOperator, FunctionalOpProvider
-from ..common.resources import (
-    DictCtxProvider,
-    DictMutCtxProvider,
-    DictResContext,
-    MutDictResContext,
-)
+from ..common.resources import DictResContext, MutDictResContext
 
 
 class FunctionalOperatorImpl(FunctionalOperator):
@@ -50,76 +45,68 @@ class FunctionalOperatorImpl(FunctionalOperator):
         return value.ok_or('Number is not initialized').map(lambda _: True)
 
 
-class FunctionalOpProviderImpl(FactoryProvider[FunctionalOperator]):
-    def __init__(self, ctx_prov: DictCtxProvider, mut_ctx_prov: DictMutCtxProvider) -> None:
-        self._ctx_prov = ctx_prov
-        self._mut_ctx_prov = mut_ctx_prov
-
-    @override
-    def create(self) -> Result[FunctionalOperator, FactoryError]:
-        result: Result[tuple[DictResContext, MutDictResContext], str] = do(
-            Ok((c1, c2))
-            for c1 in self._ctx_prov.borrow()
-            for c2 in self._mut_ctx_prov.acquire()
-        )
-
-        match result:
-            case Ok((ctx, mut_ctx)):
-                return Ok(FunctionalOperatorImpl(ctx, mut_ctx))
-            case Err(e):
-                return FactoryError.Internal(name='FunctionalOperator', details=e).to_result()
-
-        return FactoryError.Internal(
-            name='FunctionalOperator', details='Unexpected return'
-        ).to_result()
-
-    @override
-    def destroy(self, instance: FunctionalOperatorImpl) -> None:
-        self._mut_ctx_prov.release(instance.mut_ctx)
-        self._ctx_prov.reclaim(instance.ctx)
-        del instance
-
-
-class DictOperatorService(SyncService):
+class DictOperatorService1(SyncService):
     def __init__(self) -> None:
         super().__init__()
-        self._res1 = None
-        self._res2 = None
+        self._res1 = ForwardBox[DictResContext]()
 
     @override
     def setup(
-        self,
-        res1: Maybe[DictResContext],
-        res2: Maybe[MutDictResContext],
-        selector: NamedSelector[type, Any],
-        list_selector: NamedListSelector[type, Any],
-    ) -> Result[ServiceState, ServiceError]:
-        if not res1:
-            return ServiceError.NoSuchResource(name='DictResContext').to_result()
-        if not res2:
-            return ServiceError.NoSuchResource(name='MutDictResContext').to_result()
-        if not selector.has(DictResContext):
-            return ServiceError.NoSuchResource(name='DictResContext').to_result()
-        if not list_selector.has(DictResContext):
-            return ServiceError.NoSuchResource(name='DictResContext').to_result()
-        self._res1 = res1.unwrap()
-        self._res2 = res2.unwrap()
-        return super().setup()
-
-    @override
-    def teardown(
-        self,
-        res: Maybe[DictResContext],
-        selector: NamedSelector[type, Any],
-        list_selector: NamedListSelector[type, Any],
+        self, res: Maybe[DictResContext], selector: NamedSelector[type, Any]
     ) -> Result[ServiceState, ServiceError]:
         if not res:
             return ServiceError.NoSuchResource(name='DictResContext').to_result()
         if not selector.has(DictResContext):
             return ServiceError.NoSuchResource(name='DictResContext').to_result()
-        if not list_selector.has(DictResContext):
+        self._res1.accept(res.unwrap())
+        return super().setup()
+
+    @override
+    def teardown(
+        self, res: Maybe[DictResContext], selector: NamedSelector[type, Any]
+    ) -> Result[ServiceState, ServiceError]:
+        if not res:
             return ServiceError.NoSuchResource(name='DictResContext').to_result()
-        self._res1 = None
+        if not selector.has(DictResContext):
+            return ServiceError.NoSuchResource(name='DictResContext').to_result()
+        self._res1.revoke()
+        return super().teardown()
+
+    def start(self) -> None:
+        self._switch_to_active(True)
+
+    def stop(self) -> None:
+        self._switch_to_active(False)
+
+    @provider(ForwardProvider[DictResContext])
+    def create_prov(self) -> ForwardProvider[DictResContext]:
+        return self._res1
+
+
+class DictOperatorService2(SyncService):
+    def __init__(self) -> None:
+        super().__init__()
+        self._res2: MutDictResContext | None = None
+
+    @override
+    def setup(
+        self, res: Maybe[MutDictResContext], list_selector: NamedListSelector[type, Any]
+    ) -> Result[ServiceState, ServiceError]:
+        if not res:
+            return ServiceError.NoSuchResource(name='MutDictResContext').to_result()
+        if not list_selector.has(MutDictResContext):
+            return ServiceError.NoSuchResource(name='MutDictResContext').to_result()
+        self._res2 = res.unwrap()
+        return super().setup()
+
+    @override
+    def teardown(
+        self, res: Maybe[MutDictResContext], list_selector: NamedListSelector[type, Any]
+    ) -> Result[ServiceState, ServiceError]:
+        if not res:
+            return ServiceError.NoSuchResource(name='MutDictResContext').to_result()
+        if not list_selector.has(MutDictResContext):
+            return ServiceError.NoSuchResource(name='MutDictResContext').to_result()
         self._res2 = None
         return super().teardown()
 
@@ -130,15 +117,23 @@ class DictOperatorService(SyncService):
         self._switch_to_active(False)
 
     @provider(FunctionalOpProvider)
-    def create_prov(self) -> Result[FunctionalOpProvider, ProvisionError]:
-        return Ok(ForwardBox(FunctionalOperatorImpl(self._res1, self._res2)))
+    def create_prov(
+        self, dependency: ForwardProvider[DictResContext]
+    ) -> Result[FunctionalOpProvider, FactoryError]:
+        if not dependency:
+            return FactoryError.InsufficientDeps(name='DictResContext').to_result()
+        if not self._res2:
+            return None
+        res1 = dependency.take().unwrap()
+        yield FunctionalOperatorImpl(res1, self._res2)
+        dependency.drop(res1)
 
 
 class DictOperatorCtrl(SyncController):
     def __init__(self) -> None:
         super().__init__()
-        self._a = Nothing
-        self._b = Nothing
+        self._a: Maybe[DictResContext] = Nothing
+        self._b: Maybe[MutDictResContext] = Nothing
 
     def _setter1(self, value: Maybe[DictResContext]) -> None:
         self._a = value

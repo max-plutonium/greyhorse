@@ -8,7 +8,7 @@ from ..common.resources import (
     DictResContext,
     MutDictResContext,
 )
-from ..components.functional import DictOperatorCtrl, DictOperatorService
+from ..components.functional import DictOperatorCtrl, DictOperatorService1, DictOperatorService2
 from ..components.resources import DictProviderService
 
 
@@ -27,9 +27,8 @@ def __init__() -> ModuleConf:  # noqa: N807
                 providers=[FunctionalOpProvider],
                 operators=[DictResContext, MutDictResContext],
                 services=[
-                    SvcConf(
-                        type=DictOperatorService, resources=[DictResContext, MutDictResContext]
-                    )
+                    SvcConf(type=DictOperatorService1, resources=[DictResContext]),
+                    SvcConf(type=DictOperatorService2, resources=[MutDictResContext]),
                 ],
                 controllers=[CtrlConf(type=DictOperatorCtrl)],
             ),
