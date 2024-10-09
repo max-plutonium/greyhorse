@@ -1,14 +1,21 @@
+from collections.abc import Generator
 from copy import deepcopy
 from functools import partial
+from unittest.mock import Mock
 
+from faker import Faker
 from greyhorse.app.abc.providers import BorrowError, BorrowMutError, ForwardError
 from greyhorse.app.boxes import (
+    FactoryGenBox,
     ForwardBox,
+    ForwardGenBox,
     MutCtxRefBox,
+    MutGenBox,
     MutRefBox,
     OwnerCtxRefBox,
     OwnerRefBox,
     SharedCtxRefBox,
+    SharedGenBox,
     SharedRefBox,
 )
 from greyhorse.app.contexts import (
@@ -256,8 +263,12 @@ def test_forward() -> None:
 
     instance.accept(123)
 
+    assert instance
+
     res = instance.take()
     assert res.is_ok()
+
+    assert not instance
 
     unwrapped = res.unwrap()
     assert unwrapped == 123
@@ -267,3 +278,140 @@ def test_forward() -> None:
     assert res.unwrap_err() == ForwardError.Empty(name='int')
 
     instance.drop(unwrapped)
+
+
+def test_shared_gen(faker: Faker) -> None:
+    gen_mock = Mock()
+
+    def gen() -> Generator[str, str, None]:
+        gen_mock()
+        yield faker.pystr()
+        gen_mock()
+
+    instance = SharedGenBox[str](gen)
+
+    res = instance.borrow()
+    assert res.is_ok()
+
+    gen_mock.assert_called_once()
+    gen_mock.reset_mock()
+
+    unwrapped = res.unwrap()
+    assert isinstance(unwrapped, str)
+
+    res = instance.borrow()
+    assert res.is_ok()
+
+    gen_mock.assert_called_once()
+    gen_mock.reset_mock()
+
+    instance.reclaim(unwrapped)
+    instance.reclaim(res.unwrap())
+
+    assert gen_mock.call_count == 2
+
+
+def test_mut_gen(faker: Faker) -> None:
+    gen_mock = Mock()
+
+    def gen() -> Generator[str, str, None]:
+        gen_mock()
+        yield faker.pystr()
+        gen_mock()
+
+    instance = MutGenBox[str](gen)
+
+    res = instance.acquire()
+    assert res.is_ok()
+
+    gen_mock.assert_called_once()
+    gen_mock.reset_mock()
+
+    unwrapped = res.unwrap()
+    assert isinstance(unwrapped, str)
+
+    res = instance.acquire()
+    assert res.is_ok()
+
+    gen_mock.assert_called_once()
+    gen_mock.reset_mock()
+
+    instance.release(unwrapped)
+    instance.release(res.unwrap())
+
+    assert gen_mock.call_count == 2
+
+
+def test_factory_gen(faker: Faker) -> None:
+    gen_mock = Mock()
+
+    def gen() -> Generator[str, str, None]:
+        gen_mock()
+        yield faker.pystr()
+        gen_mock()
+
+    instance = FactoryGenBox[str](gen)
+
+    res = instance.create()
+    assert res.is_ok()
+
+    gen_mock.assert_called_once()
+    gen_mock.reset_mock()
+
+    unwrapped = res.unwrap()
+    assert isinstance(unwrapped, str)
+
+    res = instance.create()
+    assert res.is_ok()
+
+    gen_mock.assert_called_once()
+    gen_mock.reset_mock()
+
+    instance.destroy(unwrapped)
+    instance.destroy(res.unwrap())
+
+    assert gen_mock.call_count == 2
+
+
+def test_forward_gen() -> None:
+    gen_mock = Mock()
+
+    def gen() -> Generator[int, int, None]:
+        gen_mock()
+        yield 123
+        gen_mock()
+
+    instance = ForwardGenBox[int](gen())
+
+    assert instance
+
+    res = instance.take()
+    assert res.is_ok()
+
+    gen_mock.assert_called_once()
+    gen_mock.reset_mock()
+
+    assert not instance
+
+    unwrapped = res.unwrap()
+    assert unwrapped == 123
+
+    res = instance.take()
+    assert res.is_err()
+    assert res.unwrap_err() == ForwardError.MovedOut(name='int')
+
+    gen_mock.assert_not_called()
+    gen_mock.reset_mock()
+
+    instance.drop(unwrapped)
+
+    gen_mock.assert_called_once()
+    gen_mock.reset_mock()
+
+    assert not instance
+
+    res = instance.take()
+    assert res.is_err()
+    assert res.unwrap_err() == ForwardError.MovedOut(name='int')
+
+    gen_mock.assert_not_called()
