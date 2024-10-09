@@ -92,7 +92,7 @@ class Module:
         for component in self._components.values():
             comp_conf = self._conf.components[component.name]
 
-            for res_type in comp_conf.resource_grants:
+            for res_type in comp_conf.resource_claims:
                 if res := self._resources.get(res_type).unwrap_or_none():
                     component.add_resource(res_type, res)
 
@@ -111,7 +111,7 @@ class Module:
             ):
                 return res
 
-            for res_type in comp_conf.operator_imports:
+            for res_type in comp_conf.operators:
                 for op in component.get_operators(res_type):  # type: ignore
                     if not (
                         res := self._rm.setup_resource(op, self._providers).map_err(
@@ -166,7 +166,7 @@ class Module:
             ):
                 return res
 
-            for res_type in reversed(comp_conf.operator_imports):
+            for res_type in reversed(comp_conf.operators):
                 for op in component.get_operators(res_type):  # type: ignore
                     if not (
                         res := self._rm.teardown_resource(op).map_err(
@@ -186,7 +186,7 @@ class Module:
             # for prov_type in reversed(comp_conf.provider_grants):
             #     component.remove_provider(prov_type)
 
-            for res_type in reversed(comp_conf.resource_grants):
+            for res_type in reversed(comp_conf.resource_claims):
                 component.remove_resource(res_type)
 
         if not (

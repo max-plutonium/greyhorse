@@ -12,8 +12,8 @@ from greyhorse.utils.invoke import caller_path
 class ComponentConf(BaseModel):
     enabled: bool = Field(default=True)
 
-    resource_grants: list[type] = Field(default_factory=list)
-    operator_imports: list[type] = Field(default_factory=list)
+    resource_claims: list[type] = Field(default_factory=list)
+    operators: list[type] = Field(default_factory=list)
     providers: list[type[Provider]] = Field(default_factory=list)
 
     controllers: list[CtrlConf] = Field(default_factory=list)

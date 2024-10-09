@@ -25,7 +25,7 @@ def __init__() -> ModuleConf:  # noqa: N807
             'app': ComponentConf(
                 enabled=True,
                 providers=[FunctionalOpProvider],
-                operator_imports=[DictResContext, MutDictResContext],
+                operators=[DictResContext, MutDictResContext],
                 services=[
                     SvcConf(
                         type=DictOperatorService, resources=[DictResContext, MutDictResContext]

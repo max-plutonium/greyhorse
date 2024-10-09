@@ -88,7 +88,7 @@ class Component:
         return self._rm.find_provider(prov_type).map(Just).unwrap_or(Nothing)
 
     def get_operators[T](self, res_type: type[T]) -> Iterable[Operator[T]]:
-        if res_type in self._conf.operator_imports:
+        if res_type in self._conf.operators:
             return self._operators[res_type].copy()
         return []
 
