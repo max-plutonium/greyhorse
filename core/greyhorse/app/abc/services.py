@@ -36,21 +36,6 @@ type ServiceFactoryFn = Callable[[...], Service | Result[Service, ServiceError]]
 type ServiceFactories = dict[type[Service], ServiceFactoryFn]
 
 
-class ProvisionError(Error):
-    namespace = 'greyhorse.app'
-
-    WrongState = ErrorCase(
-        msg='Cannot create provider "{name}" because service is in wrong state: "{state}"',
-        name=str,
-        state=str,
-    )
-
-    InsufficientDeps = ErrorCase(
-        msg='Cannot create provider "{name}" because dependencies are not enough to satisfy',
-        name=str,
-    )
-
-
 @dataclass(slots=True, frozen=True)
 class ProviderMember:
     resource_type: type

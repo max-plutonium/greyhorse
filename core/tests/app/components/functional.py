@@ -5,7 +5,7 @@ from greyhorse.app.abc.controllers import ControllerError
 from greyhorse.app.abc.operators import AssignOperator, Operator
 from greyhorse.app.abc.providers import FactoryError, FactoryProvider
 from greyhorse.app.abc.selectors import NamedListSelector, NamedSelector
-from greyhorse.app.abc.services import ProvisionError, ServiceError, ServiceState
+from greyhorse.app.abc.services import ServiceError, ServiceState
 from greyhorse.app.boxes import ForwardBox
 from greyhorse.app.entities.controllers import SyncController, operator
 from greyhorse.app.entities.services import SyncService, provider
