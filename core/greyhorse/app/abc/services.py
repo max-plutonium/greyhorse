@@ -53,8 +53,6 @@ class ProvisionError(Error):
 
 @dataclass(slots=True, frozen=True)
 class ProviderMember:
-    class_name: str
-    method_name: str
     resource_type: type
     provider_type: type[Provider]
     method: classmethod

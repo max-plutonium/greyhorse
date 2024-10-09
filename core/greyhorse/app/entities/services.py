@@ -10,12 +10,9 @@ from ..abc.services import ProviderMember, Service, ServiceError, ServiceState, 
 
 def provider(provider_type: type[Provider]):
     def decorator(func: classmethod):
-        class_name, method_name = func.__qualname__.split('.')
         hints = get_type_hints(func, include_extras=True)
         ret_type = hints.pop('return', None)
         func.__provider__ = ProviderMember(
-            class_name,
-            method_name,
             provider_type.__wrapped_type__,
             provider_type,
             method=func,

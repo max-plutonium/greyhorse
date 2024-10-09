@@ -81,7 +81,7 @@ class ResourceManager:
 
         for ctrl_dict in self._operator_map.values():
             for ctrl, operator_member in ctrl_dict.items():
-                factory = getattr(ctrl, operator_member.method_name)
+                factory = partial(operator_member.method, self=ctrl)
                 match invoke_sync(factory):
                     case Ok(op) | (Operator() as op):
                         operators.append(op)
@@ -230,7 +230,7 @@ class ResourceManager:
         self._res_providers[provider_member.resource_type].append(provider_member.provider_type)
 
         self._resource_graph.add_node(
-            provider_member.provider_type, factory=getattr(service, provider_member.method_name)
+            provider_member.provider_type, factory=partial(provider_member.method, self=service)
         )
 
         for param_type in provider_member.params.values():

@@ -26,9 +26,12 @@ def test_res_controller() -> None:
     assert res.is_err()
     assert res.unwrap_err() == ControllerError.NoSuchResource(name='int')
 
-    int_op: Operator[int] = instance._create_op_int()  # noqa
-    str_op: Operator[str] = instance._create_op_str()  # noqa
-    maybe_op: Operator[Maybe] = instance._create_op_Maybe()  # noqa
+    operators = []
+    instance.inspect(lambda member: operators.append(member.method()))
+
+    int_op: Operator[int] = operators[0]
+    str_op: Operator[str] = operators[1]
+    maybe_op: Operator[Maybe] = operators[2]
 
     assert len(registry) == 0
 

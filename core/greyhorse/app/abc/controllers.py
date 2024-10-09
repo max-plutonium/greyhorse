@@ -24,8 +24,6 @@ type ControllerFactories = dict[type[Controller], ControllerFactoryFn]
 
 @dataclass(slots=True, frozen=True)
 class OperatorMember:
-    class_name: str
-    method_name: str
     resource_type: type
     method: classmethod
     params: dict[str, type] = field(default_factory=dict)
