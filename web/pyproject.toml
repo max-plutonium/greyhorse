@@ -1,0 +1,76 @@
+[project]
+name = "greyhorse-web"
+dynamic = ["version"]
+description = "Greyhorse web utilities library"
+keywords = ["http", "uvicorn", "hypercorn", "fastapi"]
+license = {text = "MIT License"}
+readme = {file = "README.md", content-type = "text/markdown"}
+requires-python = ">=3.12"
+
+maintainers = [
+    {name = "Max Plutonium", email = "plutonium.max@gmail.com"},
+]
+authors = [
+    {name = "Max Plutonium", email = "plutonium.max@gmail.com"},
+]
+
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Typing :: Typed",
+]
+
+dependencies = [
+    "greyhorse>=0.4.20",
+    "python-multipart>=0.0.12",
+]
+
+[project.optional-dependencies]
+uvicorn = [
+    "uvicorn[standard]>=0.31.1",
+]
+hypercorn = [
+    "hypercorn[uvloop]>=0.17.3",
+]
+fastapi = [
+    "fastapi[standard]>=0.115.0",
+]
+
+[project.urls]
+Homepage = "https://gitlab.com/max-plutonium/greyhorse"
+Repository = "https://gitlab.com/max-plutonium/greyhorse"
+
+[build-system]
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = [
+    "mypy>=1.11.2",
+    "pre-commit>=3.8.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=5.0.0",
+    "pytest-faker>=2.0.0",
+    "pytest-mock>=3.14.0",
+    "pytest>=8.3.3",
+    "ruff>=0.6.7",
+    "uv-dynamic-versioning>=0.1.0",
+]
+
+[tool.uv.sources]
+greyhorse = { path = "../core", editable = true }
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.uv-dynamic-versioning]
+enable = true
+vcs = "git"
+pattern = "default-unprefixed"
+style = "pep440"
+bump = true
+strict = false
+latest-tag = true
