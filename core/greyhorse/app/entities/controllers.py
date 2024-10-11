@@ -122,7 +122,7 @@ class ResourceController(SyncController):
                 )
 
             func.__qualname__ = f'{self.__class__.__name__}.{method_name}'
-            func = cast(classmethod, func)
+            func = cast(classmethod, partial(func, self=self))
 
             member = OperatorMember(res_conf.type, method=func, params={})
             self._operator_members[res_conf.type] = member

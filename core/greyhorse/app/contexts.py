@@ -160,25 +160,29 @@ class SyncContext[T](Context, TypeWrapper[T], ContextManager):
         factory: Callable[[...], T],
         fields: dict[str, FieldFactory[T]] | None = None,
         finalizers: list[Callable[[], Awaitable[None] | None]] | None = None,
-        contexts: list[ContextManagerLike[T]] | None = None,
+        sub_contexts: list[ContextManagerLike[T]] | None = None,
     ) -> None:
         fields = fields.copy() if fields else {}
-        children: list[SyncContext] = []
-        context_managers: list[tuple[ContextManagerLike, str | None]] = []
+        self._sync_stack = ExitStack()
+        self._lock = threading.Lock()
+        self._children: list[SyncContext] = []
+        self._sub_contexts: list[tuple[ContextManagerLike, str | None]] = []
 
-        if contexts:
-            for ctx in contexts:
+        if sub_contexts:
+            for ctx in sub_contexts:
+                if isinstance(ctx, SyncContext):
+                    self._children.append(ctx)
                 if is_like_sync_context_manager(ctx):
-                    context_managers.append((ctx, None))
+                    self._sub_contexts.append((ctx, None))
 
         names_to_remove = set()
 
         for name, value in fields.items():
             if isinstance(value, SyncContext):
-                children.append(value)
+                self._children.append(value)
                 names_to_remove.add(name)
             if is_like_sync_context_manager(value):
-                context_managers.append((value, name))
+                self._sub_contexts.append((value, name))
                 names_to_remove.add(name)
             elif is_like_async_context_manager(value):
                 names_to_remove.add(name)
@@ -187,10 +191,6 @@ class SyncContext[T](Context, TypeWrapper[T], ContextManager):
             fields.pop(name)
 
         super().__init__(factory, fields, finalizers)
-        self._sync_stack = ExitStack()
-        self._context_managers = context_managers
-        self._children = children
-        self._lock = threading.Lock()
 
     @override
     def children(self) -> list[Context]:
@@ -200,7 +200,7 @@ class SyncContext[T](Context, TypeWrapper[T], ContextManager):
         self._sync_stack.__enter__()
         kwargs: dict[str, Any] = {}
 
-        for ctx, field in self._context_managers:
+        for ctx, field in self._sub_contexts:
             if callable(ctx):
                 ctx = ctx()
             if (value := self._sync_stack.enter_context(ctx)) and field is not None:
@@ -307,11 +307,11 @@ class SyncMutContext[T](SyncContext[T], MutContext):
         factory: Callable[[...], T],
         fields: dict[str, FieldFactory[T]] | None = None,
         finalizers: list[Callable[[], Awaitable[None] | None]] | None = None,
-        contexts: list[ContextManagerLike[T]] | None = None,
+        sub_contexts: list[ContextManagerLike[T]] | None = None,
         force_rollback: bool = False,
         auto_apply: bool = False,
     ) -> None:
-        super().__init__(factory, fields, finalizers, contexts)
+        super().__init__(factory, fields, finalizers, sub_contexts)
         self._mut_children = []
         self._force_rollback = force_rollback
         self._auto_apply = auto_apply
@@ -398,48 +398,48 @@ class AsyncContext[T](Context, TypeWrapper[T], AsyncContextManager):
         factory: Callable[[...], T],
         fields: dict[str, FieldFactory[T]] | None = None,
         finalizers: list[Callable[[], Awaitable[None] | None]] | None = None,
-        contexts: list[ContextManagerLike[T]] | None = None,
+        sub_contexts: list[ContextManagerLike[T]] | None = None,
     ) -> None:
         fields = fields.copy() if fields else {}
-        sync_children: list[SyncContext] = []
-        async_children: list[AsyncContext] = []
-        sync_sub_contexts: list[tuple[ContextManagerLike[T], str | None]] = []
-        async_sub_contexts: list[tuple[ContextManagerLike[T], str | None]] = []
+        self._sync_stack = ExitStack()
+        self._async_stack = AsyncExitStack()
+        self._lock = asyncio.Lock()
+        self._sync_children: list[SyncContext] = []
+        self._async_children: list[AsyncContext] = []
+        self._sync_sub_contexts: list[tuple[ContextManagerLike[T], str | None]] = []
+        self._async_sub_contexts: list[tuple[ContextManagerLike[T], str | None]] = []
 
-        if contexts:
-            for ctx in contexts:
+        if sub_contexts:
+            for ctx in sub_contexts:
+                if isinstance(ctx, SyncContext):
+                    self._sync_children.append(ctx)
+                elif isinstance(ctx, AsyncContext):
+                    self._async_children.append(ctx)
                 if is_like_async_context_manager(ctx):
-                    async_sub_contexts.append((ctx, None))
+                    self._async_sub_contexts.append((ctx, None))
                 elif is_like_sync_context_manager(ctx):
-                    sync_sub_contexts.append((ctx, None))
+                    self._sync_sub_contexts.append((ctx, None))
 
         names_to_remove = set()
 
         for name, value in fields.items():
-            if isinstance(value, AsyncContext):
-                async_children.append(value)
+            if isinstance(value, SyncContext):
+                self._sync_children.append(value)
                 names_to_remove.add(name)
-            elif isinstance(value, SyncContext):
-                sync_children.append(value)
+            elif isinstance(value, AsyncContext):
+                self._async_children.append(value)
                 names_to_remove.add(name)
             if is_like_async_context_manager(value):
-                async_sub_contexts.append((value, name))
+                self._async_sub_contexts.append((value, name))
                 names_to_remove.add(name)
             elif is_like_sync_context_manager(value):
-                sync_sub_contexts.append((value, name))
+                self._sync_sub_contexts.append((value, name))
                 names_to_remove.add(name)
 
         for name in names_to_remove:
             fields.pop(name)
 
         super().__init__(factory, fields, finalizers)
-        self._sync_stack = ExitStack()
-        self._async_stack = AsyncExitStack()
-        self._sync_sub_contexts = sync_sub_contexts
-        self._async_sub_contexts = async_sub_contexts
-        self._sync_children = sync_children
-        self._async_children = async_children
-        self._lock = asyncio.Lock()
 
     @override
     def children(self) -> list[Context]:
@@ -567,11 +567,11 @@ class AsyncMutContext[T](AsyncContext[T], MutContext):
         factory: Callable[[...], T],
         fields: dict[str, FieldFactory[T]] | None = None,
         finalizers: list[Callable[[], Awaitable[None] | None]] | None = None,
-        contexts: list[ContextManagerLike[T]] | None = None,
+        sub_contexts: list[ContextManagerLike[T]] | None = None,
         force_rollback: bool = False,
         auto_apply: bool = False,
     ) -> None:
-        super().__init__(factory, fields, finalizers, contexts)
+        super().__init__(factory, fields, finalizers, sub_contexts)
         self._sync_mut_children = []
         self._async_mut_children = []
         self._force_rollback = force_rollback
@@ -846,20 +846,20 @@ class ContextBuilder[T](TypeWrapper[T]):
         factory: Callable[P, T],
         fields: dict[str, FieldFactory[T]] | None = None,
         finalizers: list[Callable[[], Awaitable[None] | None]] | None = None,
-        contexts: list[ContextManagerLike[T]] | None = None,
+        sub_contexts: list[ContextManagerLike[T]] | None = None,
         **kwargs,
     ) -> None:
         self._factory = factory
         self._fields = fields or {}
         self._finalizers = finalizers or []
-        self._contexts = contexts or []
+        self._sub_contexts = sub_contexts or []
         self._kwargs = kwargs
 
     def add_param(self, name: str, value: FieldFactory[T]) -> None:
         self._fields[name] = value
 
-    def add_context(self, context: ContextManagerLike[T]) -> None:
-        self._contexts.append(context)
+    def add_sub_context(self, context: ContextManagerLike[T]) -> None:
+        self._sub_contexts.append(context)
 
     def add_finalizer(self, finalizer: Callable[[], Awaitable[None] | None]) -> None:
         self._finalizers.append(finalizer)
@@ -869,7 +869,7 @@ class ContextBuilder[T](TypeWrapper[T]):
             factory=self._factory,
             fields=self._fields,
             finalizers=self._finalizers,
-            contexts=self._contexts,
+            sub_contexts=self._sub_contexts,
             **self._kwargs,
         )
 

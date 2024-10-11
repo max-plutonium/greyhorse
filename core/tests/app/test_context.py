@@ -19,7 +19,7 @@ def test_sync_context_scalar() -> None:
 
     mock_finalizer = Mock()
 
-    ctx_builder.add_context(mock_fn)
+    ctx_builder.add_sub_context(mock_fn)
     ctx_builder.add_finalizer(mock_finalizer)
 
     ctx = ctx_builder.build()
@@ -51,7 +51,7 @@ def test_sync_context_complex() -> None:
 
     mock_finalizer = Mock()
 
-    ctx_builder.add_context(mock_fn)
+    ctx_builder.add_sub_context(mock_fn)
     ctx_builder.add_finalizer(mock_finalizer)
     ctx_builder.add_param('id', 123)
     ctx_builder.add_param('name', lambda: 'name')
@@ -84,7 +84,7 @@ async def test_async_context_scalar() -> None:
 
     mock_finalizer = Mock()
 
-    ctx_builder.add_context(mock_fn)
+    ctx_builder.add_sub_context(mock_fn)
     ctx_builder.add_finalizer(mock_finalizer)
 
     ctx = ctx_builder.build()
@@ -113,7 +113,7 @@ async def test_async_context_complex() -> None:
 
     mock_finalizer = Mock()
 
-    ctx_builder.add_context(mock_fn)
+    ctx_builder.add_sub_context(mock_fn)
     ctx_builder.add_finalizer(mock_finalizer)
     ctx_builder.add_param('id', 123)
     ctx_builder.add_param('name', _get_name)
