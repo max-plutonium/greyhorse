@@ -54,21 +54,30 @@ class MigrationOperator:
                     lines.append(
                         '            connection=connection, target_metadata=target_metadata,\n'
                     )
-                    lines.append('            version_table_schema=target_metadata.schema,\n')
+                    lines.append(
+                        "            version_table_schema=target_metadata.schema if 'postgresql' == "
+                        'connectable.dialect.name else None,\n'
+                    )
                     lines.append('            include_schemas=True,\n')
                     lines.append('            render_item=utils.render_item,\n')
                 elif line == '        with context.begin_transaction():\n':
                     lines.append(line)
+                    lines.append('            if target_metadata.schema:\n')
                     lines.append(
-                        "            if 'postgresql' == connectable.dialect.name and target_metadata.schema:\n"
+                        "                if 'postgresql' == connectable.dialect.name:\n"
                     )
                     lines.append(
-                        "                connection.execute(text(f'CREATE SCHEMA IF NOT EXISTS "
+                        "                    connection.execute(text(f'CREATE SCHEMA IF NOT EXISTS "
                         '"{target_metadata.schema}" AUTHORIZATION CURRENT_USER\'))\n'
                     )
                     lines.append(
-                        '                connection.execute(text(f\'set search_path to "{target_metadata.schema}", '
-                        "public'))\n\n"
+                        '                    connection.execute(text(f\'set search_path to "{target_metadata.schema}", '
+                        "public'))\n"
+                    )
+                    lines.append("                elif 'sqlite' == connectable.dialect.name:\n")
+                    lines.append(
+                        "                    connection.execute(text(f'ATTACH DATABASE \\'{connectable.url.database}\\'"
+                        " AS \\'{target_metadata.schema}\\''))\n\n"
                     )
                 else:
                     lines.append(line)
