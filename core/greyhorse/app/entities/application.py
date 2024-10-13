@@ -6,7 +6,7 @@ from collections.abc import Callable, Collection, Generator
 from contextlib import contextmanager
 from functools import partial
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import NoReturn
 
 from greyhorse.app.abc.controllers import Controller
 from greyhorse.app.abc.providers import Provider
@@ -73,12 +73,12 @@ class Application:
     def get_cwd(self) -> Path:
         return self._path.absolute()
 
-    def add_resource(self, res_type: type, resource: Any, name: str | None = None) -> bool:
+    def add_resource[T](self, res_type: type[T], resource: T, name: str | None = None) -> bool:
         return self._root.map_or(
             False, lambda root: root.add_resource(res_type, resource, name)
         )
 
-    def remove_resource(self, res_type: type, name: str | None = None) -> bool:
+    def remove_resource[T](self, res_type: type[T], name: str | None = None) -> bool:
         return self._root.map_or(False, lambda root: root.remove_resource(res_type, name=name))
 
     def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
@@ -276,7 +276,7 @@ class Application:
         visitor = _ElementsVisitor(self._controllers, self._services)
         root.accept_visitor(visitor)
 
-    def _exit_handler(self, sig_num: 'signal.Signals', _, flag: list[bool]) -> None:
+    def _exit_handler(self, sig_num: 'signal.Signals', _, flag: list[bool]) -> None:  # noqa: ANN001
         if flag:
             self._second_exit_stage(sig_num)
         else:

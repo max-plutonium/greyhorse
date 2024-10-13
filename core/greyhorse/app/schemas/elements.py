@@ -13,7 +13,7 @@ class CtrlConf(BaseModel, frozen=True):
     resources: list[type] = Field(default_factory=list)
 
     @model_validator(mode='before')
-    def _setup_name(self: dict[str, Any]):
+    def _setup_name(self: dict[str, Any]) -> dict:
         if 'name' not in self:
             self['name'] = self['type'].__name__
         return self
@@ -26,7 +26,7 @@ class SvcConf(BaseModel, frozen=True):
     resources: list[type] = Field(default_factory=list)
 
     @model_validator(mode='before')
-    def _setup_name(self: dict[str, Any]):
+    def _setup_name(self: dict[str, Any]) -> dict:
         if 'name' not in self:
             self['name'] = self['type'].__name__
         return self

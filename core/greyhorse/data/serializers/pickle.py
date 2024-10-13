@@ -1,19 +1,22 @@
 import pickle
-from typing import Any
+from typing import override
+
+from greyhorse.maybe import Just, Maybe, Nothing
 
 from .base import Deserializer, Serializer
 
 
-class PickleSerializer(Serializer):
-    def serialize(self, data: Any | None = None) -> bytes:
+class PickleSerializer[T](Serializer[T]):
+    def serialize(self, data: T) -> bytes:
         return pickle.dumps(data)
 
 
-class PickleDeserializer(Deserializer):
-    def deserialize(self, data: bytes) -> Any | None:
+class PickleDeserializer[T](Deserializer[T]):
+    @override
+    def deserialize(self, data: bytes) -> Maybe[T]:
         try:
-            values = pickle.loads(data) if data else None
+            value = pickle.loads(data) if data else None
         except (pickle.UnpicklingError, ValueError, ModuleNotFoundError, MemoryError):
-            return None
+            return Nothing
 
-        return values
+        return Just(value)

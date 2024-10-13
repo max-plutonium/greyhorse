@@ -10,7 +10,7 @@ class Query(ABC):
     def apply_sorting[S](self, sorting: S) -> S: ...
 
     @abstractmethod
-    def __eq__(self, other: Self): ...
+    def __eq__(self, other: Self) -> bool: ...
 
-    def __ne__(self, other: Self):
+    def __ne__(self, other: Self) -> bool:
         return not (self == other)

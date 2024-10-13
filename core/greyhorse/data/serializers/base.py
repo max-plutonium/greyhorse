@@ -1,13 +1,15 @@
 from collections.abc import Mapping
 from typing import Any, Protocol
 
-
-class Serializer(Protocol):
-    def serialize(self, data: Any | None = None) -> bytes: ...
+from greyhorse.maybe import Maybe
 
 
-class Deserializer(Protocol):
-    def deserialize(self, data: bytes) -> Any | None: ...
+class Serializer[T](Protocol):
+    def serialize(self, data: T) -> bytes: ...
+
+
+class Deserializer[T](Protocol):
+    def deserialize(self, data: bytes) -> Maybe[T]: ...
 
 
 class ModelSerializer(Protocol):

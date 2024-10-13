@@ -151,7 +151,6 @@ class ResourceManager:
             case Ok(prov) | (Provider() as prov):
                 if not issubclass(prov_type, ForwardProvider):
                     self._cached_providers.add(prov_type, prov)
-                return Ok(prov)
 
             case Err(e):
                 return ResourceError.Provision(details=e.message).to_result()
@@ -165,24 +164,23 @@ class ResourceManager:
                         partial(factory, *injected_args.args, **injected_args.kwargs)
                     )
                     self._cached_providers.add(prov_type, prov)
-                    return Ok(prov)
-                if issubclass(prov_type, MutProvider):
+                elif issubclass(prov_type, MutProvider):
                     prov = MutGenBox[prov_type.__wrapped_type__](
                         partial(factory, *injected_args.args, **injected_args.kwargs)
                     )
                     self._cached_providers.add(prov_type, prov)
-                    return Ok(prov)
-                if issubclass(prov_type, FactoryProvider):
+                elif issubclass(prov_type, FactoryProvider):
                     prov = FactoryGenBox[prov_type.__wrapped_type__](
                         partial(factory, *injected_args.args, **injected_args.kwargs)
                     )
                     self._cached_providers.add(prov_type, prov)
-                    return Ok(prov)
-                if issubclass(prov_type, ForwardProvider):
+                elif issubclass(prov_type, ForwardProvider):
                     prov = ForwardGenBox[prov_type.__wrapped_type__](gen)
-                    return Ok(prov)
 
-        raise AssertionError('Unexpected return value returned from provider method')
+            case _:
+                raise AssertionError('Unexpected return value returned from provider method')
+
+        return Ok(prov)
 
     def setup_resource[T](
         self, operator: Operator[T], providers: Selector[type[Provider], Provider] | None = None

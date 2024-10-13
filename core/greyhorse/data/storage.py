@@ -22,16 +22,16 @@ class DataStorageEngine(ABC):
     @abstractmethod
     def get_context[T: Context](self, kind: type[T]) -> Maybe[T]: ...
 
-    def start(self) -> Awaitable[None] | None:
-        pass
+    @abstractmethod
+    def start(self) -> Awaitable[None] | None: ...
 
-    def stop(self) -> Awaitable[None] | None:
-        pass
+    @abstractmethod
+    def stop(self) -> Awaitable[None] | None: ...
 
 
 class DataStorageEngineFactory(ABC):
     @abstractmethod
-    def create_engine(self, name: str, *args, **kwargs) -> DataStorageEngine: ...
+    def create_engine[T](self, name: str, config: T) -> DataStorageEngine: ...
 
     @abstractmethod
     def destroy_engine(self, name: str) -> bool: ...

@@ -1,6 +1,6 @@
 import asyncio
 from collections.abc import Callable
-from functools import partial
+from functools import partial, wraps
 
 from greyhorse.app.runtime import instance, is_awaitable
 
@@ -20,6 +20,7 @@ def run[T, **P](func: Callable[P, T], /, *args: P.args, **kwargs: P.kwargs) -> T
 
 
 def main[T, **P](func: Callable[P, T] | None = None) -> T:
+    @wraps(func)
     def decorator[T, **P](func: Callable[P, T]) -> T:
         return partial(run, func)
 

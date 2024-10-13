@@ -44,32 +44,29 @@ class ModuleLoader:
     def __init__(self) -> None:
         self._injector = ParamsInjector()
 
-    # noinspection PyProtectedMember
     def load_pass(self, conf: ModuleComponentConf) -> Result[ModuleConf, ModuleLoadError]:
-        if conf._conf is not None:
+        if conf._conf is not None:  # noqa: SLF001
             return ModuleLoadError.AlreadyLoaded(path=conf.path).to_result()
 
         if not (res := self._load_module(conf)):
             return res
 
-        conf._conf = res.unwrap()
+        conf._conf = res.unwrap()  # noqa: SLF001
 
-        if not conf._conf.enabled:
+        if not conf._conf.enabled:  # noqa: SLF001
             return ModuleLoadError.Disabled(path=conf.path).to_result()
 
-        return Ok(conf._conf)
+        return Ok(conf._conf)  # noqa: SLF001
 
-    # noinspection PyProtectedMember
     def unload_pass(self, conf: ModuleComponentConf) -> Result[None, ModuleUnloadError]:
-        if conf._conf is None:
+        if conf._conf is None:  # noqa: SLF001
             return ModuleUnloadError.AlreadyUnloaded(path=conf.path).to_result()
 
-        if not conf._conf.enabled:
+        if not conf._conf.enabled:  # noqa: SLF001
             return ModuleUnloadError.Disabled(path=conf.path).to_result()
 
         return self._unload_module(conf)
 
-    # noinspection PyProtectedMember
     @staticmethod
     def _get_module_package(conf: ModuleComponentConf) -> str:
         if not conf.path.startswith('.'):
@@ -85,7 +82,7 @@ class ModuleLoader:
                 path = path[dots_count + 1 :]
                 break
 
-        init_path = conf._init_path
+        init_path = conf._init_path  # noqa: SLF001
         dots_count = min(dots_count, len(init_path))
         init_path = init_path[0 : len(init_path) - dots_count]
         return '.'.join([*init_path, path])
@@ -137,7 +134,7 @@ class ModuleLoader:
         except (ImportError, AttributeError):
             pass
         else:
-            injected_args = self._injector(func, types={ModuleConf: conf._conf})
+            injected_args = self._injector(func, types={ModuleConf: conf._conf})  # noqa: SLF001
 
             try:
                 invoke_sync(func, *injected_args.args, **injected_args.kwargs)
@@ -147,7 +144,7 @@ class ModuleLoader:
                 logger.error(error.message)
                 return error.to_result()
 
-        conf, conf._conf = conf._conf, None
+        conf, conf._conf = conf._conf, None  # noqa: SLF001
         del conf
         del sys.modules[module_path]
 

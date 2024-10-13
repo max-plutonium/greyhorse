@@ -51,7 +51,7 @@ class _BasicRefBox:
         return Ok(value)
 
     @staticmethod
-    def _ensure_maybe(value):
+    def _ensure_maybe(value: object) -> Maybe:
         if not isinstance(value, Maybe):
             value = Maybe(value)
         return value
@@ -164,7 +164,10 @@ class SharedCtxRefBox[T](_BasicRefBox, SharedProvider[T]):
     __slots__ = ('_kind', '_params', '_factory')
 
     def __init__(
-        self, kind: type[SyncContext[T] | AsyncContext[T]], factory: Callable[[], T], **params
+        self,
+        kind: type[SyncContext[T] | AsyncContext[T]],
+        factory: Callable[[], T],
+        **params: dict[str, Any],
     ) -> None:
         super().__init__()
         self._kind = kind
@@ -195,7 +198,7 @@ class MutCtxRefBox[T](_BasicRefBox, MutProvider[T]):
         self,
         mut_kind: type[SyncMutContext[T] | AsyncMutContext[T]],
         factory: Callable[[], T],
-        **params,
+        **params: dict[str, Any],
     ) -> None:
         super().__init__()
         self._mut_kind = mut_kind

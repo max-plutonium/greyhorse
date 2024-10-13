@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable
-from typing import Union
 
 from greyhorse.error import Error, ErrorCase
 from greyhorse.result import Result
@@ -24,13 +23,15 @@ class BorrowError(Error):
     )
 
     Unexpected = ErrorCase(
-        msg='Cannot borrow "{name}" as immutable because an unexpected error occurred: "{details}"',
+        msg='Cannot borrow "{name}" as immutable because an unexpected '
+        'error occurred: "{details}"',
         name=str,
         details=str,
     )
 
     InsufficientDeps = ErrorCase(
-        msg='Cannot borrow "{name}" as immutable because dependencies are not enough to satisfy',
+        msg='Cannot borrow "{name}" as immutable because dependencies '
+        'are not enough to satisfy',
         name=str,
     )
 
@@ -56,7 +57,8 @@ class BorrowMutError(Error):
     )
 
     Unexpected = ErrorCase(
-        msg='Cannot borrow "{name}" as mutable because an unexpected error occurred: "{details}"',
+        msg='Cannot borrow "{name}" as mutable because an unexpected '
+        'error occurred: "{details}"',
         name=str,
         details=str,
     )
@@ -139,4 +141,4 @@ class ForwardProvider[T](Provider[T], ABC):
     def __bool__(self) -> bool | Awaitable[bool]: ...
 
 
-AnyProvider = Union[SharedProvider, MutProvider, FactoryProvider, ForwardProvider]
+AnyProvider = SharedProvider | MutProvider | FactoryProvider | ForwardProvider

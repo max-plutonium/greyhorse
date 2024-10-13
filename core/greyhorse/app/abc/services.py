@@ -81,12 +81,16 @@ class Service(ABC):
 
     @abstractmethod
     def setup(
-        self, *args, **kwargs
+        self,
+        *args,  # noqa: ANN002
+        **kwargs,  # noqa: ANN003
     ) -> Result[ServiceState, ServiceError] | Awaitable[Result[ServiceState, ServiceError]]: ...
 
     @abstractmethod
     def teardown(
-        self, *args, **kwargs
+        self,
+        *args,  # noqa: ANN002
+        **kwargs,  # noqa: ANN003
     ) -> Result[ServiceState, ServiceError] | Awaitable[Result[ServiceState, ServiceError]]: ...
 
     def can_provide(self, resource_type: type) -> bool:

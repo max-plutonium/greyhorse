@@ -87,7 +87,7 @@ class Runtime:
         self._sync_ctx = not future.done()
         while self._sync_ctx:
             try:
-                while task := self._tasks.get(timeout=0.01):
+                while task := self._tasks.get(timeout=0.00001):
                     try:
                         res = task.func(*task.args, **task.kwargs)
                         self._loop.call_soon_threadsafe(task.waiter.set_result, res)

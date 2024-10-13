@@ -27,12 +27,20 @@ split-on-trailing-comma = false
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "N", "B", "Q", "ANN", "RET", "SLF", "SIM", "UP", "COM", "PL", "PERF", "RUF"]
-ignore = ["F402", "E701", "UP032", "Q000", "Q003", "COM812"]
+ignore = ["F402", "E701", "UP032", "Q000", "Q003", "COM812", "PLW2901"]
 
 explicit-preview-rules = true
 
+exclude = [
+    "core/greyhorse/enum.py",
+    "core/greyhorse/mypy_plugin.py",
+    "core/greyhorse/data/cache/*",
+    "core/greyhorse/data/models/*"
+]
+
 [tool.ruff.lint.pylint]
 max-args = 10
+max-branches = 20
 
 [tool.ruff.lint.per-file-ignores]
 "*/tests/*" = ["PLR2004", "PLR0915"]
