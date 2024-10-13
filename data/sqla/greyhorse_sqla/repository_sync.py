@@ -42,7 +42,7 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
             )
             self._column_names_map = dict(column_names_map)
 
-    def construct(self, data: Mapping[str, Any], **kwargs) -> Result[E, EntityError]:
+    def construct(self, data: Mapping[str, Any]) -> Result[E, EntityError]:
         return Ok(self._entity_class(**data))
 
     #
@@ -50,16 +50,16 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
     #
 
     @override
-    def get(self, id_value: ID, **kwargs) -> Maybe[E]:
-        query = self.query_get(id_value, **kwargs)
+    def get(self, id_value: ID) -> Maybe[E]:
+        query = self.query_get(id_value)
 
         with self._mut_ctx as session:
             res = session.execute(query)
             return Maybe(res.scalar_one_or_none())
 
     @override
-    def get_any(self, indices: Iterable[ID], **kwargs) -> Iterable[Maybe[E]]:
-        query = self.query_any(indices, **kwargs)
+    def get_any(self, indices: Iterable[ID]) -> Iterable[Maybe[E]]:
+        query = self.query_any(indices)
 
         with self._mut_ctx as session:
             res = session.scalars(query)
@@ -69,8 +69,8 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
         return [Maybe(objects.get(id_value, None)) for id_value in indices]
 
     @override
-    def exists(self, id_value: ID, **kwargs) -> bool:
-        query = self.query_exists(id_value, **kwargs)
+    def exists(self, id_value: ID) -> bool:
+        query = self.query_exists(id_value)
         with self._mut_ctx as session:
             return bool(session.scalar(query))
 
@@ -87,10 +87,8 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
             return True
 
     @override
-    def list(
-        self, query: Query | None = None, skip: int = 0, limit: int = 0, **kwargs
-    ) -> Iterable[E]:
-        query = self.query_list(query, skip, limit, **kwargs)
+    def list(self, query: Query | None = None, skip: int = 0, limit: int = 0) -> Iterable[E]:
+        query = self.query_list(query, skip, limit)
 
         with self._mut_ctx as session:
             res = session.scalars(query)
@@ -98,7 +96,7 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
 
     @override
     def sublist(
-        self, field: str, query: Query | None = None, skip: int = 0, limit: int = 0, **kwargs
+        self, field: str, query: Query | None = None, skip: int = 0, limit: int = 0
     ) -> Iterable[E]:
         field_attr = getattr(self._entity_class, field)
         sqla_query = field_attr.select().offset(skip if skip >= 0 else 0)
@@ -119,15 +117,15 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
             return res.all()
 
     @override
-    def count(self, query: Query | None = None, **kwargs) -> int:
-        sqla_query = self.query_count(query, **kwargs)
+    def count(self, query: Query | None = None) -> int:
+        sqla_query = self.query_count(query)
 
         with self._mut_ctx as session:
             return session.scalar(sqla_query)
 
     @override
-    def exists_by(self, query: Query, **kwargs) -> bool:
-        sqla_query = self.query_exists_by(query, **kwargs)
+    def exists_by(self, query: Query) -> bool:
+        sqla_query = self.query_exists_by(query)
 
         with self._mut_ctx as session:
             return bool(session.scalar(sqla_query))
@@ -137,8 +135,8 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
     #
 
     @override
-    def create(self, data: Mapping[str, Any], **kwargs) -> Result[E, EntityError]:
-        if not (res := self.construct(data, **kwargs)):
+    def create(self, data: Mapping[str, Any]) -> Result[E, EntityError]:
+        if not (res := self.construct(data)):
             return res
 
         instance = res.unwrap()
@@ -150,9 +148,7 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
         return res
 
     @override
-    def update_by_id(
-        self, id_value: ID, data: Mapping[str, Any], **kwargs
-    ) -> Result[None, EntityError]:
+    def update_by_id(self, id_value: ID, data: Mapping[str, Any]) -> Result[None, EntityError]:
         query = self.query_get(id_value, query=update(self._entity_class).values(**data))
 
         with self._mut_ctx as session:
@@ -167,7 +163,7 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
                 return EntityError.NotOnlyOne().to_result()
 
     @override
-    def save(self, instance: E, **kwargs) -> Result[None, EntityError]:
+    def save(self, instance: E) -> Result[None, EntityError]:
         iss = instance_state(instance)
 
         if iss.was_deleted:
@@ -181,7 +177,7 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
         return Ok()
 
     @override
-    def save_all(self, objects: Iterable[E], **kwargs) -> int:
+    def save_all(self, objects: Iterable[E]) -> int:
         count = 0
 
         with self._mut_ctx as session:
@@ -223,16 +219,16 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
             return cursor.rowcount == 1
 
     @override
-    def update_by(self, query: Query, data: Mapping[str, Any], **kwargs) -> int:
-        sqla_query = self.query_update(query, **kwargs).values(**data)
+    def update_by(self, query: Query, data: Mapping[str, Any]) -> int:
+        sqla_query = self.query_update(query).values(**data)
 
         with self._mut_ctx as session:
             cursor = cast(CursorResult, session.execute(sqla_query))
             return cursor.rowcount  # type: ignore
 
     @override
-    def delete_by(self, query: Query, **kwargs) -> int:
-        sqla_query = self.query_delete(query, **kwargs)
+    def delete_by(self, query: Query) -> int:
+        sqla_query = self.query_delete(query)
 
         with self._mut_ctx as session:
             cursor = cast(CursorResult, session.execute(sqla_query))
@@ -242,16 +238,16 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
     # Query operations
     #
 
-    def query_for_select(self, **kwargs):
+    def query_for_select(self):
         return select(self._entity_class)
 
-    def query_for_update(self, **kwargs):
+    def query_for_update(self):
         return update(self._entity_class)
 
-    def query_for_delete(self, **kwargs):
+    def query_for_delete(self):
         return delete(self._entity_class)
 
-    def query_get(self, id_value: ID, query=None, **kwargs):
+    def query_get(self, id_value: ID, query=None):
         ident_ = [id_value] if not isinstance(id_value, list | tuple | dict) else id_value
         columns = self._get_id_columns()
         if len(ident_) != len(columns):
@@ -268,7 +264,7 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
             clause = clause.where(c == val)
         return clause
 
-    def query_any(self, indices: Iterable[ID], query=None, **kwargs):
+    def query_any(self, indices: Iterable[ID], query=None):
         columns = self._get_id_columns()
         clause = query if query is not None else self.query_for_select(**kwargs)
         vals_clause = []
@@ -300,10 +296,10 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
             clause = clause.where(tuple_(*columns).in_(vals_clause))
         return clause
 
-    def query_exists(self, id_value: ID, **kwargs):
-        return self.query_get(id_value, query=exists(), **kwargs).select()
+    def query_exists(self, id_value: ID):
+        return self.query_get(id_value, query=exists()).select()
 
-    def query_list(self, query: Query | None = None, skip: int = 0, limit: int = 0, **kwargs):
+    def query_list(self, query: Query | None = None, skip: int = 0, limit: int = 0):
         sqla_query = self.query_for_select(**kwargs).offset(skip if skip >= 0 else 0)
         if limit > 0:
             sqla_query = sqla_query.limit(limit)
@@ -312,7 +308,7 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
             sqla_query = query.apply_sorting(sqla_query)
         return sqla_query
 
-    def query_count(self, query: Query | None = None, **kwargs):
+    def query_count(self, query: Query | None = None):
         if query is not None:
             sqla_query = query.apply_filter(self.query_for_select())
         else:
@@ -320,13 +316,13 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
 
         return select(func.count(literal_column('1'))).select_from(sqla_query.alias())
 
-    def query_exists_by(self, query: Query, **kwargs):
+    def query_exists_by(self, query: Query):
         return query.apply_filter(exists(self._entity_class)).select()
 
-    def query_update(self, query: Query, **kwargs):
+    def query_update(self, query: Query):
         return query.apply_filter(self.query_for_update(**kwargs))
 
-    def query_delete(self, query: Query, **kwargs):
+    def query_delete(self, query: Query):
         return query.apply_filter(self.query_for_delete(**kwargs))
 
     #

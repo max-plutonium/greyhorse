@@ -36,9 +36,8 @@ def _prepare_params(config: EngineConf) -> dict:
 
 
 class SyncSqlaEngineFactory(SimpleDataStorageFactory[SyncSqlaEngine]):
-    # noinspection PyMethodOverriding
     @override
-    def create_engine(self, name: str, config: EngineConf, *args, **kwargs) -> SyncSqlaEngine:
+    def create_engine(self, name: str, config: EngineConf) -> SyncSqlaEngine:
         if engine := self._engines.get(name).unwrap_or_none():
             return engine
 
@@ -67,9 +66,8 @@ class SyncSqlaEngineFactory(SimpleDataStorageFactory[SyncSqlaEngine]):
 
 
 class AsyncSqlaEngineFactory(SimpleDataStorageFactory[AsyncSqlaEngine]):
-    # noinspection PyMethodOverriding
     @override
-    def create_engine(self, name: str, config: EngineConf, *args, **kwargs) -> AsyncSqlaEngine:
+    def create_engine(self, name: str, config: EngineConf) -> AsyncSqlaEngine:
         if engine := self._engines.get(name).unwrap_or_none():
             return engine
 
