@@ -444,7 +444,7 @@ class ModuleComponent(Component):
             return res
 
         for prov_type in self._module.conf.provider_claims:
-            if prov := self.get_provider(prov_type).unwrap_or_none():
+            if prov := self._rm.find_provider(prov_type).unwrap_or_none():
                 self._module.add_provider(prov_type, prov)
 
         for res_type in self._module.conf.resource_claims:
