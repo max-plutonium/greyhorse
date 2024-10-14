@@ -1,6 +1,6 @@
-from greyhorse.app.abc.providers import SharedProvider
+from greyhorse.app.abc.providers import FactoryProvider
 from greyhorse.app.entities.application import Application
-from greyhorse.app.schemas.components import ModuleComponentConf
+from greyhorse.app.schemas.components import ModuleComponentConf, ModuleConf
 from greyhorse.app.schemas.elements import CtrlConf, SvcConf
 
 from .common.functional import FunctionalOperator
@@ -8,12 +8,18 @@ from .root import FunctionalOperatorCtrl, FunctionalOperatorService
 
 
 def test_app() -> None:
-    app_conf = ModuleComponentConf(
+    app_conf = ModuleConf(
         enabled=True,
-        path='..module.main',
-        providers=[SharedProvider[FunctionalOperator]],
-        services=[SvcConf(type=FunctionalOperatorService)],
-        controllers=[CtrlConf(type=FunctionalOperatorCtrl)],
+        providers=[FactoryProvider[FunctionalOperator]],
+        components={
+            'dict': ModuleComponentConf(
+                enabled=True,
+                path='..module.main',
+                providers=[FactoryProvider[FunctionalOperator]],
+                services=[SvcConf(type=FunctionalOperatorService)],
+                controllers=[CtrlConf(type=FunctionalOperatorCtrl)],
+            )
+        },
     )
 
     app = Application('TestApp')
@@ -26,11 +32,11 @@ def test_app() -> None:
 
     print('OK')
 
-    prov = app.get_provider(SharedProvider[FunctionalOperator])
+    prov = app.get_provider(FactoryProvider[FunctionalOperator])
     assert prov.is_just()
 
     prov = prov.unwrap()
-    op = prov.borrow().unwrap()
+    op = prov.create().unwrap()
 
     res = op.add_number(123)
     assert res.is_ok()
@@ -54,6 +60,8 @@ def test_app() -> None:
     # await app.run_async()
 
     assert app.stop()
+
+    prov.destroy(op)
 
     res = app.teardown()
     assert res.is_ok()

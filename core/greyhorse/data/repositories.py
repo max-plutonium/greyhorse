@@ -191,7 +191,12 @@ class AsyncFilterable[E, ID](ABC):
 
     @abstractmethod
     async def sublist(
-        self, field: str, query: Query | None = None, skip: int = 0, limit: int = 0
+        self,
+        field: str,
+        query: Query | None = None,
+        skip: int = 0,
+        limit: int = 0,
+        **kwargs: dict[str, Any],
     ) -> Iterable[E]: ...
 
     @abstractmethod

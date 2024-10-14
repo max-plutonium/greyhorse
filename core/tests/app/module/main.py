@@ -16,6 +16,7 @@ def __init__() -> ModuleConf:  # noqa: N807
     return ModuleConf(
         enabled=True,
         operators=[FunctionalOperator],
+        providers=[FunctionalOpProvider],
         components={
             'domain': ComponentConf(
                 enabled=True,

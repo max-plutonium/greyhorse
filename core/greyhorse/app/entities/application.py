@@ -12,9 +12,10 @@ from greyhorse.app.abc.controllers import Controller
 from greyhorse.app.abc.providers import Provider
 from greyhorse.app.abc.services import Service, ServiceWaiter
 from greyhorse.app.abc.visitor import Visitor
-from greyhorse.app.builders.module import load_module, unload_module
+from greyhorse.app.builders.module import ModuleBuilder
 from greyhorse.app.entities.components import ModuleComponent
-from greyhorse.app.schemas.components import ModuleComponentConf
+from greyhorse.app.entities.module import Module
+from greyhorse.app.schemas.components import ModuleConf
 from greyhorse.error import Error, ErrorCase
 from greyhorse.logging import logger
 from greyhorse.maybe import Just, Maybe, Nothing
@@ -30,9 +31,8 @@ class ApplicationError(Error):
     NotLoaded = ErrorCase(msg='Application not loaded')
     Load = ErrorCase(msg='Load error occurred: "{details}"', details=str)
     Unload = ErrorCase(msg='Unload error occurred: "{details}"', details=str)
-    Component = ErrorCase(
-        msg='Component error in application, details: "{details}"', details=str
-    )
+    Setup = ErrorCase(msg='Setup error occurred: "{details}"', details=str)
+    Teardown = ErrorCase(msg='Teardown error occurred: "{details}"', details=str)
 
 
 class _ElementsVisitor(Visitor):
@@ -55,8 +55,8 @@ class Application:
         self._version = version or get_version()
         self._controllers: list[Controller] = []
         self._services: list[Service] = []
-        self._root: Maybe[ModuleComponent] = Nothing
-        self._conf: Maybe[ModuleComponentConf] = Nothing
+        self._root: Maybe[Module] = Nothing
+        self._conf: Maybe[ModuleConf] = Nothing
 
     @property
     def name(self) -> str:
@@ -73,6 +73,9 @@ class Application:
     def get_cwd(self) -> Path:
         return self._path.absolute()
 
+    def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
+        return self._root.and_then(lambda root: root.get_provider(prov_type))
+
     def add_resource[T](self, res_type: type[T], resource: T, name: str | None = None) -> bool:
         return self._root.map_or(
             False, lambda root: root.add_resource(res_type, resource, name)
@@ -81,17 +84,16 @@ class Application:
     def remove_resource[T](self, res_type: type[T], name: str | None = None) -> bool:
         return self._root.map_or(False, lambda root: root.remove_resource(res_type, name=name))
 
-    def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
-        return self._root.and_then(lambda root: root.get_provider(prov_type))
-
-    def load(self, conf: ModuleComponentConf) -> Result[None, ApplicationError]:
+    def load(self, conf: ModuleConf) -> Result[None, ApplicationError]:
         if self._root:
             return ApplicationError.AlreadyLoaded().to_result()
 
         logger.info('{name}: Application load'.format(name=self.name))
 
+        builder = ModuleBuilder(conf, self._name)
+
         if not (
-            res := load_module(self._name, conf).map_err(
+            res := builder.create_pass().map_err(
                 lambda err: ApplicationError.Load(details=err.message)
             )
         ):
@@ -99,17 +101,7 @@ class Application:
 
         module = res.unwrap()
 
-        try:
-            instance = ModuleComponent(
-                name=self._name, path=self._name, conf=conf, module=module
-            )
-
-        except Exception as e:
-            error = ApplicationError.Component(details=str(e))
-            logger.error(error.message)
-            return error.to_result()
-
-        self._root = Just(instance)
+        self._root = Just(module)
         self._conf = Just(conf)
 
         logger.info('{name}: Application loaded successfully'.format(name=self.name))
@@ -123,8 +115,10 @@ class Application:
 
         conf, self._conf = self._conf.unwrap(), Nothing
 
+        builder = ModuleBuilder(conf, self._name)
+
         if not (
-            res := unload_module(self._name, conf).map_err(
+            res := builder.destroy_pass().map_err(
                 lambda e: ApplicationError.Unload(details=e.message)
             )
         ):
@@ -138,9 +132,8 @@ class Application:
     def setup(self) -> Result[None, ApplicationError]:
         return (
             self._root.map(
-                lambda root: root.create()
-                .and_then(lambda _: root.setup())
-                .map_err(lambda e: ApplicationError.Component(details=e.message))
+                lambda root: root.setup()
+                .map_err(lambda e: ApplicationError.Setup(details=e.message))
                 .map(lambda _: root)
             )
             .unwrap_or_else(lambda: ApplicationError.NotLoaded().to_result())
@@ -152,9 +145,9 @@ class Application:
         self._services = []
 
         return self._root.map(
-            lambda root: root.teardown()
-            .and_then(lambda _: root.destroy())
-            .map_err(lambda e: ApplicationError.Component(details=e.message))
+            lambda root: root.teardown().map_err(
+                lambda e: ApplicationError.Teardown(details=e.message)
+            )
         ).unwrap_or_else(lambda: ApplicationError.NotLoaded().to_result())
 
     def start(self) -> bool:
