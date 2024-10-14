@@ -12,10 +12,13 @@ from uvicorn import Config, Server
 
 
 class UvicornService(AsyncService):
-    def __init__(self, host: str, port: int, resource_name: str) -> None:
+    def __init__(
+        self, host: str, port: int, resource_name: str, config: dict[str, Any] | None = None
+    ) -> None:
         super().__init__()
         self._host = host
         self._port = port
+        self._conf = config or {}
         self._resource_name = resource_name
         self._server: Server | None = None
         self._task: Task | None = None
@@ -32,7 +35,7 @@ class UvicornService(AsyncService):
         if app is None:
             return ServiceError.NoSuchResource(name='Application for Uvicorn').to_result()
 
-        config = Config(app, host=self._host, port=self._port)
+        config = Config(app, host=self._host, port=self._port, **self._conf)
         self._server = Server(config)
         return await super().setup()
 

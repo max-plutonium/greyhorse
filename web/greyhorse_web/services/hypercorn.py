@@ -12,10 +12,11 @@ from hypercorn.config import Config
 
 
 class HypercornService(AsyncService):
-    def __init__(self, host: str, port: int, resource_name: str) -> None:
+    def __init__(
+        self, host: str, port: int, resource_name: str, config: dict[str, Any] | None = None
+    ) -> None:
         super().__init__()
-        self._config = Config()
-        self._config.bind = f'{host}:{port}'
+        self._config = Config.from_mapping(bind=f'{host}:{port}', **(config or {}))
         self._resource_name = resource_name
         self._task: Task | None = None
         self._app = None
