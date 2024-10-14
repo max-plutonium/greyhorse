@@ -19,28 +19,23 @@ from starlette.authentication import (
     UnauthenticatedUser,
 )
 from starlette.middleware.authentication import AuthenticationMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 
-async def orjson_loads(self: Response) -> object:
-    if not hasattr(self, '_json'):
-        body = await self.body()
-        self._json = loads(body)
-    return self._json
-
-
-class ORJsonMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        response = await call_next(request)
-        response.json = orjson_loads
-        return response
+class ORJsonRequest(Request):
+    async def json(self) -> object:
+        if not hasattr(self, '_json'):
+            body = await self.body()
+            self._json = loads(body)
+        return self._json
 
 
 class ORJsonResponse(Response):
     media_type = 'application/json'
+    use_indent: bool = False
+    sort_keys: bool = False
 
     def render(self, content: object) -> bytes:
-        return dumps_raw(content)
+        return dumps_raw(content, use_indent=self.use_indent, sort_keys=self.sort_keys)
 
 
 class AuthBackend(AuthenticationBackend):
@@ -58,6 +53,7 @@ class FastAPIService(AsyncService):
         cors: list[str] | None = None,
     ) -> None:
         super().__init__()
+
         self._app = FastAPI(
             title=title,
             version=version,
@@ -65,7 +61,6 @@ class FastAPIService(AsyncService):
             root_path=root_path,
             default_response_class=ORJsonResponse,
         )
-        self._app.add_middleware(ORJsonMiddleware)  # type: ignore
         self._app.add_middleware(
             CORSMiddleware,  # type: ignore
             allow_origins=[str(origin) for origin in cors] if cors else ['*'],
@@ -77,6 +72,9 @@ class FastAPIService(AsyncService):
             AuthenticationMiddleware,  # type: ignore
             backend=AuthBackend(),
         )
+
+        ORJsonResponse.use_indent = ORJsonResponse.sort_keys = debug
+        Request.json = ORJsonRequest.json
 
         @self._app.exception_handler(RequestValidationError)
         async def validation_exception_handler(
