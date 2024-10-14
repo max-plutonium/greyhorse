@@ -1,9 +1,10 @@
 import enum
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic.networks import MySQLDsn, PostgresDsn, Url, UrlConstraints
+from pydantic_core.core_schema import ValidationInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -45,7 +46,7 @@ class SqliteSettings(BaseSettings):
     dsn: SQLiteDsn
 
     model_config = SettingsConfigDict(
-        env_file='.env', case_sensitive=False, env_prefix='sqlite_'
+        env_file='.env', case_sensitive=False, env_prefix='sqlite_', extra='ignore'
     )
 
 
@@ -65,14 +66,16 @@ class PgSettings(BaseSettings):
     dsn: PostgresDsn | None = None
 
     model_config = SettingsConfigDict(
-        env_file='.env', case_sensitive=False, env_prefix='postgres_'
+        env_file='.env', case_sensitive=False, env_prefix='postgres_', extra='ignore'
     )
 
-    @classmethod
     @field_validator('dsn', mode='before')
-    def assemble_dsn(cls, v: PostgresDsn | None, values: dict[str, Any]) -> str:
+    @classmethod
+    def assemble_dsn(cls, v: PostgresDsn | None, info: ValidationInfo) -> str:
         if v is not None:
             return v
+
+        values = info.data
 
         if 'password_file' in values:
             password_file = values.get('password_file')
@@ -80,7 +83,7 @@ class PgSettings(BaseSettings):
                 with password_file.open() as f:
                     values['password'] = f.read().strip()
 
-        return PostgresDsn.build(
+        return '{scheme}://{user}:{password}@{host}:{port}{path}'.format(
             scheme='postgresql',
             user=values.get('user'),
             password=values.get('password'),
@@ -105,14 +108,16 @@ class MySqlSettings(BaseSettings):
     dsn: MySQLDsn | None = None
 
     model_config = SettingsConfigDict(
-        env_file='.env', case_sensitive=False, env_prefix='mysql_'
+        env_file='.env', case_sensitive=False, env_prefix='mysql_', extra='ignore'
     )
 
-    @classmethod
     @field_validator('dsn', mode='before')
-    def assemble_dsn(cls, v: PostgresDsn | None, values: dict[str, Any]) -> str:
+    @classmethod
+    def assemble_dsn(cls, v: PostgresDsn | None, info: ValidationInfo) -> str:
         if v is not None:
             return v
+
+        values = info.data
 
         if 'password_file' in values:
             password_file = values.get('password_file')
@@ -120,7 +125,7 @@ class MySqlSettings(BaseSettings):
                 with password_file.open() as f:
                     values['password'] = f.read().strip()
 
-        return MySQLDsn.build(
+        return '{scheme}://{user}:{password}@{host}:{port}{path}'.format(
             scheme='mysql',
             user=values.get('user'),
             password=values.get('password'),
