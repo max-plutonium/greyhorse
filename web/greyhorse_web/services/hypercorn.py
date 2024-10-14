@@ -13,11 +13,11 @@ from hypercorn.config import Config
 
 class HypercornService(AsyncService):
     def __init__(
-        self, host: str, port: int, resource_name: str, config: dict[str, Any] | None = None
+        self, host: str, port: int, resource_type: type, config: dict[str, Any] | None = None
     ) -> None:
         super().__init__()
         self._config = Config.from_mapping(bind=f'{host}:{port}', **(config or {}))
-        self._resource_name = resource_name
+        self._resource_type = resource_type
         self._task: Task | None = None
         self._app = None
 
@@ -27,7 +27,9 @@ class HypercornService(AsyncService):
     ) -> Result[ServiceState, ServiceError]:
         app = None
 
-        for _, _name, app in list_selector.items(lambda t, n: n == self._resource_name):  # noqa: B007
+        for _, _name, app in list_selector.items(
+            lambda t, _: issubclass(t, self._resource_type)
+        ):
             break
 
         if app is None:
