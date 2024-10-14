@@ -108,6 +108,14 @@ class MigrationOperator:
             lines.append('from sqlalchemy import pool, text\n')
         elif orig_line == 'target_metadata = None\n':
             lines.append('target_metadata = metadata\n')
+        elif orig_line == '# ... etc.\n':
+            lines += [
+                orig_line,
+                '\ntry:\n'
+                '    import alembic_postgresql_enum\n'
+                'except ImportError:\n'
+                '    pass\n',
+            ]
         elif orig_line == '        literal_binds=True,\n':
             lines.append('        literal_binds=False,\n')
         elif orig_line == '        dialect_opts={"paramstyle": "named"},\n':

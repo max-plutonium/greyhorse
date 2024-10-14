@@ -44,6 +44,19 @@ wheels = [
 ]
 
 [[package]]
+name = "alembic-postgresql-enum"
+version = "1.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "alembic" },
+    { name = "sqlalchemy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c4/63/5188bd184cc7515090ca98686b97695f68aca403c119e688b66ceb0e653b/alembic_postgresql_enum-1.3.0.tar.gz", hash = "sha256:64d5de7ac2ea39433afd965b057ca882fb420eb5cd6a7db8e2b4d0e7e673cae1", size = 14084 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7b/3a/a32e5fbe008d67b21a0d629a2be19e63b0848a9a4ecb6c2f44ed62ebf6b0/alembic_postgresql_enum-1.3.0-py3-none-any.whl", hash = "sha256:42539e225f8b6c9adc9862a259edeed105b02143d55503152eeeea7a0b5af70b", size = 21593 },
+]
+
+[[package]]
 name = "annotated-types"
 version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -297,7 +310,7 @@ wheels = [
 
 [[package]]
 name = "greyhorse"
-version = "0.4.15.dev6+bb9c92d"
+version = "0.4.21.dev3+a13c9d7"
 source = { editable = "../../core" }
 dependencies = [
     { name = "networkx" },
@@ -333,7 +346,7 @@ dev = [
 
 [[package]]
 name = "greyhorse-sqla"
-version = "0.4.16.dev2+d7dd938"
+version = "0.4.22.dev4+29e2653"
 source = { editable = "." }
 dependencies = [
     { name = "greyhorse" },
@@ -352,6 +365,7 @@ mysql = [
     { name = "pymysql", extra = ["rsa"] },
 ]
 pg = [
+    { name = "alembic-postgresql-enum" },
     { name = "asyncpg" },
     { name = "psycopg2" },
 ]
@@ -377,6 +391,7 @@ requires-dist = [
     { name = "aiomysql", marker = "extra == 'mysql'", specifier = ">=0.2.0" },
     { name = "aiosqlite", marker = "extra == 'sqlite'", specifier = ">=0.20.0" },
     { name = "alembic", marker = "extra == 'migration'", specifier = ">=1.13.3" },
+    { name = "alembic-postgresql-enum", marker = "extra == 'pg'", specifier = ">=1.3.0" },
     { name = "asyncpg", marker = "extra == 'pg'", specifier = ">=0.29.0" },
     { name = "greyhorse", editable = "../../core" },
     { name = "psycopg2", marker = "extra == 'pg'", specifier = ">=2.9.9" },
