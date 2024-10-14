@@ -19,7 +19,7 @@ class SqlaQuery(Query):
         self,
         filter_exprs: Iterable[SQLColumnExpression | TextClause],
         sorting_exprs: list[UnaryExpression] | None = None,
-        **filter_params,
+        **filter_params: dict[str, Any],
     ) -> None:
         self._filter_exprs = filter_exprs
         self._filter_params = filter_params
@@ -42,7 +42,7 @@ class SqlaQuery(Query):
         return sorting
 
     @override
-    def __eq__(self, other: Self):
+    def __eq__(self, other: Self) -> bool:
         return (self._filter_exprs, self._filter_params, self._sorting_exprs) == (
             other._filter_exprs,
             other._filter_params,

@@ -5,7 +5,7 @@ from greyhorse.app.schemas.elements import SvcConf
 from greyhorse_sqla.migration.service import MigrationService
 
 
-def __init__(dsn: str):
+def __init__(dsn: str) -> ModuleConf:  # noqa: N807
     return ModuleConf(
         enabled=True,
         components={

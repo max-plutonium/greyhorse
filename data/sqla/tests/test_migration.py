@@ -7,7 +7,7 @@ from .conf import POSTGRES_URI
 
 
 @pytest.fixture
-def application():
+def application() -> Application:
     app_conf = ModuleComponentConf(
         enabled=True, path='..migration.module', args={'dsn': POSTGRES_URI}
     )
@@ -23,22 +23,22 @@ def application():
     assert app.unload()
 
 
-def test_init(application) -> None:
+def test_init(application: Application) -> None:
     visitor = MigrationVisitor('init', only_names=['TestApp.migration'])
     assert application.run_visitor(visitor)
 
 
-def test_new(application) -> None:
+def test_new(application: Application) -> None:
     visitor = MigrationVisitor('new', dict(name='initial'), only_names=['TestApp.migration'])
     assert application.run_visitor(visitor)
 
 
-def test_upgrade(application) -> None:
+def test_upgrade(application: Application) -> None:
     visitor = MigrationVisitor('upgrade', dict(offline=False), only_names=['TestApp.migration'])
     assert application.run_visitor(visitor)
 
 
-def test_downgrade(application) -> None:
+def test_downgrade(application: Application) -> None:
     visitor = MigrationVisitor(
         'downgrade', dict(offline=False), only_names=['TestApp.migration']
     )

@@ -1,9 +1,14 @@
+from typing import Literal
+
+from alembic.autogenerate.api import AutogenContext
 from sqlalchemy import ARRAY, VARBINARY, BindParameter, Enum, False_, True_
 from sqlalchemy.dialects.postgresql import INET, JSONB
 from sqlalchemy.sql.functions import Function
 
 
-def render_item(type_, obj, autogen_context) -> str | bool:
+def render_item(
+    type_: str, obj: object, autogen_context: AutogenContext
+) -> str | Literal[False]:
     """Apply custom rendering for selected items."""
     sa_prefix = autogen_context.opts['sqlalchemy_module_prefix']
 

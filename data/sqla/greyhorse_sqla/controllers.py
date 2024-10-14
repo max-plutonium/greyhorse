@@ -29,12 +29,20 @@ class SyncSqlaController(SyncController):
 
             res &= (
                 engine.get_context(SqlaSyncConnCtx)
-                .map(lambda ctx: collector.add(SqlaSyncConnCtx, ctx, name=engine_name))
+                .map(
+                    lambda ctx, engine_name=engine_name: collector.add(
+                        SqlaSyncConnCtx, ctx, name=engine_name
+                    )
+                )
                 .unwrap_or(True)
             )
             res &= (
                 engine.get_context(SqlaSyncSessionCtx)
-                .map(lambda ctx: collector.add(SqlaSyncSessionCtx, ctx, name=engine_name))
+                .map(
+                    lambda ctx, engine_name=engine_name: collector.add(
+                        SqlaSyncSessionCtx, ctx, name=engine_name
+                    )
+                )
                 .unwrap_or(True)
             )
 
@@ -73,12 +81,20 @@ class AsyncSqlaController(AsyncController):
 
             res &= (
                 engine.get_context(SqlaAsyncConnCtx)
-                .map(lambda ctx: collector.add(SqlaAsyncConnCtx, ctx, name=engine_name))
+                .map(
+                    lambda ctx, engine_name=engine_name: collector.add(
+                        SqlaAsyncConnCtx, ctx, name=engine_name
+                    )
+                )
                 .unwrap_or(True)
             )
             res &= (
                 engine.get_context(SqlaAsyncSessionCtx)
-                .map(lambda ctx: collector.add(SqlaAsyncSessionCtx, ctx, name=engine_name))
+                .map(
+                    lambda ctx, engine_name=engine_name: collector.add(
+                        SqlaAsyncSessionCtx, ctx, name=engine_name
+                    )
+                )
                 .unwrap_or(True)
             )
 

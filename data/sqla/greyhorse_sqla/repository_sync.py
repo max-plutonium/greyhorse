@@ -96,7 +96,12 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
 
     @override
     def sublist(
-        self, field: str, query: Query | None = None, skip: int = 0, limit: int = 0
+        self,
+        field: str,
+        query: Query | None = None,
+        skip: int = 0,
+        limit: int = 0,
+        **kwargs: dict[str, Any],
     ) -> Iterable[E]:
         field_attr = getattr(self._entity_class, field)
         sqla_query = field_attr.select().offset(skip if skip >= 0 else 0)
@@ -238,24 +243,25 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
     # Query operations
     #
 
-    def query_for_select(self):
+    def query_for_select(self):  # noqa: ANN201
         return select(self._entity_class)
 
-    def query_for_update(self):
+    def query_for_update(self):  # noqa: ANN201
         return update(self._entity_class)
 
-    def query_for_delete(self):
+    def query_for_delete(self):  # noqa: ANN201
         return delete(self._entity_class)
 
-    def query_get(self, id_value: ID, query=None):
+    def query_get(self, id_value: ID, query=None):  # noqa: ANN001,ANN201
         ident_ = [id_value] if not isinstance(id_value, list | tuple | dict) else id_value
         columns = self._get_id_columns()
         if len(ident_) != len(columns):
             raise ValueError(
-                f'Incorrect number of values as primary key: expected {len(columns)}, got {len(ident_)}.'
+                f'Incorrect number of values as primary key: expected {len(columns)}, '
+                f'got {len(ident_)}.'
             )
 
-        clause = query if query is not None else self.query_for_select(**kwargs)
+        clause = query if query is not None else self.query_for_select()
         for i, c in enumerate(columns):
             try:
                 val = ident_[i]
@@ -264,9 +270,9 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
             clause = clause.where(c == val)
         return clause
 
-    def query_any(self, indices: Iterable[ID], query=None):
+    def query_any(self, indices: Iterable[ID], query=None):  # noqa: ANN001,ANN201
         columns = self._get_id_columns()
-        clause = query if query is not None else self.query_for_select(**kwargs)
+        clause = query if query is not None else self.query_for_select()
         vals_clause = []
 
         for ident in indices:
@@ -274,7 +280,8 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
 
             if len(ident_) != len(columns):
                 raise ValueError(
-                    f'Incorrect number of values as primary key: expected {len(columns)}, got {len(ident_)}.'
+                    f'Incorrect number of values as primary key: expected {len(columns)}, '
+                    f'got {len(ident_)}.'
                 )
 
             vals = []
@@ -296,11 +303,11 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
             clause = clause.where(tuple_(*columns).in_(vals_clause))
         return clause
 
-    def query_exists(self, id_value: ID):
+    def query_exists(self, id_value: ID):  # noqa: ANN201
         return self.query_get(id_value, query=exists()).select()
 
-    def query_list(self, query: Query | None = None, skip: int = 0, limit: int = 0):
-        sqla_query = self.query_for_select(**kwargs).offset(skip if skip >= 0 else 0)
+    def query_list(self, query: Query | None = None, skip: int = 0, limit: int = 0):  # noqa: ANN201
+        sqla_query = self.query_for_select().offset(skip if skip >= 0 else 0)
         if limit > 0:
             sqla_query = sqla_query.limit(limit)
         if query is not None:
@@ -308,7 +315,7 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
             sqla_query = query.apply_sorting(sqla_query)
         return sqla_query
 
-    def query_count(self, query: Query | None = None):
+    def query_count(self, query: Query | None = None):  # noqa: ANN201
         if query is not None:
             sqla_query = query.apply_filter(self.query_for_select())
         else:
@@ -316,14 +323,14 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
 
         return select(func.count(literal_column('1'))).select_from(sqla_query.alias())
 
-    def query_exists_by(self, query: Query):
+    def query_exists_by(self, query: Query):  # noqa: ANN201
         return query.apply_filter(exists(self._entity_class)).select()
 
-    def query_update(self, query: Query):
-        return query.apply_filter(self.query_for_update(**kwargs))
+    def query_update(self, query: Query):  # noqa: ANN201
+        return query.apply_filter(self.query_for_update())
 
-    def query_delete(self, query: Query):
-        return query.apply_filter(self.query_for_delete(**kwargs))
+    def query_delete(self, query: Query):  # noqa: ANN201
+        return query.apply_filter(self.query_for_delete())
 
     #
     # Private
@@ -337,10 +344,8 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
 
     def _get_column_values(
         self, obj: E, columns: ColumnCollection, force_tuple: bool = False
-    ) -> Any | tuple[Any]:
-        rv = []
-        for c in columns:
-            rv.append(getattr(obj, self._get_field_by_column(c)))
+    ) -> object | tuple[object]:
+        rv = [getattr(obj, self._get_field_by_column(c)) for c in columns]
         return rv[0] if len(rv) == 1 and not force_tuple else tuple(rv)
 
     def _get_id_value(self, obj: E) -> ID:

@@ -76,7 +76,7 @@ def test_async_factory() -> None:
     ),
     ids=('SQLite', 'PostgreSQL', 'MySQL'),
 )
-def test_sync_connection(param) -> None:
+def test_sync_connection(param) -> None:  # noqa: ANN001
     config = EngineConf(
         dsn=param[0],
         type=param[1],
@@ -130,7 +130,7 @@ def test_sync_connection(param) -> None:
     ids=('SQLite', 'PostgreSQL', 'MySQL'),
 )
 @pytest.mark.asyncio
-async def test_async_connection(param) -> None:
+async def test_async_connection(param) -> None:  # noqa: ANN001
     config = EngineConf(
         dsn=param[0],
         type=param[1],

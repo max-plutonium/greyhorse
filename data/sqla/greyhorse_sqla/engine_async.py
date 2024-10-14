@@ -18,7 +18,7 @@ from .config import EngineConf
 class _AsyncConnCtx(AsyncMutContext[AsyncConnection]):
     __slots__ = ('_root_tx', '_tx_stack')
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, **kwargs) -> None:  # noqa: ANN002,ANN003
         super().__init__(*args, **kwargs)
         self._root_tx: AsyncTransaction | None = None
         self._tx_stack: list[AsyncTransaction] = []
@@ -31,7 +31,7 @@ class _AsyncConnCtx(AsyncMutContext[AsyncConnection]):
         await self._root_tx.__aenter__()
 
     @override
-    async def _exit(self, instance: AsyncConnection, exc_type, exc_value, traceback) -> None:
+    async def _exit(self, instance: AsyncConnection, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
         assert self._root_tx is not None
         assert not self._tx_stack
         await super()._exit(instance, exc_type, exc_value, traceback)
@@ -47,7 +47,11 @@ class _AsyncConnCtx(AsyncMutContext[AsyncConnection]):
 
     @override
     async def _nested_exit(
-        self, instance: AsyncConnection, exc_type, exc_value, traceback
+        self,
+        instance: AsyncConnection,
+        exc_type,  # noqa: ANN001
+        exc_value,  # noqa: ANN001
+        traceback,  # noqa: ANN001
     ) -> None:
         nested = self._tx_stack.pop()
         await nested.__aexit__(exc_type, exc_value, traceback)

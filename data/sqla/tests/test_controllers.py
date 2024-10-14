@@ -20,7 +20,7 @@ from .conf import MYSQL_URI, POSTGRES_URI, SQLITE_URI
     ),
     ids=('SQLite', 'PostgreSQL', 'MySQL'),
 )
-def test_sync_ctrl(param) -> None:
+def test_sync_ctrl(param) -> None:  # noqa: ANN001
     config = EngineConf(
         dsn=param[0],
         type=param[1],
@@ -61,7 +61,7 @@ def test_sync_ctrl(param) -> None:
     ids=('SQLite', 'PostgreSQL', 'MySQL'),
 )
 @pytest.mark.asyncio
-async def test_async_ctrl(param) -> None:
+async def test_async_ctrl(param) -> None:  # noqa: ANN001
     config = EngineConf(
         dsn=param[0],
         type=param[1],

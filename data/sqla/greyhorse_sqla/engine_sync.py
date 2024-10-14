@@ -20,7 +20,7 @@ from .config import EngineConf
 class _SyncConnCtx(SyncMutContext[SyncConnection]):
     __slots__ = ('_root_tx', '_tx_stack')
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, **kwargs) -> None:  # noqa: ANN002,ANN003
         super().__init__(*args, **kwargs)
         self._root_tx: RootTransaction | None = None
         self._tx_stack: list[NestedTransaction] = []
@@ -33,7 +33,7 @@ class _SyncConnCtx(SyncMutContext[SyncConnection]):
         self._root_tx.__enter__()
 
     @override
-    def _exit(self, instance: SyncConnection, exc_type, exc_value, traceback) -> None:
+    def _exit(self, instance: SyncConnection, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
         assert self._root_tx is not None
         assert not self._tx_stack
         super()._exit(instance, exc_type, exc_value, traceback)
@@ -48,7 +48,7 @@ class _SyncConnCtx(SyncMutContext[SyncConnection]):
         nested.__enter__()
 
     @override
-    def _nested_exit(self, instance: SyncConnection, exc_type, exc_value, traceback) -> None:
+    def _nested_exit(self, instance: SyncConnection, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
         nested = self._tx_stack.pop()
         nested.__exit__(exc_type, exc_value, traceback)
         nested.close()

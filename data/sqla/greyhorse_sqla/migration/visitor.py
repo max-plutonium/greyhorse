@@ -26,7 +26,7 @@ class MigrationVisitor(Visitor):
 
         name = '.'.join([self._module_paths[-1], instance.name])
 
-        if self._only_names is None or name in self._only_names:
+        if self._only_names is None or name in self._only_names:  # noqa: SIM102
             if method := getattr(instance, self._operation, None):
                 method(**self._args)
 

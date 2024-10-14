@@ -6,12 +6,13 @@ from greyhorse.data.repositories import EntityError
 from greyhorse.result import Err
 from greyhorse_sqla.config import EngineConf, SqlEngineType
 from greyhorse_sqla.contexts import SqlaAsyncConnCtx, SqlaAsyncSessionCtx
+from greyhorse_sqla.engine_async import AsyncSqlaEngine
 from greyhorse_sqla.factory import AsyncSqlaEngineFactory
-from greyhorse_sqla.query import SqlaQuery as Q
+from greyhorse_sqla.query import SqlaQuery as Q  # noqa: N814
 from greyhorse_sqla.repositories import AsyncSqlaRepository
 from sqlalchemy import DateTime, String, func, text
 from sqlalchemy.orm import DeclarativeBase, Mapped
-from sqlalchemy.orm import mapped_column as C
+from sqlalchemy.orm import mapped_column as C  # noqa: N812
 
 from .conf import MYSQL_URI, POSTGRES_URI, SQLITE_URI
 
@@ -27,8 +28,6 @@ class TestModel(Base):
     data: Mapped[str] = C(String(128))
     create_date: Mapped[datetime] = C(DateTime(timezone=False), server_default=func.now())
 
-    __mapper_args__ = {'eager_defaults': True}
-
 
 @pytest_asyncio.fixture(
     scope='module',
@@ -40,7 +39,7 @@ class TestModel(Base):
     ),
     ids=('SQLite', 'Postgres', 'MySQL'),
 )
-async def sqla_engine(request):
+async def sqla_engine(request) -> AsyncSqlaEngine:  # noqa: ANN001
     dsn, engine_type = request.param
 
     config = EngineConf(
@@ -75,7 +74,7 @@ async def sqla_engine(request):
 
 
 @pytest_asyncio.fixture(scope='function', loop_scope='module')
-async def session_ctx(sqla_engine):
+async def session_ctx(sqla_engine: AsyncSqlaEngine) -> SqlaAsyncSessionCtx:
     session_ctx = sqla_engine.get_context(SqlaAsyncSessionCtx).unwrap()
 
     async with session_ctx:
@@ -86,7 +85,7 @@ TestModelAsyncRepo = AsyncSqlaRepository[TestModel, int]
 
 
 @pytest.mark.asyncio
-async def test_create(session_ctx) -> None:
+async def test_create(session_ctx: SqlaAsyncSessionCtx) -> None:
     repo = TestModelAsyncRepo(session_ctx)
     instance = (await repo.create({'id': 1, 'data': '123'})).unwrap()
     assert instance.id > 0
@@ -96,7 +95,7 @@ async def test_create(session_ctx) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_or_create(session_ctx) -> None:
+async def test_get_or_create(session_ctx: SqlaAsyncSessionCtx) -> None:
     repo = TestModelAsyncRepo(session_ctx)
     res, created = await repo.get_or_create(999, dict(id=999, data='123'))
     assert created is True
@@ -116,7 +115,7 @@ async def test_get_or_create(session_ctx) -> None:
 
 
 @pytest.mark.asyncio
-async def test_update_by_id(session_ctx) -> None:
+async def test_update_by_id(session_ctx: SqlaAsyncSessionCtx) -> None:
     repo = TestModelAsyncRepo(session_ctx)
     obj1 = (await repo.create(dict(data='123'))).unwrap()
 
@@ -125,7 +124,7 @@ async def test_update_by_id(session_ctx) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get(session_ctx) -> None:
+async def test_get(session_ctx: SqlaAsyncSessionCtx) -> None:
     repo = TestModelAsyncRepo(session_ctx)
     obj1 = (await repo.create(dict(data='123'))).unwrap()
 
@@ -138,7 +137,7 @@ async def test_get(session_ctx) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_any(session_ctx) -> None:
+async def test_get_any(session_ctx: SqlaAsyncSessionCtx) -> None:
     repo = TestModelAsyncRepo(session_ctx)
     obj1 = (await repo.create(dict(data='1'))).unwrap()
     obj2 = (await repo.create(dict(data='2'))).unwrap()
@@ -168,7 +167,7 @@ async def test_get_any(session_ctx) -> None:
 
 
 @pytest.mark.asyncio
-async def test_exists(session_ctx) -> None:
+async def test_exists(session_ctx: SqlaAsyncSessionCtx) -> None:
     repo = TestModelAsyncRepo(session_ctx)
     obj1 = (await repo.create(dict(data='1'))).unwrap()
     await repo.create(dict(data='2'))
@@ -206,7 +205,7 @@ async def test_exists(session_ctx) -> None:
 
 
 @pytest.mark.asyncio
-async def test_load(session_ctx) -> None:
+async def test_load(session_ctx: SqlaAsyncSessionCtx) -> None:
     repo = TestModelAsyncRepo(session_ctx)
     instance = (await repo.create(dict(id=1, data='1'))).unwrap()
 
@@ -238,7 +237,7 @@ async def test_load(session_ctx) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list(session_ctx) -> None:
+async def test_list(session_ctx: SqlaAsyncSessionCtx) -> None:
     repo = TestModelAsyncRepo(session_ctx)
     obj1 = (await repo.create(dict(data='1'))).unwrap()
     obj2 = (await repo.create(dict(data='2'))).unwrap()
@@ -295,7 +294,7 @@ async def test_list(session_ctx) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_filters(session_ctx) -> None:
+async def test_list_filters(session_ctx: SqlaAsyncSessionCtx) -> None:
     repo = TestModelAsyncRepo(session_ctx)
     obj1 = (await repo.create(dict(data='1'))).unwrap()
     obj2 = (await repo.create(dict(data='2'))).unwrap()
@@ -339,7 +338,7 @@ async def test_list_filters(session_ctx) -> None:
 
 
 @pytest.mark.asyncio
-async def test_count(session_ctx) -> None:
+async def test_count(session_ctx: SqlaAsyncSessionCtx) -> None:
     repo = TestModelAsyncRepo(session_ctx)
     obj1 = (await repo.create(dict(data='1'))).unwrap()
     await repo.create(dict(data='2'))
@@ -371,7 +370,7 @@ async def test_count(session_ctx) -> None:
 
 
 @pytest.mark.asyncio
-async def test_save(session_ctx) -> None:
+async def test_save(session_ctx: SqlaAsyncSessionCtx) -> None:
     repo = TestModelAsyncRepo(session_ctx)
     instance = TestModel(id=1, data='1')
 
@@ -390,7 +389,7 @@ async def test_save(session_ctx) -> None:
 
 
 @pytest.mark.asyncio
-async def test_save_all(session_ctx) -> None:
+async def test_save_all(session_ctx: SqlaAsyncSessionCtx) -> None:
     repo = TestModelAsyncRepo(session_ctx)
     obj1 = TestModel(data='1')
     obj2 = TestModel(data='2')
@@ -430,7 +429,7 @@ async def test_save_all(session_ctx) -> None:
 
 
 @pytest.mark.asyncio
-async def test_delete(session_ctx) -> None:
+async def test_delete(session_ctx: SqlaAsyncSessionCtx) -> None:
     repo = TestModelAsyncRepo(session_ctx)
     obj = (await repo.create(dict(data='123'))).unwrap()
 
@@ -444,7 +443,7 @@ async def test_delete(session_ctx) -> None:
 
 
 @pytest.mark.asyncio
-async def test_delete_all(session_ctx) -> None:
+async def test_delete_all(session_ctx: SqlaAsyncSessionCtx) -> None:
     repo = TestModelAsyncRepo(session_ctx)
     obj1 = (await repo.create(dict(data='1'))).unwrap()
     obj2 = (await repo.create(dict(data='2'))).unwrap()
@@ -462,7 +461,7 @@ async def test_delete_all(session_ctx) -> None:
 
 
 @pytest.mark.asyncio
-async def test_delete_by_id(session_ctx) -> None:
+async def test_delete_by_id(session_ctx: SqlaAsyncSessionCtx) -> None:
     repo = TestModelAsyncRepo(session_ctx)
     obj = (await repo.create(dict(data='123'))).unwrap()
 
@@ -478,7 +477,7 @@ async def test_delete_by_id(session_ctx) -> None:
 
 
 @pytest.mark.asyncio
-async def test_update_by(session_ctx) -> None:
+async def test_update_by(session_ctx: SqlaAsyncSessionCtx) -> None:
     repo = TestModelAsyncRepo(session_ctx)
     obj1 = (await repo.create(dict(data='1'))).unwrap()
     obj2 = (await repo.create(dict(data='2'))).unwrap()
@@ -492,7 +491,7 @@ async def test_update_by(session_ctx) -> None:
 
 
 @pytest.mark.asyncio
-async def test_delete_by(session_ctx) -> None:
+async def test_delete_by(session_ctx: SqlaAsyncSessionCtx) -> None:
     repo = TestModelAsyncRepo(session_ctx)
     obj1 = (await repo.create(dict(data='1'))).unwrap()
     obj2 = (await repo.create(dict(data='2'))).unwrap()
