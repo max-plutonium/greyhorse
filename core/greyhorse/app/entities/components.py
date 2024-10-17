@@ -1,11 +1,11 @@
 from collections import defaultdict
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, override
 
 from greyhorse.app.abc.controllers import Controller, ControllerError, ControllerFactoryFn
 from greyhorse.app.abc.providers import Provider
 from greyhorse.app.abc.services import Service, ServiceError, ServiceFactoryFn
-from greyhorse.app.registries import MutNamedDictRegistry
+from greyhorse.app.registries import MutDictRegistry, MutNamedDictRegistry
 from greyhorse.app.schemas.components import ComponentConf, ModuleComponentConf
 from greyhorse.app.schemas.elements import CtrlConf, SvcConf
 from greyhorse.error import Error, ErrorCase
@@ -64,8 +64,7 @@ class Component:
         self._services: list[Service] = []
 
         self._resources = MutNamedDictRegistry[type, Any]()
-        # XXX: component providers
-        # self._providers = MutDictRegistry[type[Provider], Provider]()
+        self._providers = MutDictRegistry[type[Provider], Provider]()
         self._operators: dict[type, list[Operator]] = defaultdict(list)
 
     @property
@@ -86,7 +85,9 @@ class Component:
 
     def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
         if prov_type in self._conf.providers:
-            return self._rm.find_provider(prov_type).map(Just).unwrap_or(Nothing)
+            return (
+                self._rm.find_provider(prov_type, self._providers).map(Just).unwrap_or(Nothing)
+            )
         return Nothing
 
     def get_operators[T](self, res_type: type[T]) -> Iterable[Operator[T]]:
@@ -158,7 +159,7 @@ class Component:
             self.add_controller(ctrl)
 
         if not (
-            res := self._rm.setup().map_err(
+            res := self._rm.setup(self._providers).map_err(
                 lambda e: ComponentError.Resource(
                     path=self._path, name=self.name, details=e.message
                 )
@@ -439,17 +440,34 @@ class ModuleComponent(Component):
         self._module.accept_visitor(visitor)
         visitor.finish_component(self)
 
-    def setup(self) -> Result[None, ComponentError]:
-        if not (res := super().setup()):
+    @override
+    def create(self) -> Result[None, ComponentError]:
+        if not (res := super().create()):
             return res
 
         for prov_type in self._module.conf.provider_claims:
-            if prov := self._rm.find_provider(prov_type).unwrap_or_none():
+            if prov := self._rm.find_provider(prov_type, self._providers).unwrap_or_none():
                 self._module.add_provider(prov_type, prov)
 
         for res_type in self._module.conf.resource_claims:
             if res := self._resources.get(res_type).unwrap_or_none():
                 self._module.add_resource(res_type, res)
+
+        if not (
+            res := self._module.create().map_err(
+                lambda e: ComponentError.Module(
+                    path=self._path, name=self.name, details=e.message
+                )
+            )
+        ):
+            return res
+
+        return Ok()
+
+    @override
+    def setup(self) -> Result[None, ComponentError]:
+        if not (res := super().setup()):
+            return res
 
         for res_type in self._module.conf.operators:
             for op in self._operators[res_type]:
@@ -464,9 +482,17 @@ class ModuleComponent(Component):
         ):
             return res
 
+        for prov_type in self._module.conf.providers:
+            if prov := self._module.get_provider(prov_type).unwrap_or_none():
+                self._providers.add(prov_type, prov)
+
         return Ok()
 
+    @override
     def teardown(self) -> Result[None, ComponentError]:
+        for prov_type in reversed(self._module.conf.providers):
+            self._providers.remove(prov_type)
+
         if not (
             res := self._module.teardown().map_err(
                 lambda e: ComponentError.Module(
@@ -480,10 +506,23 @@ class ModuleComponent(Component):
             for op in self._operators[res_type]:
                 self._module.remove_operator(op)
 
+        return super().teardown()
+
+    @override
+    def destroy(self) -> Result[None, ComponentError]:
+        if not (
+            res := self._module.destroy().map_err(
+                lambda e: ComponentError.Module(
+                    path=self._path, name=self.name, details=e.message
+                )
+            )
+        ):
+            return res
+
         for res_type in reversed(self._module.conf.resource_claims):
             self._module.remove_resource(res_type)
 
         for prov_type in reversed(self._module.conf.provider_claims):
             self._module.remove_provider(prov_type)
 
-        return super().teardown()
+        return super().destroy()

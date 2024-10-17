@@ -35,9 +35,8 @@ def test_module() -> None:
     assert res.is_ok()
     module = res.unwrap()
 
-    op_box = PermanentForwardBox[FunctionalOperator]()
-
-    assert module.add_operator(op_box)
+    res = module.create()
+    assert res.is_ok()
 
     res = module.setup()
     assert res.is_ok()
@@ -66,4 +65,7 @@ def test_module() -> None:
     prov.destroy(op)
 
     res = module.teardown()
+    assert res.is_ok()
+
+    res = module.destroy()
     assert res.is_ok()

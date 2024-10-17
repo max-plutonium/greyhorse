@@ -92,8 +92,8 @@ class Module:
                 return True
         return False
 
-    def setup(self) -> Result[None, ModuleError]:
-        logger.info('{path}: Module setup'.format(path=self._path))
+    def create(self) -> Result[None, ModuleError]:
+        logger.info('{path}: Module create'.format(path=self._path))
 
         for component in self._components.values():
             comp_conf = self._conf.components[component.name]
@@ -115,6 +115,15 @@ class Module:
                 )
             ):
                 return res
+
+        logger.info('{path}: Module create successful'.format(path=self._path))
+        return Ok()
+
+    def setup(self) -> Result[None, ModuleError]:
+        logger.info('{path}: Module setup'.format(path=self._path))
+
+        for component in self._components.values():
+            comp_conf = self._conf.components[component.name]
 
             for res_type in comp_conf.operators:
                 for op in component.get_operators(res_type):  # type: ignore
@@ -179,6 +188,15 @@ class Module:
                         )
                     ):
                         return res  # type: ignore
+
+        logger.info('{path}: Module teardown successful'.format(path=self._path))
+        return Ok()
+
+    def destroy(self) -> Result[None, ModuleError]:
+        logger.info('{path}: Module teardown'.format(path=self._path))
+
+        for component in reversed(self._components.values()):
+            comp_conf = self._conf.components[component.name]
 
             if not (
                 res := component.destroy().map_err(

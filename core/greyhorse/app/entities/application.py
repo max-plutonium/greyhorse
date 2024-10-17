@@ -132,7 +132,8 @@ class Application:
     def setup(self) -> Result[None, ApplicationError]:
         return (
             self._root.map(
-                lambda root: root.setup()
+                lambda root: root.create()
+                .and_then(lambda _: root.setup())
                 .map_err(lambda e: ApplicationError.Setup(details=e.message))
                 .map(lambda _: root)
             )
@@ -145,9 +146,9 @@ class Application:
         self._services = []
 
         return self._root.map(
-            lambda root: root.teardown().map_err(
-                lambda e: ApplicationError.Teardown(details=e.message)
-            )
+            lambda root: root.teardown()
+            .and_then(lambda _: root.destroy())
+            .map_err(lambda e: ApplicationError.Teardown(details=e.message))
         ).unwrap_or_else(lambda: ApplicationError.NotLoaded().to_result())
 
     def start(self) -> bool:
