@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from greyhorse.app.abc.providers import FactoryProvider
-from greyhorse.app.boxes import PermanentForwardBox
 from greyhorse.app.builders.module import ModuleBuilder
 from greyhorse.app.schemas.components import ModuleComponentConf, ModuleConf
 from greyhorse.app.schemas.elements import CtrlConf, SvcConf

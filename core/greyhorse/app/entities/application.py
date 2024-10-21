@@ -9,12 +9,11 @@ from pathlib import Path
 from typing import NoReturn
 
 from greyhorse.app.abc.controllers import Controller
+from greyhorse.app.abc.module import Module
 from greyhorse.app.abc.providers import Provider
 from greyhorse.app.abc.services import Service, ServiceWaiter
 from greyhorse.app.abc.visitor import Visitor
 from greyhorse.app.builders.module import ModuleBuilder
-from greyhorse.app.entities.components import ModuleComponent
-from greyhorse.app.entities.module import Module
 from greyhorse.app.schemas.components import ModuleConf
 from greyhorse.error import Error, ErrorCase
 from greyhorse.logging import logger
@@ -266,7 +265,7 @@ class Application:
                 for sig_num, handler in zip(signals, original_handlers, strict=False):
                     signal.signal(sig_num, handler)
 
-    def _collect_elements(self, root: ModuleComponent) -> None:
+    def _collect_elements(self, root: Module) -> None:
         visitor = _ElementsVisitor(self._controllers, self._services)
         root.accept_visitor(visitor)
 

@@ -8,13 +8,13 @@ from greyhorse.app.abc.services import Service, ServiceError, ServiceFactoryFn
 from greyhorse.app.registries import MutDictRegistry, MutNamedDictRegistry
 from greyhorse.app.schemas.components import ComponentConf, ModuleComponentConf
 from greyhorse.app.schemas.elements import CtrlConf, SvcConf
-from greyhorse.error import Error, ErrorCase
 from greyhorse.logging import logger
 from greyhorse.result import Err, Ok, Result
 from greyhorse.utils.injectors import ParamsInjector
 
 from ...maybe import Just, Maybe, Nothing
 from ...utils.invoke import invoke_sync
+from ..abc.component import Component, ComponentError
 from ..abc.operators import Operator
 from ..abc.selectors import NamedListSelector, NamedSelector
 from ..abc.visitor import Visitor
@@ -24,39 +24,9 @@ if TYPE_CHECKING:
     from .module import Module
 
 
-class ComponentError(Error):
-    namespace = 'greyhorse.app.component'
-
-    Resource = ErrorCase(
-        msg='{path}: Resource error in component: "{name}", details: "{details}"',
-        path=str,
-        name=str,
-        details=str,
-    )
-    Ctrl = ErrorCase(
-        msg='{path}: Controller error in component: "{name}", details: "{details}"',
-        path=str,
-        name=str,
-        details=str,
-    )
-    Service = ErrorCase(
-        msg='{path}: Service error in component: "{name}", details: "{details}"',
-        path=str,
-        name=str,
-        details=str,
-    )
-    Module = ErrorCase(
-        msg='{path}: Submodule error in component: "{name}", details: "{details}"',
-        path=str,
-        name=str,
-        details=str,
-    )
-
-
-class Component:
+class SyncComponent(Component):
     def __init__(self, name: str, path: str, conf: ComponentConf) -> None:
-        self._name = name
-        self._path = path
+        super().__init__(name, path)
         self._conf = conf
         self._rm = ResourceManager()
 
@@ -67,14 +37,7 @@ class Component:
         self._providers = MutDictRegistry[type[Provider], Provider]()
         self._operators: dict[type, list[Operator]] = defaultdict(list)
 
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def path(self) -> str:
-        return self._path
-
+    @override
     def accept_visitor(self, visitor: Visitor) -> None:
         visitor.start_component(self)
         for svc in self._services:
@@ -83,6 +46,7 @@ class Component:
             ctrl.accept_visitor(visitor)
         visitor.finish_component(self)
 
+    @override
     def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
         if prov_type in self._conf.providers:
             return (
@@ -90,6 +54,7 @@ class Component:
             )
         return Nothing
 
+    @override
     def get_operators[T](self, res_type: type[T]) -> Iterable[Operator[T]]:
         if res_type in self._conf.operators:
             return self._operators[res_type].copy()
@@ -103,11 +68,13 @@ class Component:
     # def remove_provider[T](self, prov_type: type[Provider[T]]) -> bool:
     #     return self._providers.remove(prov_type)
 
+    @override
     def add_resource[T](self, res_type: type[T], resource: T, name: str | None = None) -> bool:
         if res_type in self._conf.resource_claims:
             return self._resources.add(res_type, resource, name=name)
         return False
 
+    @override
     def remove_resource[T](self, res_type: type[T], name: str | None = None) -> bool:
         if res_type in self._conf.resource_claims:
             return self._resources.remove(res_type, name=name)
@@ -137,6 +104,7 @@ class Component:
         self._services.remove(service)
         return self._rm.remove_service(service)
 
+    @override
     def create(self) -> Result[None, ComponentError]:
         logger.info('{path}: Component "{name}" create'.format(path=self._path, name=self.name))
 
@@ -178,6 +146,7 @@ class Component:
 
         return Ok()
 
+    @override
     def setup(self) -> Result[None, ComponentError]:
         logger.info('{path}: Component "{name}" setup'.format(path=self._path, name=self.name))
 
@@ -227,6 +196,7 @@ class Component:
 
         return Ok()
 
+    @override
     def teardown(self) -> Result[None, ComponentError]:
         injector = ParamsInjector()
 
@@ -282,6 +252,7 @@ class Component:
 
         return Ok()
 
+    @override
     def destroy(self) -> Result[None, ComponentError]:
         logger.info(
             '{path}: Component "{name}" destroy'.format(path=self._path, name=self.name)
@@ -423,7 +394,7 @@ class Component:
         return Ok(result)
 
 
-class ModuleComponent(Component):
+class SyncModuleComponent(SyncComponent):
     def __init__(
         self, name: str, path: str, conf: ModuleComponentConf, module: 'Module'
     ) -> None:
@@ -431,6 +402,7 @@ class ModuleComponent(Component):
         self._conf = conf
         self._module = module
 
+    @override
     def accept_visitor(self, visitor: Visitor) -> None:
         visitor.start_component(self)
         for svc in self._services:

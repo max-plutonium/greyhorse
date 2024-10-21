@@ -1,6 +1,8 @@
+from greyhorse.app.abc.component import Component
+from greyhorse.app.abc.module import Module
 from greyhorse.app.builders.loader import ModuleLoader
-from greyhorse.app.entities.components import Component, ModuleComponent
-from greyhorse.app.entities.module import Module
+from greyhorse.app.entities.components import SyncComponent, SyncModuleComponent
+from greyhorse.app.entities.module import SyncModule
 from greyhorse.app.schemas.components import ComponentConf, ModuleComponentConf, ModuleConf
 from greyhorse.error import Error, ErrorCase
 from greyhorse.logging import logger
@@ -63,7 +65,7 @@ class ModuleBuilder:
         components = res.unwrap()
 
         try:
-            instance = Module(path=self._path, conf=self._conf, components=components)
+            instance = SyncModule(path=self._path, conf=self._conf, components=components)
 
         except Exception as e:
             error = ModuleBuildError.Factory(path=self._path, details=str(e))
@@ -94,7 +96,7 @@ class ModuleBuilder:
         logger.info('{path}: Component "{name}" creation'.format(path=self._path, name=name))
 
         try:
-            instance = Component(name=name, path=self._path, conf=conf)
+            instance = SyncComponent(name=name, path=self._path, conf=conf)
 
         except Exception as e:
             error = ComponentBuildError.Factory(path=self._path, name=name, details=str(e))
@@ -109,7 +111,7 @@ class ModuleBuilder:
 
     def _create_module_component(
         self, name: str, conf: ModuleComponentConf
-    ) -> Result[ModuleComponent, ComponentBuildError]:
+    ) -> Result[Component, ComponentBuildError]:
         if not conf.enabled:
             return ComponentBuildError.Disabled(path=self._path, name=name).to_result()
 
@@ -129,7 +131,7 @@ class ModuleBuilder:
         module = res.unwrap()
 
         try:
-            instance = ModuleComponent(name=name, path=self._path, conf=conf, module=module)
+            instance = SyncModuleComponent(name=name, path=self._path, conf=conf, module=module)
 
         except Exception as e:
             error = ComponentBuildError.Factory(path=self._path, name=name, details=str(e))
