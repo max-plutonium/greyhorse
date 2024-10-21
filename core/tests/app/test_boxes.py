@@ -6,17 +6,17 @@ from unittest.mock import Mock
 from faker import Faker
 from greyhorse.app.abc.providers import BorrowError, BorrowMutError, ForwardError
 from greyhorse.app.boxes import (
-    FactoryGenBox,
     ForwardBox,
-    ForwardGenBox,
     MutCtxRefBox,
-    MutGenBox,
     MutRefBox,
     OwnerCtxRefBox,
     OwnerRefBox,
     SharedCtxRefBox,
-    SharedGenBox,
     SharedRefBox,
+    SyncFactoryGenBox,
+    SyncForwardGenBox,
+    SyncMutGenBox,
+    SyncSharedGenBox,
 )
 from greyhorse.app.contexts import (
     MutCtxCallbacks,
@@ -288,7 +288,7 @@ def test_shared_gen(faker: Faker) -> None:
         yield faker.pystr()
         gen_mock()
 
-    instance = SharedGenBox[str](gen)
+    instance = SyncSharedGenBox[str](gen)
 
     res = instance.borrow()
     assert res.is_ok()
@@ -319,7 +319,7 @@ def test_mut_gen(faker: Faker) -> None:
         yield faker.pystr()
         gen_mock()
 
-    instance = MutGenBox[str](gen)
+    instance = SyncMutGenBox[str](gen)
 
     res = instance.acquire()
     assert res.is_ok()
@@ -350,7 +350,7 @@ def test_factory_gen(faker: Faker) -> None:
         yield faker.pystr()
         gen_mock()
 
-    instance = FactoryGenBox[str](gen)
+    instance = SyncFactoryGenBox[str](gen)
 
     res = instance.create()
     assert res.is_ok()
@@ -381,7 +381,7 @@ def test_forward_gen() -> None:
         yield 123
         gen_mock()
 
-    instance = ForwardGenBox[int](gen())
+    instance = SyncForwardGenBox[int](gen())
 
     assert instance
 

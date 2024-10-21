@@ -1,7 +1,7 @@
 from collections import OrderedDict, defaultdict
 from collections.abc import Iterable
 from functools import partial
-from types import GeneratorType
+from types import AsyncGeneratorType, GeneratorType
 
 import networkx as nx
 
@@ -20,7 +20,16 @@ from ..abc.providers import (
 )
 from ..abc.selectors import Selector
 from ..abc.services import ProviderMember, Service
-from ..boxes import FactoryGenBox, ForwardGenBox, MutGenBox, SharedGenBox
+from ..boxes import (
+    AsyncFactoryGenBox,
+    AsyncForwardGenBox,
+    AsyncMutGenBox,
+    AsyncSharedGenBox,
+    SyncFactoryGenBox,
+    SyncForwardGenBox,
+    SyncMutGenBox,
+    SyncSharedGenBox,
+)
 from ..registries import MutDictRegistry
 from .mappers import SyncResourceMapper
 
@@ -160,22 +169,41 @@ class ResourceManager:
 
             case GeneratorType() as gen:
                 if issubclass(prov_type, SharedProvider):
-                    prov = SharedGenBox[prov_type.__wrapped_type__](
+                    prov = SyncSharedGenBox[prov_type.__wrapped_type__](
                         partial(factory, *injected_args.args, **injected_args.kwargs)
                     )
                     self._cached_providers.add(prov_type, prov)
                 elif issubclass(prov_type, MutProvider):
-                    prov = MutGenBox[prov_type.__wrapped_type__](
+                    prov = SyncMutGenBox[prov_type.__wrapped_type__](
                         partial(factory, *injected_args.args, **injected_args.kwargs)
                     )
                     self._cached_providers.add(prov_type, prov)
                 elif issubclass(prov_type, FactoryProvider):
-                    prov = FactoryGenBox[prov_type.__wrapped_type__](
+                    prov = SyncFactoryGenBox[prov_type.__wrapped_type__](
                         partial(factory, *injected_args.args, **injected_args.kwargs)
                     )
                     self._cached_providers.add(prov_type, prov)
                 elif issubclass(prov_type, ForwardProvider):
-                    prov = ForwardGenBox[prov_type.__wrapped_type__](gen)
+                    prov = SyncForwardGenBox[prov_type.__wrapped_type__](gen)
+
+            case AsyncGeneratorType() as gen:
+                if issubclass(prov_type, SharedProvider):
+                    prov = AsyncSharedGenBox[prov_type.__wrapped_type__](
+                        partial(factory, *injected_args.args, **injected_args.kwargs)
+                    )
+                    self._cached_providers.add(prov_type, prov)
+                elif issubclass(prov_type, MutProvider):
+                    prov = AsyncMutGenBox[prov_type.__wrapped_type__](
+                        partial(factory, *injected_args.args, **injected_args.kwargs)
+                    )
+                    self._cached_providers.add(prov_type, prov)
+                elif issubclass(prov_type, FactoryProvider):
+                    prov = AsyncFactoryGenBox[prov_type.__wrapped_type__](
+                        partial(factory, *injected_args.args, **injected_args.kwargs)
+                    )
+                    self._cached_providers.add(prov_type, prov)
+                elif issubclass(prov_type, ForwardProvider):
+                    prov = AsyncForwardGenBox[prov_type.__wrapped_type__](gen)
 
             case _:
                 raise AssertionError('Unexpected return value returned from provider method')

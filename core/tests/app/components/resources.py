@@ -38,5 +38,5 @@ class DictProviderService(SyncService):
         return self._box
 
     @provider(MutProvider[MutDictResContext])
-    def create_mut_dict(self) -> Result[MutProvider[MutDictResContext], BorrowMutError]:
+    async def create_mut_dict(self) -> Result[MutProvider[MutDictResContext], BorrowMutError]:
         return Ok(self._box)

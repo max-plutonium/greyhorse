@@ -1,5 +1,5 @@
 import contextlib
-from collections.abc import Callable, Generator
+from collections.abc import AsyncGenerator, Callable, Generator
 from copy import deepcopy
 from typing import Any, override
 
@@ -331,7 +331,7 @@ class PermanentForwardBox[T](ForwardBox[T]):
         pass
 
 
-class SharedGenBox[T](SharedProvider[T]):
+class SyncSharedGenBox[T](SharedProvider[T]):
     __slots__ = ('_gen_fn', '_gens')
 
     def __init__(self, generator_fn: Callable[[], Generator[T, T, None]]) -> None:
@@ -381,7 +381,57 @@ class SharedGenBox[T](SharedProvider[T]):
             gen.send(instance)
 
 
-class MutGenBox[T](MutProvider[T]):
+class AsyncSharedGenBox[T](SharedProvider[T]):
+    __slots__ = ('_gen_fn', '_gens')
+
+    def __init__(self, generator_fn: Callable[[], AsyncGenerator[T, T]]) -> None:
+        self._gen_fn = generator_fn
+        self._gens: dict[int, AsyncGenerator[T, T]] = {}
+
+    @override
+    async def borrow(self) -> Result[T, BorrowError]:
+        try:
+            gen = self._gen_fn()
+
+        except Exception as e:
+            return BorrowError.Unexpected(
+                name=self.wrapped_type.__name__, details=str(e)
+            ).to_result()
+
+        try:
+            instance = await anext(gen)
+
+        except StopAsyncIteration:
+            instance = None
+
+        match instance:
+            case Ok(instance):
+                pass
+            case Err(e):
+                if isinstance(e, BorrowError):
+                    return e.to_result()
+                return BorrowError.Unexpected(
+                    name=self.wrapped_type.__name__, details=e.message
+                ).to_result()
+            case None:
+                return BorrowError.InsufficientDeps(name=self.wrapped_type.__name__).to_result()
+            case instance:
+                pass
+
+        self._gens[id(instance)] = gen
+        return Ok(instance)
+
+    @override
+    async def reclaim(self, instance: T) -> None:
+        key = id(instance)
+        if not (gen := self._gens.pop(key, None)):
+            return
+
+        with contextlib.suppress(StopAsyncIteration):
+            await gen.asend(instance)
+
+
+class SyncMutGenBox[T](MutProvider[T]):
     __slots__ = ('_gen_fn', '_gens')
 
     def __init__(self, generator_fn: Callable[[], Generator[T, T, None]]) -> None:
@@ -433,7 +483,59 @@ class MutGenBox[T](MutProvider[T]):
             gen.send(instance)
 
 
-class FactoryGenBox[T](FactoryProvider[T]):
+class AsyncMutGenBox[T](MutProvider[T]):
+    __slots__ = ('_gen_fn', '_gens')
+
+    def __init__(self, generator_fn: Callable[[], AsyncGenerator[T, T]]) -> None:
+        self._gen_fn = generator_fn
+        self._gens: dict[int, AsyncGenerator[T, T]] = {}
+
+    @override
+    async def acquire(self) -> Result[T, BorrowMutError]:
+        try:
+            gen = self._gen_fn()
+
+        except Exception as e:
+            return BorrowMutError.Unexpected(
+                name=self.wrapped_type.__name__, details=str(e)
+            ).to_result()
+
+        try:
+            instance = await anext(gen)
+
+        except StopAsyncIteration:
+            instance = None
+
+        match instance:
+            case Ok(instance):
+                pass
+            case Err(e):
+                if isinstance(e, BorrowMutError):
+                    return e.to_result()
+                return BorrowMutError.Unexpected(
+                    name=self.wrapped_type.__name__, details=e.message
+                ).to_result()
+            case None:
+                return BorrowMutError.InsufficientDeps(
+                    name=self.wrapped_type.__name__
+                ).to_result()
+            case instance:
+                pass
+
+        self._gens[id(instance)] = gen
+        return Ok(instance)
+
+    @override
+    async def release(self, instance: T) -> None:
+        key = id(instance)
+        if not (gen := self._gens.pop(key, None)):
+            return
+
+        with contextlib.suppress(StopAsyncIteration):
+            await gen.asend(instance)
+
+
+class SyncFactoryGenBox[T](FactoryProvider[T]):
     __slots__ = ('_gen_fn', '_gens')
 
     def __init__(self, generator_fn: Callable[[], Generator[T, T, None]]) -> None:
@@ -485,7 +587,59 @@ class FactoryGenBox[T](FactoryProvider[T]):
             gen.send(instance)
 
 
-class ForwardGenBox[T](ForwardProvider[T]):
+class AsyncFactoryGenBox[T](FactoryProvider[T]):
+    __slots__ = ('_gen_fn', '_gens')
+
+    def __init__(self, generator_fn: Callable[[], AsyncGenerator[T, T]]) -> None:
+        self._gen_fn = generator_fn
+        self._gens: dict[int, AsyncGenerator[T, T]] = {}
+
+    @override
+    async def create(self) -> Result[T, FactoryError]:
+        try:
+            gen = self._gen_fn()
+
+        except Exception as e:
+            return FactoryError.Unexpected(
+                name=self.wrapped_type.__name__, details=str(e)
+            ).to_result()
+
+        try:
+            instance = await anext(gen)
+
+        except StopAsyncIteration:
+            instance = None
+
+        match instance:
+            case Ok(instance):
+                pass
+            case Err(e):
+                if isinstance(e, FactoryError):
+                    return e.to_result()
+                return FactoryError.Unexpected(
+                    name=self.wrapped_type.__name__, details=e.message
+                ).to_result()
+            case None:
+                return FactoryError.InsufficientDeps(
+                    name=self.wrapped_type.__name__
+                ).to_result()
+            case instance:
+                pass
+
+        self._gens[id(instance)] = gen
+        return Ok(instance)
+
+    @override
+    async def destroy(self, instance: T) -> None:
+        key = id(instance)
+        if not (gen := self._gens.pop(key, None)):
+            return
+
+        with contextlib.suppress(StopAsyncIteration):
+            await gen.asend(instance)
+
+
+class SyncForwardGenBox[T](ForwardProvider[T]):
     __slots__ = ('_gen', '_moved_out')
 
     def __init__(self, generator: Generator[T, T, None]) -> None:
@@ -529,6 +683,56 @@ class ForwardGenBox[T](ForwardProvider[T]):
 
         with contextlib.suppress(StopIteration):
             self._gen.send(instance)
+
+    @override
+    def __bool__(self) -> bool:
+        return not self._moved_out
+
+
+class AsyncForwardGenBox[T](ForwardProvider[T]):
+    __slots__ = ('_gen', '_moved_out')
+
+    def __init__(self, generator: AsyncGenerator[T, T]) -> None:
+        self._gen = generator
+        self._moved_out = False
+
+    @override
+    async def take(self) -> Result[T, ForwardError]:
+        if self._moved_out:
+            return ForwardError.MovedOut(name=self.wrapped_type.__name__).to_result()
+
+        try:
+            instance = await anext(self._gen)
+
+        except StopAsyncIteration:
+            instance = None
+
+        match instance:
+            case Ok(instance):
+                pass
+            case Err(e):
+                if isinstance(e, ForwardError):
+                    return e.to_result()
+                return ForwardError.Unexpected(
+                    name=self.wrapped_type.__name__, details=e.message
+                ).to_result()
+            case None:
+                return ForwardError.InsufficientDeps(
+                    name=self.wrapped_type.__name__
+                ).to_result()
+            case instance:
+                pass
+
+        self._moved_out = True
+        return Ok(instance)
+
+    @override
+    async def drop(self, instance: T) -> None:
+        if not self._moved_out:
+            return
+
+        with contextlib.suppress(StopAsyncIteration):
+            await self._gen.asend(instance)
 
     @override
     def __bool__(self) -> bool:
