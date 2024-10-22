@@ -1,5 +1,5 @@
 from types import EllipsisType, NoneType, UnionType, new_class
-from typing import Any, TypeVar, TypeVarTuple
+from typing import Any, TypeVar, TypeVarTuple, Union, get_args, get_origin
 
 from .strings import capitalize
 
@@ -88,3 +88,19 @@ class TypeWrapper[T]:
 
         _TYPES_CACHE[type_name] = class_
         return class_
+
+
+def is_optional[T](value: type[T]) -> bool:
+    if get_origin(value) is Union or isinstance(value, UnionType):
+        type_args = get_args(value)
+        if len(type_args) > 1:
+            return type_args[1] is NoneType
+    return False
+
+
+def unwrap_optional[T](value: type[T]) -> type[T]:
+    if get_origin(value) is Union or isinstance(value, UnionType):
+        type_args = get_args(value)
+        if len(type_args) >= 1:
+            return type_args[0]
+    return value

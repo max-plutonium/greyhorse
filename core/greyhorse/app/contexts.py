@@ -97,6 +97,10 @@ class Context:
     async def __aexit__(self, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
         raise NotImplementedError
 
+    @property
+    def parent(self) -> Maybe[Context]:
+        raise NotImplementedError
+
     def children(self) -> list[Context]:
         raise NotImplementedError
 
@@ -124,7 +128,7 @@ class _ContextStorage(threading.local):
     def remove(self, kind: type, instance: Context) -> None:
         self._storage[kind].remove(instance)
 
-    def get_last[C: Context](self, kind: type[C]) -> Maybe[C]:
+    def get_last(self, kind: type) -> Maybe[Context]:
         if objects := self._storage.get(kind, []):
             return Just(objects[0])
         return Nothing
@@ -134,7 +138,7 @@ _current_context: ContextVar[Context] = ContextVar('_ctx')
 _context_storage = _ContextStorage()
 
 
-def current_context(kind: type[Context] | None = None) -> Maybe[Context]:
+def current_context(kind: type | None = None) -> Maybe[Context]:
     if kind is None:
         return Maybe(_current_context.get(None))
     return _context_storage.get_last(kind)
@@ -191,6 +195,11 @@ class SyncContext[T](Context, TypeWrapper[T], AbstractContextManager):
             fields.pop(name)
 
         super().__init__(factory, fields, finalizers)
+
+    @override
+    @property
+    def parent(self) -> Maybe[Context]:
+        return self._parent
 
     @override
     def children(self) -> list[Context]:
@@ -440,6 +449,11 @@ class AsyncContext[T](Context, TypeWrapper[T], AbstractAsyncContextManager):
             fields.pop(name)
 
         super().__init__(factory, fields, finalizers)
+
+    @override
+    @property
+    def parent(self) -> Maybe[Context]:
+        return self._parent
 
     @override
     def children(self) -> list[Context]:

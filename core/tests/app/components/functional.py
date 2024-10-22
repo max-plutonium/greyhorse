@@ -124,6 +124,7 @@ class DictOperatorService2(SyncService):
             return FactoryError.InsufficientDeps(name='DictResContext').to_result()
         if not self._res2:
             return None
+
         res1 = dependency.take().unwrap()
         yield FunctionalOperatorImpl(res1, self._res2)
         dependency.drop(res1)
