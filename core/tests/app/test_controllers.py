@@ -58,5 +58,5 @@ def test_res_controller() -> None:
     assert instance.teardown(registry).is_ok()
     assert len(registry) == 1
 
-    assert registry.items() == [(str, None, '123')]
+    assert list(registry.items()) == [(str, None, '123')]
     assert maybe_op.revoke().unwrap() == Just(123)

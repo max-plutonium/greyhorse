@@ -122,8 +122,7 @@ class ResourceManager:
 
             del self._provided_resources[operator]
 
-        for k, _ in self._cached_providers.items():  # noqa: PERF102
-            self._cached_providers.remove(k)
+        self._cached_providers.clear()
 
         self._public_operators = []
         self._deps.clear()

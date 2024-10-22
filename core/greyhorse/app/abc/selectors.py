@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 
 from greyhorse.maybe import Maybe
 from greyhorse.utils.types import TypeWrapper
@@ -15,7 +15,7 @@ class Selector[K, T](TypeWrapper[K, T], ABC):
 
 class ListSelector[K, T](Selector[K, T], ABC):
     @abstractmethod
-    def items(self, filter_fn: Callable[[K], bool] | None = None) -> list[tuple[K, T]]: ...
+    def items(self, filter_fn: Callable[[K], bool] | None = None) -> Iterable[tuple[K, T]]: ...
 
 
 class NamedSelector[K, T](TypeWrapper[K, T], ABC):
@@ -30,4 +30,4 @@ class NamedListSelector[K, T](NamedSelector[K, T], ABC):
     @abstractmethod
     def items(
         self, filter_fn: Callable[[K, str], bool] | None = None
-    ) -> list[tuple[K, str, T]]: ...
+    ) -> Iterable[tuple[K, str, T]]: ...

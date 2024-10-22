@@ -1,5 +1,5 @@
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import override
 
 from greyhorse.app.abc.collectors import (
@@ -40,14 +40,14 @@ class DictRegistry[K, T](Collector[K, T], ListSelector[K, T]):
         return Just(self._storage[key])
 
     @override
-    def items(self, filter_fn: Callable[[K], bool] | None = None) -> list[tuple[K, T]]:
-        result = []
-
+    def items(self, filter_fn: Callable[[K], bool] | None = None) -> Iterable[tuple[K, T]]:
         for k, v in self._storage.items():
             if not filter_fn or filter_fn(k):
-                result.append((k, v))
+                yield k, v
 
-        return result
+    def clear(self) -> None:
+        while key := next(iter(self._storage), None):
+            del self._storage[key]
 
 
 class MutDictRegistry[K, T](MutCollector[K, T], DictRegistry[K, T]):
@@ -81,6 +81,7 @@ class ScopedDictRegistry[K, T](DictRegistry[K, T]):
         key = self._scope_func()
         return self._storage[key]
 
+    @override
     def __len__(self) -> int:
         registry = self._get_registry()
         return registry.__len__()
@@ -101,9 +102,15 @@ class ScopedDictRegistry[K, T](DictRegistry[K, T]):
         return registry.get(key)
 
     @override
-    def items(self, filter_fn: Callable[[K], bool] | None = None) -> list[tuple[K, T]]:
+    def items(self, filter_fn: Callable[[K], bool] | None = None) -> Iterable[tuple[K, T]]:
         registry = self._get_registry()
-        return registry.items(filter_fn)
+        yield from registry.items(filter_fn)
+
+    @override
+    def clear(self) -> None:
+        registry = self._get_registry()
+        registry.clear()
+        del self._storage[self._scope_func()]
 
 
 class ScopedMutDictRegistry[K, T](MutDictRegistry[K, T]):
@@ -118,6 +125,7 @@ class ScopedMutDictRegistry[K, T](MutDictRegistry[K, T]):
         key = self._scope_func()
         return self._storage[key]
 
+    @override
     def __len__(self) -> int:
         registry = self._get_registry()
         return registry.__len__()
@@ -138,14 +146,20 @@ class ScopedMutDictRegistry[K, T](MutDictRegistry[K, T]):
         return registry.get(key)
 
     @override
-    def items(self, filter_fn: Callable[[K], bool] | None = None) -> list[tuple[K, T]]:
+    def items(self, filter_fn: Callable[[K], bool] | None = None) -> Iterable[tuple[K, T]]:
         registry = self._get_registry()
-        return registry.items(filter_fn)
+        yield from registry.items(filter_fn)
 
     @override
     def remove(self, key: K, instance: T | None = None) -> bool:
         registry = self._get_registry()
         return registry.remove(key, instance)
+
+    @override
+    def clear(self) -> None:
+        registry = self._get_registry()
+        registry.clear()
+        del self._storage[self._scope_func()]
 
 
 class NamedDictRegistry[K, T](NamedCollector[K, T], NamedListSelector[K, T]):
@@ -185,15 +199,15 @@ class NamedDictRegistry[K, T](NamedCollector[K, T], NamedListSelector[K, T]):
     @override
     def items(
         self, filter_fn: Callable[[K, str], bool] | None = None
-    ) -> list[tuple[K, str, T]]:
-        result = []
-
+    ) -> Iterable[tuple[K, str, T]]:
         for k, values in self._storage.items():
             for name, v in values.items():
                 if not filter_fn or filter_fn(k, name):
-                    result.append((k, name, v))
+                    yield k, name, v
 
-        return result
+    def clear(self) -> None:
+        while key := next(iter(self._storage), None):
+            del self._storage[key]
 
 
 class MutNamedDictRegistry[K, T](MutNamedCollector[K, T], NamedDictRegistry[K, T]):
