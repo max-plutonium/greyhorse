@@ -136,7 +136,7 @@ wheels = [
 
 [[package]]
 name = "greyhorse"
-version = "0.4.21.dev3+a13c9d7"
+version = "0.4.23.dev5+b4ecac0"
 source = { editable = "." }
 dependencies = [
     { name = "networkx" },
