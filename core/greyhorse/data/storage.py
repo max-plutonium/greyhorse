@@ -5,9 +5,10 @@ from typing import override
 from greyhorse.app.contexts import Context
 from greyhorse.app.registries import MutDictRegistry
 from greyhorse.maybe import Maybe
+from greyhorse.utils.types import TypeWrapper
 
 
-class DataStorageEngine(ABC):
+class Engine(ABC):
     def __init__(self, name: str) -> None:
         self._name = name
 
@@ -29,9 +30,14 @@ class DataStorageEngine(ABC):
     def stop(self) -> Awaitable[None] | None: ...
 
 
-class DataStorageEngineFactory(ABC):
+class EngineReader[T: Engine](TypeWrapper[T], ABC):
     @abstractmethod
-    def create_engine[T](self, name: str, config: T) -> DataStorageEngine: ...
+    def get_engine(self, name: str) -> Maybe[T]: ...
+
+
+class EngineFactory[T: Engine](EngineReader[T], ABC):
+    @abstractmethod
+    def create_engine[T](self, name: str, config: T) -> Engine: ...
 
     @abstractmethod
     def destroy_engine(self, name: str) -> bool: ...
@@ -40,17 +46,12 @@ class DataStorageEngineFactory(ABC):
     def get_engine_names(self) -> list[str]: ...
 
     @abstractmethod
-    def get_engine(self, name: str) -> Maybe[DataStorageEngine]: ...
-
-    @abstractmethod
-    def get_engines(
-        self, names: list[str] | None = None
-    ) -> Mapping[str, DataStorageEngine]: ...
+    def get_engines(self, names: list[str] | None = None) -> Mapping[str, Engine]: ...
 
 
-class SimpleDataStorageFactory[T: DataStorageEngine](DataStorageEngineFactory, ABC):
+class SimpleEngineFactory[T: Engine](EngineFactory[T], ABC):
     def __init__(self) -> None:
-        self._engines = MutDictRegistry[str, DataStorageEngine]()
+        self._engines = MutDictRegistry[str, Engine]()
 
     @override
     def destroy_engine(self, name: str) -> bool:

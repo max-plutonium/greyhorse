@@ -1,7 +1,7 @@
 import re
 from typing import override
 
-from greyhorse.data.storage import SimpleDataStorageFactory
+from greyhorse.data.storage import SimpleEngineFactory
 from greyhorse.i18n import tr
 from greyhorse.logging import logger
 from greyhorse.utils import json
@@ -35,7 +35,7 @@ def _prepare_params(config: EngineConf) -> dict:
     return params
 
 
-class SyncSqlaEngineFactory(SimpleDataStorageFactory[SyncSqlaEngine]):
+class SyncSqlaEngineFactory(SimpleEngineFactory[SyncSqlaEngine]):
     @override
     def create_engine(self, name: str, config: EngineConf) -> SyncSqlaEngine:
         if engine := self._engines.get(name).unwrap_or_none():
@@ -65,7 +65,7 @@ class SyncSqlaEngineFactory(SimpleDataStorageFactory[SyncSqlaEngine]):
         return engine
 
 
-class AsyncSqlaEngineFactory(SimpleDataStorageFactory[AsyncSqlaEngine]):
+class AsyncSqlaEngineFactory(SimpleEngineFactory[AsyncSqlaEngine]):
     @override
     def create_engine(self, name: str, config: EngineConf) -> AsyncSqlaEngine:
         if engine := self._engines.get(name).unwrap_or_none():

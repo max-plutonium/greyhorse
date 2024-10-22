@@ -5,7 +5,7 @@ from typing import Any, override
 
 from greyhorse.app.contexts import AsyncMutContext, Context, ContextBuilder, current_scope_id
 from greyhorse.app.registries import MutDictRegistry, ScopedMutDictRegistry
-from greyhorse.data.storage import DataStorageEngine
+from greyhorse.data.storage import Engine
 from greyhorse.i18n import tr
 from greyhorse.logging import logger
 from greyhorse.maybe import Just, Maybe, Nothing
@@ -78,7 +78,7 @@ class _AsyncSessionCtx(AsyncMutContext[AsyncSession]):
         await instance.rollback()
 
 
-class AsyncSqlaEngine(DataStorageEngine):
+class AsyncSqlaEngine(Engine):
     def __init__(self, name: str, config: EngineConf, engine: AsyncEngine) -> None:
         super().__init__(name)
         self._config = config
