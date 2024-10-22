@@ -89,19 +89,6 @@ class SyncModule(Module):
         logger.info('{path}: Module create'.format(path=self._path))
 
         for component in self._components.values():
-            comp_conf = self._conf.components[component.name]
-
-            for res_type in comp_conf.resource_claims:
-                if res := self._resources.get(res_type).unwrap_or_none():
-                    component.add_resource(res_type, res)
-
-            # XXX: component providers
-            # for prov_type in prov_conf.providers:
-            #     for _, prov in self._providers.items(
-            #         lambda t, pt=prov_type: issubclass(t, pt)
-            #     ):
-            #         component.add_provider(prov_type, prov)
-
             if not (
                 res := component.create().map_err(
                     lambda e: ModuleError.Component(path=self._path, details=e.message)
@@ -118,6 +105,10 @@ class SyncModule(Module):
 
         for component in self._components.values():
             comp_conf = self._conf.components[component.name]
+
+            for res_type in comp_conf.resource_claims:
+                if res := self._resources.get(res_type).unwrap_or_none():
+                    component.add_resource(res_type, res)
 
             for res_type in comp_conf.operators:
                 for op in component.get_operators(res_type):  # type: ignore
@@ -184,6 +175,9 @@ class SyncModule(Module):
                     ):
                         return res  # type: ignore
 
+            for res_type in reversed(comp_conf.resource_claims):
+                component.remove_resource(res_type)
+
         logger.info('{path}: Module teardown successful'.format(path=self._path))
         return Ok()
 
@@ -192,21 +186,12 @@ class SyncModule(Module):
         logger.info('{path}: Module teardown'.format(path=self._path))
 
         for component in reversed(self._components.values()):
-            comp_conf = self._conf.components[component.name]
-
             if not (
                 res := component.destroy().map_err(
                     lambda e: ModuleError.Component(path=self._path, details=e.message)
                 )
             ):
                 return res
-
-            # XXX: component providers
-            # for prov_type in reversed(comp_conf.provider_grants):
-            #     component.remove_provider(prov_type)
-
-            for res_type in reversed(comp_conf.resource_claims):
-                component.remove_resource(res_type)
 
         if not (
             res := self._rm.teardown().map_err(

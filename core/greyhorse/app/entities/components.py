@@ -114,7 +114,6 @@ class SyncComponent(Component):
             return res  # type: ignore
 
         for svc in res.unwrap():
-            injector.add_type_provider(type(svc), svc)
             self.add_service(svc)
 
         if not (res := self._create_controllers(injector)):
@@ -382,6 +381,7 @@ class SyncComponent(Component):
 
             match self._create_service(conf, factory, injector):
                 case Ok(svc):
+                    injector.add_type_provider(type(svc), svc)
                     result.append(svc)
 
                 case Err(e):
@@ -421,10 +421,6 @@ class SyncModuleComponent(SyncComponent):
             if prov := self._rm.find_provider(prov_type, self._providers).unwrap_or_none():
                 self._module.add_provider(prov_type, prov)
 
-        for res_type in self._module.conf.resource_claims:
-            if res := self._resources.get(res_type).unwrap_or_none():
-                self._module.add_resource(res_type, res)
-
         if not (
             res := self._module.create().map_err(
                 lambda e: ComponentError.Module(
@@ -440,6 +436,10 @@ class SyncModuleComponent(SyncComponent):
     def setup(self) -> Result[None, ComponentError]:
         if not (res := super().setup()):
             return res
+
+        for res_type in self._module.conf.resource_claims:
+            if res := self._resources.get(res_type).unwrap_or_none():
+                self._module.add_resource(res_type, res)
 
         for res_type in self._module.conf.operators:
             for op in self._operators[res_type]:
@@ -478,6 +478,9 @@ class SyncModuleComponent(SyncComponent):
             for op in self._operators[res_type]:
                 self._module.remove_operator(op)
 
+        for res_type in reversed(self._module.conf.resource_claims):
+            self._module.remove_resource(res_type)
+
         return super().teardown()
 
     @override
@@ -490,9 +493,6 @@ class SyncModuleComponent(SyncComponent):
             )
         ):
             return res
-
-        for res_type in reversed(self._module.conf.resource_claims):
-            self._module.remove_resource(res_type)
 
         for prov_type in reversed(self._module.conf.provider_claims):
             self._module.remove_provider(prov_type)
