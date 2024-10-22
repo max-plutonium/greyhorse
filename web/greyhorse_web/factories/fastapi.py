@@ -1,7 +1,6 @@
 import asyncio
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from functools import partial
-from typing import AsyncContextManager
 
 import pydantic
 from fastapi import FastAPI, Response
@@ -38,12 +37,12 @@ class ORJsonResponse(Response):
 
 
 class AuthBackend(AuthenticationBackend):
-    async def authenticate(self, request: Request) -> tuple[AuthCredentials, BaseUser] | None:
+    async def authenticate(self, _: Request) -> tuple[AuthCredentials, BaseUser] | None:
         return AuthCredentials(), UnauthenticatedUser()
 
 
 @asynccontextmanager
-async def fastapi_lifespan(_: FastAPI, app: Application) -> AsyncContextManager:
+async def fastapi_lifespan(_: FastAPI, app: Application) -> AbstractAsyncContextManager:
     asyncio.set_event_loop(instance.loop)
 
     instance.start()
@@ -100,7 +99,7 @@ def create_fastapi(
         _: Request, exc: pydantic.ValidationError
     ) -> ORJsonResponse:
         error_dict = {}
-        for e in exc.errors():  # type: dict[str, Any]
+        for e in exc.errors():  # type: dict[str, str]
             location = '.'.join([str(loc) for loc in e['loc'] if loc != 'body'])
             if location in error_dict:
                 error_dict[location] = [

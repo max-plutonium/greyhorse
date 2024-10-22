@@ -24,7 +24,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "greyhorse>=0.4.20",
+    "greyhorse~=0.4.23",
     "python-multipart>=0.0.12",
 ]
 

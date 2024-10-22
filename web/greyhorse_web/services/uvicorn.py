@@ -29,7 +29,7 @@ class UvicornService(AsyncService):
     ) -> Result[ServiceState, ServiceError]:
         app = None
 
-        for _, _name, app in list_selector.items(
+        for _, _name, app in list_selector.items(  # noqa: B007
             lambda t, _: issubclass(t, self._resource_type)
         ):
             break
