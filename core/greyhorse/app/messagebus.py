@@ -1,13 +1,12 @@
 from collections import defaultdict
 from collections.abc import Callable, Mapping
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from greyhorse.logging import logger
-from greyhorse.result import Result
 from greyhorse.utils.invoke import invoke_async, invoke_sync
 
 MessageType = TypeVar('MessageType')
-CommandHandler = Callable[[MessageType], Result]
+CommandHandler = Callable[[MessageType], Any]
 EventHandler = Callable[[MessageType], None]
 
 
@@ -28,7 +27,7 @@ class SyncMessageBus:
     def add_event_handler(self, message_type: type[MessageType], handler: EventHandler) -> None:
         self._event_handlers[message_type].append(handler)
 
-    def handle_command(self, message: MessageType) -> Result:
+    def handle_command(self, message: MessageType) -> object:
         if handler := self._cmd_handlers.get(type(message)):
             return invoke_sync(handler, message)
         raise LookupError()
@@ -59,7 +58,7 @@ class AsyncMessageBus:
     def add_event_handler(self, message_type: type[MessageType], handler: EventHandler) -> None:
         self._event_handlers[message_type].append(handler)
 
-    async def handle_command(self, message: MessageType) -> Result:
+    async def handle_command(self, message: MessageType) -> object:
         if handler := self._cmd_handlers.get(type(message)):
             return await invoke_async(handler, message)
         raise LookupError()
