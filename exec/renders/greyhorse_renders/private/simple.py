@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import override
+from typing import Any, override
 
 from greyhorse.result import Ok, Result
 
@@ -11,7 +11,9 @@ class SimpleSyncRender(SyncRender):
         super().__init__(templates_dirs)
 
     @override
-    def __call__(self, template: str | Path, **kwargs) -> Result[str, RenderError]:
+    def __call__(
+        self, template: str | Path, **kwargs: dict[str, Any]
+    ) -> Result[str, RenderError]:
         if isinstance(template, str):
             template = Path(template)
 
@@ -34,7 +36,9 @@ class SimpleAsyncRender(AsyncRender):
         super().__init__(templates_dirs)
 
     @override
-    async def __call__(self, template: str | Path, **kwargs) -> Result[str, RenderError]:
+    async def __call__(
+        self, template: str | Path, **kwargs: dict[str, Any]
+    ) -> Result[str, RenderError]:
         if isinstance(template, str):
             template = Path(template)
 

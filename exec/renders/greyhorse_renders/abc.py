@@ -25,28 +25,34 @@ class Render(ABC):
 
     @abstractmethod
     def __call__(
-        self, template: str | Path, **kwargs
+        self, template: str | Path, **kwargs: dict[str, Any]
     ) -> Result[str, RenderError] | Awaitable[Result[str, RenderError]]: ...
 
     def eval_string(
-        self, source: str, **kwargs
+        self, source: str, **kwargs: dict[str, Any]
     ) -> Result[Any, RenderError] | Awaitable[Result[Any, RenderError]]:
         return Ok(None)
 
 
 class SyncRender(Render):
     @abstractmethod
-    def __call__(self, template: str | Path, **kwargs) -> Result[str, RenderError]: ...
+    def __call__(
+        self, template: str | Path, **kwargs: dict[str, Any]
+    ) -> Result[str, RenderError]: ...
 
-    def eval_string(self, source: str, **kwargs) -> Result[Any, RenderError]:
+    def eval_string(self, source: str, **kwargs: dict[str, Any]) -> Result[Any, RenderError]:
         return Ok(None)
 
 
 class AsyncRender(Render):
     @abstractmethod
-    async def __call__(self, template: str | Path, **kwargs) -> Result[str, RenderError]: ...
+    async def __call__(
+        self, template: str | Path, **kwargs: dict[str, Any]
+    ) -> Result[str, RenderError]: ...
 
-    async def eval_string(self, source: str, **kwargs) -> Result[Any, RenderError]:
+    async def eval_string(
+        self, source: str, **kwargs: dict[str, Any]
+    ) -> Result[Any, RenderError]:
         return Ok(None)
 
 

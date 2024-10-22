@@ -2,13 +2,14 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from greyhorse.app.abc.selectors import Selector
 from greyhorse.app.registries import MutNamedDictRegistry
 from greyhorse_renders.abc import AsyncRender, AsyncRenderFactory, SyncRender, SyncRenderFactory
 from greyhorse_renders.controller import RendersController
 
 
 @pytest.fixture
-def registry():
+def registry() -> Selector[type, Any]:
     ctrl = RendersController()
 
     registry = MutNamedDictRegistry[type, Any]()
@@ -22,7 +23,7 @@ def registry():
 
 
 @pytest.mark.parametrize('param', ('', 'jinja'), ids=('Simple', 'Jinja'))
-def test_sync_render(param, registry) -> None:
+def test_sync_render(param: str, registry: Selector[type, SyncRenderFactory]) -> None:
     sync_render_factory = registry.get(SyncRenderFactory).unwrap()
     render = sync_render_factory(param, [Path('tests/data')])
     assert isinstance(render, SyncRender)
@@ -42,7 +43,7 @@ def test_sync_render(param, registry) -> None:
 
 @pytest.mark.parametrize('param', ('', 'jinja'), ids=('Simple', 'Jinja'))
 @pytest.mark.asyncio
-async def test_async_render(param, registry) -> None:
+async def test_async_render(param: str, registry: Selector[type, AsyncRenderFactory]) -> None:
     async_render_factory = registry.get(AsyncRenderFactory).unwrap()
     render = async_render_factory(param, [Path('tests/data')])
     assert isinstance(render, AsyncRender)

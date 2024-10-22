@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, override
+from typing import Any, cast, override
 
 from greyhorse.app.abc.collectors import MutNamedCollector, NamedCollector
 from greyhorse.app.abc.controllers import ControllerError
@@ -60,9 +60,9 @@ class RendersController(SyncController):
                     continue
 
                 if is_async:
-                    async_renders[key] = class_obj
+                    async_renders[key] = cast(type[AsyncRender], class_obj)
                 else:
-                    sync_renders[key] = class_obj
+                    sync_renders[key] = cast(type[SyncRender], class_obj)
 
         res = collector.add(SyncRenderFactory, SyncRenderFactoryImpl(sync_renders))
         res &= collector.add(AsyncRenderFactory, AsyncRenderFactoryImpl(async_renders))

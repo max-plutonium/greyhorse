@@ -31,7 +31,7 @@ class SyncDictLoader:
         self._parser = DictParser()
 
     def load_yaml(
-        self, conf_path: Path, render_key: str | None = None, **kwargs
+        self, conf_path: Path, render_key: str | None = None, **kwargs: dict[str, Any]
     ) -> Result[dict[str, Any], LoaderError]:
         render_key = render_key or self._default_render_key
 
@@ -47,7 +47,7 @@ class SyncDictLoader:
         )
 
     def load_yaml_list(
-        self, conf_path: Path, render_key: str | None = None, **kwargs
+        self, conf_path: Path, render_key: str | None = None, **kwargs: dict[str, Any]
     ) -> Result[list[dict[str, Any]], LoaderError]:
         render_key = render_key or self._default_render_key
 
@@ -65,7 +65,7 @@ class SyncDictLoader:
         )
 
     def load_toml(
-        self, conf_path: Path, render_key: str | None = None, **kwargs
+        self, conf_path: Path, render_key: str | None = None, **kwargs: dict[str, Any]
     ) -> Result[dict[str, Any], LoaderError]:
         render_key = render_key or self._default_render_key
 
@@ -95,7 +95,7 @@ class SyncPydanticLoader[DocumentModel: pydantic.BaseModel](SyncDictLoader):
 
     @override
     def load_yaml(
-        self, conf_path: Path, render_key: str | None = None, **kwargs
+        self, conf_path: Path, render_key: str | None = None, **kwargs: dict[str, Any]
     ) -> Result[DocumentModel, LoaderError]:
         return cast(
             Result[DocumentModel, LoaderError],
@@ -104,7 +104,7 @@ class SyncPydanticLoader[DocumentModel: pydantic.BaseModel](SyncDictLoader):
 
     @override
     def load_yaml_list(
-        self, conf_path: Path, render_key: str | None = None, **kwargs
+        self, conf_path: Path, render_key: str | None = None, **kwargs: dict[str, Any]
     ) -> Result[list[DocumentModel], LoaderError]:
         return cast(
             Result[list[DocumentModel], LoaderError],
@@ -113,7 +113,7 @@ class SyncPydanticLoader[DocumentModel: pydantic.BaseModel](SyncDictLoader):
 
     @override
     def load_toml(
-        self, conf_path: Path, render_key: str | None = None, **kwargs
+        self, conf_path: Path, render_key: str | None = None, **kwargs: dict[str, Any]
     ) -> Result[DocumentModel, LoaderError]:
         return cast(
             Result[DocumentModel, LoaderError],
@@ -136,7 +136,7 @@ class AsyncDictLoader:
         self._parser = DictParser()
 
     async def load_yaml(
-        self, conf_path: Path, render_key: str | None = None, **kwargs
+        self, conf_path: Path, render_key: str | None = None, **kwargs: dict[str, Any]
     ) -> Result[dict[str, Any], LoaderError]:
         render_key = render_key or self._default_render_key
 
@@ -152,7 +152,7 @@ class AsyncDictLoader:
         )
 
     async def load_yaml_list(
-        self, conf_path: Path, render_key: str | None = None, **kwargs
+        self, conf_path: Path, render_key: str | None = None, **kwargs: dict[str, Any]
     ) -> Result[list[dict[str, Any]], LoaderError]:
         render_key = render_key or self._default_render_key
 
@@ -170,7 +170,7 @@ class AsyncDictLoader:
         )
 
     async def load_toml(
-        self, conf_path: Path, render_key: str | None = None, **kwargs
+        self, conf_path: Path, render_key: str | None = None, **kwargs: dict[str, Any]
     ) -> Result[dict[str, Any], LoaderError]:
         render_key = render_key or self._default_render_key
 
@@ -200,7 +200,7 @@ class AsyncPydanticLoader[DocumentModel: pydantic.BaseModel](AsyncDictLoader):
 
     @override
     async def load_yaml(
-        self, conf_path: Path, render_key: str | None = None, **kwargs
+        self, conf_path: Path, render_key: str | None = None, **kwargs: dict[str, Any]
     ) -> Result[DocumentModel, LoaderError]:
         return cast(
             Result[DocumentModel, LoaderError],
@@ -209,7 +209,7 @@ class AsyncPydanticLoader[DocumentModel: pydantic.BaseModel](AsyncDictLoader):
 
     @override
     async def load_yaml_list(
-        self, conf_path: Path, render_key: str | None = None, **kwargs
+        self, conf_path: Path, render_key: str | None = None, **kwargs: dict[str, Any]
     ) -> Result[list[DocumentModel], LoaderError]:
         return cast(
             Result[list[DocumentModel], LoaderError],
@@ -218,7 +218,7 @@ class AsyncPydanticLoader[DocumentModel: pydantic.BaseModel](AsyncDictLoader):
 
     @override
     async def load_toml(
-        self, conf_path: Path, render_key: str | None = None, **kwargs
+        self, conf_path: Path, render_key: str | None = None, **kwargs: dict[str, Any]
     ) -> Result[DocumentModel, LoaderError]:
         return cast(
             Result[DocumentModel, LoaderError],

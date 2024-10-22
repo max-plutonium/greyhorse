@@ -24,7 +24,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "greyhorse>=0.4.16",
+    "greyhorse>=0.4.23",
 ]
 
 [project.optional-dependencies]

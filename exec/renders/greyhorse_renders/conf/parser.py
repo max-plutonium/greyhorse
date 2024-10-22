@@ -69,11 +69,8 @@ class PydanticParser[DocumentModel: pydantic.BaseModel](DictParser):
         if not (res := super().parse_yaml_list(content)):
             return res  # type: ignore
 
-        docs = []
-
         try:
-            for data in res.unwrap():
-                docs.append(self._doc_schema(**data))
+            docs = [self._doc_schema(**data) for data in res.unwrap()]
 
         except pydantic.ValidationError as e:
             return ParserError.Validation(details=str(e)).to_result()

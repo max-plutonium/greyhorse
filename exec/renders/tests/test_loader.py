@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import pytest
+from greyhorse.app.abc.selectors import Selector
 from greyhorse.app.registries import MutNamedDictRegistry
 from greyhorse_renders.abc import AsyncRenderFactory, SyncRenderFactory
 from greyhorse_renders.conf.loader import (
@@ -73,7 +74,7 @@ ROUTES_DICT = {
 
 
 @pytest.fixture
-def registry():
+def registry() -> Selector[type, Any]:
     ctrl = RendersController()
 
     registry = MutNamedDictRegistry[type, Any]()
@@ -87,7 +88,7 @@ def registry():
 
 
 @pytest.mark.parametrize('param', ('', 'jinja'), ids=('Simple', 'Jinja'))
-def test_sync_dict(param, registry) -> None:
+def test_sync_dict(param: str, registry: Selector[type, SyncRenderFactory]) -> None:
     render_factory = registry.get(SyncRenderFactory).unwrap()
 
     conf_loader = SyncDictLoader(
@@ -110,7 +111,7 @@ def test_sync_dict(param, registry) -> None:
 
 @pytest.mark.parametrize('param', ('', 'jinja'), ids=('Simple', 'Jinja'))
 @pytest.mark.asyncio
-async def test_async_dict(param, registry) -> None:
+async def test_async_dict(param: str, registry: Selector[type, AsyncRenderFactory]) -> None:
     render_factory = registry.get(AsyncRenderFactory).unwrap()
 
     conf_loader = AsyncDictLoader(
@@ -132,7 +133,7 @@ async def test_async_dict(param, registry) -> None:
 
 
 @pytest.mark.parametrize('param', ('', 'jinja'), ids=('Simple', 'Jinja'))
-def test_sync_pydantic(param, registry) -> None:
+def test_sync_pydantic(param: str, registry: Selector[type, SyncRenderFactory]) -> None:
     render_factory = registry.get(SyncRenderFactory).unwrap()
 
     conf_loader = SyncPydanticLoader(
@@ -158,7 +159,7 @@ def test_sync_pydantic(param, registry) -> None:
 
 @pytest.mark.parametrize('param', ('', 'jinja'), ids=('Simple', 'Jinja'))
 @pytest.mark.asyncio
-async def test_async_pydantic(param, registry) -> None:
+async def test_async_pydantic(param: str, registry: Selector[type, AsyncRenderFactory]) -> None:
     render_factory = registry.get(AsyncRenderFactory).unwrap()
 
     conf_loader = AsyncPydanticLoader(

@@ -28,17 +28,13 @@ class JinjaBasicRender:
     @staticmethod
     def to_yaml(data: dict, indent: int = 0) -> str:
         dump = yaml.safe_dump(data)
-        res = []
-        for line in dump.splitlines():
-            res.append(' ' * indent + line)
+        res = [' ' * indent + line for line in dump.splitlines()]
         return '\n'.join(res)
 
     @staticmethod
     def to_json(data: dict, indent: int = 0) -> str:
         dump = json.dumps(data, use_indent=True)
-        res = []
-        for line in dump.splitlines():
-            res.append(' ' * indent + line)
+        res = [' ' * indent + line for line in dump.splitlines()]
         return '\n'.join(res)
 
     def read_binary(self, path: str) -> str:
@@ -60,7 +56,9 @@ class JinjaSyncRender(SyncRender, JinjaBasicRender):
         JinjaBasicRender.__init__(self, templates_dirs, enable_async=False)
 
     @override
-    def __call__(self, template: str | Path, **kwargs) -> Result[str, RenderError]:
+    def __call__(
+        self, template: str | Path, **kwargs: dict[str, Any]
+    ) -> Result[str, RenderError]:
         if isinstance(template, Path):
             if not template.exists() or not template.is_file():
                 return RenderError.TemplateFileNotFound(file=template).to_result()
@@ -80,13 +78,12 @@ class JinjaSyncRender(SyncRender, JinjaBasicRender):
 
         return Ok(rendered)
 
-    # noinspection PyProtectedMember
     @override
-    def eval_string(self, source: str, **kwargs) -> Result[Any, RenderError]:
+    def eval_string(self, source: str, **kwargs: dict[str, Any]) -> Result[Any, RenderError]:
         try:
             tmpl = self._templates_env.compile_expression(source)
-            context = tmpl._template.new_context(kwargs)
-            for _ in tmpl._template.root_render_func(context):
+            context = tmpl._template.new_context(kwargs)  # noqa: SLF001
+            for _ in tmpl._template.root_render_func(context):  # noqa: SLF001
                 pass
 
         except exceptions.TemplateSyntaxError as e:
@@ -103,7 +100,9 @@ class JinjaAsyncRender(AsyncRender, JinjaBasicRender):
         JinjaBasicRender.__init__(self, templates_dirs, enable_async=True)
 
     @override
-    async def __call__(self, template: str | Path, **kwargs) -> Result[str, RenderError]:
+    async def __call__(
+        self, template: str | Path, **kwargs: dict[str, Any]
+    ) -> Result[str, RenderError]:
         if isinstance(template, Path):
             if not template.exists() or not template.is_file():
                 return RenderError.TemplateFileNotFound(file=template).to_result()
@@ -123,14 +122,14 @@ class JinjaAsyncRender(AsyncRender, JinjaBasicRender):
 
         return Ok(rendered)
 
-    # noinspection PyProtectedMember
     @override
-    async def eval_string(self, source: str, **kwargs) -> Result[Any, RenderError]:
+    async def eval_string(
+        self, source: str, **kwargs: dict[str, Any]
+    ) -> Result[Any, RenderError]:
         try:
             tmpl = self._templates_env.compile_expression(source)
-            context = tmpl._template.new_context(kwargs)
-            # noinspection PyTypeChecker
-            async for _ in tmpl._template.root_render_func(context):
+            context = tmpl._template.new_context(kwargs)  # noqa: SLF001
+            async for _ in tmpl._template.root_render_func(context):  # noqa: SLF001
                 pass
 
         except exceptions.TemplateSyntaxError as e:
