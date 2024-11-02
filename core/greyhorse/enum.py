@@ -1,7 +1,8 @@
+import inspect
 from dataclasses import field as dataclass_field
 from dataclasses import fields as dataclass_fields
 from dataclasses import make_dataclass
-from typing import Any, ClassVar, Generic, NoReturn, TypeVar
+from typing import Any, Generic, NoReturn, TypeVar, TYPE_CHECKING
 
 from greyhorse.utils.invoke import caller_path
 
@@ -199,24 +200,30 @@ class Enum:
     Implements algebraic enumeration class.
     """
 
+    if TYPE_CHECKING:
+        items: tuple[tuple[str, type]]
+
     def __init_subclass__(cls, allow_init: bool = False, **kwargs):
-        fields: dict[str, ClassVar[Unit | Tuple | Struct]] = {}  # type: ignore
+        members = inspect.getmembers(cls, lambda m: isinstance(m, Unit | Tuple | Struct))
 
-        for field_name in dir(cls):
-            instance = getattr(cls, field_name)
+        if not members:
+            return super().__init_subclass__(**kwargs)
 
-            if isinstance(instance, Unit | Tuple | Struct):
-                fields[field_name] = instance
-                delattr(cls, field_name)
-            else:
-                continue
+        for field_name, instance in members:
+            delattr(cls, field_name)
 
-        for field_name, instance in fields.items():
-            # noinspection PyProtectedMember
-            factory = instance._bind(field_name, cls)
+        new_fields = {}
+
+        for field_name, instance in members:
+            factory = instance._bind(field_name, cls)  # noqa
+            new_fields[field_name] = factory
+
+        for field_name, factory in new_fields.items():
             setattr(cls, field_name, factory)
 
-        if fields and not allow_init:
+        setattr(cls, 'items', tuple((m[0], new_fields[m[0]]) for m in members))
+
+        if not allow_init:
 
             def __init__(*_, **__) -> NoReturn:
                 raise NotImplementedError()
@@ -224,34 +231,3 @@ class Enum:
             cls.__init__ = __init__  # type: ignore
 
         return super().__init_subclass__(**kwargs)
-
-
-def enum(cls: type | None = None, allow_init: bool = False):
-    """
-    Create algebraic enumeration from class.
-    """
-
-    def decorator(cls):
-        for field_name in dir(cls):
-            instance = getattr(cls, field_name)
-
-            if isinstance(instance, Unit | Tuple | Struct):
-                # noinspection PyProtectedMember
-                factory = instance._bind(field_name, cls)
-                setattr(cls, field_name, factory)
-            else:
-                continue
-
-        if not allow_init:
-
-            def __init__(*_, **__) -> NoReturn:
-                raise NotImplementedError()
-
-            cls.__init__ = __init__
-
-        return cls
-
-    if cls is None:
-        return decorator
-
-    return decorator(cls)
