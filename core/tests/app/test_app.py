@@ -3,8 +3,8 @@ from greyhorse.app.entities.application import Application
 from greyhorse.app.schemas.components import ModuleComponentConf, ModuleConf
 from greyhorse.app.schemas.elements import CtrlConf, SvcConf
 
-from .common.functional import FunctionalOperator
 from .root import FunctionalOperatorCtrl, FunctionalOperatorService
+from .testmodule.common.functional import FunctionalOperator
 
 
 def test_app() -> None:
@@ -14,7 +14,7 @@ def test_app() -> None:
         components={
             'dict': ModuleComponentConf(
                 enabled=True,
-                path='..module.main',
+                path='..testmodule.module',
                 providers=[FactoryProvider[FunctionalOperator]],
                 services=[SvcConf(type=FunctionalOperatorService)],
                 controllers=[CtrlConf(type=FunctionalOperatorCtrl)],

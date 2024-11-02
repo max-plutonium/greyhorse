@@ -1,14 +1,13 @@
-from typing import Any, override
+from typing import override
 
-from greyhorse.app.abc.collectors import MutNamedCollector, NamedCollector
 from greyhorse.app.abc.controllers import ControllerError
 from greyhorse.app.abc.operators import AssignOperator, Operator
 from greyhorse.app.abc.providers import FactoryError, ForwardProvider
-from greyhorse.app.abc.selectors import NamedListSelector, NamedSelector
 from greyhorse.app.abc.services import ServiceError, ServiceState
 from greyhorse.app.boxes import ForwardBox
 from greyhorse.app.entities.controllers import SyncController, operator
 from greyhorse.app.entities.services import SyncService, provider
+from greyhorse.app.resources import Container, inject
 from greyhorse.maybe import Maybe, Nothing
 from greyhorse.result import Ok, Result
 
@@ -51,23 +50,17 @@ class DictOperatorService1(SyncService):
         self._res1 = ForwardBox[DictResContext]()
 
     @override
-    def setup(
-        self, res: Maybe[DictResContext], selector: NamedSelector[type, Any]
-    ) -> Result[ServiceState, ServiceError]:
+    @inject
+    def setup(self, res: Maybe[DictResContext]) -> Result[ServiceState, ServiceError]:
         if not res:
-            return ServiceError.NoSuchResource(name='DictResContext').to_result()
-        if not selector.has(DictResContext):
             return ServiceError.NoSuchResource(name='DictResContext').to_result()
         self._res1.accept(res.unwrap())
         return super().setup()
 
     @override
-    def teardown(
-        self, res: Maybe[DictResContext], selector: NamedSelector[type, Any]
-    ) -> Result[ServiceState, ServiceError]:
+    @inject
+    def teardown(self, res: Maybe[DictResContext]) -> Result[ServiceState, ServiceError]:
         if not res:
-            return ServiceError.NoSuchResource(name='DictResContext').to_result()
-        if not selector.has(DictResContext):
             return ServiceError.NoSuchResource(name='DictResContext').to_result()
         self._res1.revoke()
         return super().teardown()
@@ -89,23 +82,19 @@ class DictOperatorService2(SyncService):
         self._res2: MutDictResContext | None = None
 
     @override
+    @inject
     def setup(
-        self, res: Maybe[MutDictResContext], list_selector: NamedListSelector[type, Any]
+        self, res: Maybe[MutDictResContext], rrr: MutDictResContext
     ) -> Result[ServiceState, ServiceError]:
         if not res:
-            return ServiceError.NoSuchResource(name='MutDictResContext').to_result()
-        if not list_selector.has(MutDictResContext):
             return ServiceError.NoSuchResource(name='MutDictResContext').to_result()
         self._res2 = res.unwrap()
         return super().setup()
 
     @override
-    def teardown(
-        self, res: Maybe[MutDictResContext], list_selector: NamedListSelector[type, Any]
-    ) -> Result[ServiceState, ServiceError]:
+    @inject
+    def teardown(self, res: MutDictResContext | None) -> Result[ServiceState, ServiceError]:
         if not res:
-            return ServiceError.NoSuchResource(name='MutDictResContext').to_result()
-        if not list_selector.has(MutDictResContext):
             return ServiceError.NoSuchResource(name='MutDictResContext').to_result()
         self._res2 = None
         return super().teardown()
@@ -143,26 +132,26 @@ class DictOperatorCtrl(SyncController):
         self._b = value
 
     @override
-    def setup(self, collector: NamedCollector[type, Any]) -> Result[bool, ControllerError]:
+    def setup(self, container: Container) -> Result[bool, ControllerError]:
         if not self._a:
             return ControllerError.NoSuchResource(name='DictResContext').to_result()
         if not self._b:
             return ControllerError.NoSuchResource(name='MutDictResContext').to_result()
-        collector.add(DictResContext, self._a.unwrap())
-        collector.add(MutDictResContext, self._b.unwrap())
-        return super().setup(collector)
+
+        res = container.registry.add_factory(DictResContext, self._a.unwrap())
+        res &= container.registry.add_factory(MutDictResContext, self._b.unwrap())
+        return Ok(res)
 
     @override
-    def teardown(
-        self, collector: MutNamedCollector[type, Any]
-    ) -> Result[bool, ControllerError]:
+    def teardown(self, container: Container) -> Result[bool, ControllerError]:
         if not self._a:
             return ControllerError.NoSuchResource(name='DictResContext').to_result()
         if not self._b:
             return ControllerError.NoSuchResource(name='MutDictResContext').to_result()
-        collector.remove(DictResContext, self._a.unwrap())
-        collector.remove(MutDictResContext, self._b.unwrap())
-        return super().teardown(collector)
+
+        res = container.registry.remove_factory(DictResContext)
+        res &= container.registry.remove_factory(MutDictResContext)
+        return Ok(res)
 
     @operator(DictResContext)
     def create_op1(self) -> Operator[DictResContext]:

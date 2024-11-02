@@ -4,13 +4,13 @@ from dataclasses import fields as dataclass_fields
 from dataclasses import make_dataclass
 from typing import Any, Generic, NoReturn, TypeVar, TYPE_CHECKING
 
-from greyhorse.utils.invoke import caller_path
-
 
 class Unit:
     __slots__ = ('_name', '_base', '_factory')
 
     def _bind(self, name: str, base: type):
+        from greyhorse.utils.invoke import caller_path
+
         self._name = name
         self._base = base
 
@@ -58,6 +58,8 @@ class Tuple[*Ts]:
                 self._types.append(t)
 
     def _bind(self, name: str, base: type):
+        from greyhorse.utils.invoke import caller_path
+
         self._name = name
         self._base = base
 
@@ -140,6 +142,8 @@ class Struct:
                 self._values[k] = v
 
     def _bind(self, name: str, base: type):
+        from greyhorse.utils.invoke import caller_path
+
         self._name = name
         self._base = base
 

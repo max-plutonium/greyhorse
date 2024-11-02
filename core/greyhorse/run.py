@@ -2,6 +2,7 @@ import asyncio
 from collections.abc import Callable
 from functools import partial, wraps
 
+from greyhorse.app.resources.container import root
 from greyhorse.app.runtime import instance, is_awaitable
 
 
@@ -11,9 +12,10 @@ def run[T, **P](func: Callable[P, T], /, *args: P.args, **kwargs: P.kwargs) -> T
     try:
         instance.start()
 
-        if is_awaitable(func):
-            return asyncio.run(func(*args, **kwargs))
-        return func(*args, **kwargs)
+        with root.context:
+            if is_awaitable(func):
+                return asyncio.run(func(*args, **kwargs))
+            return func(*args, **kwargs)
 
     finally:
         instance.stop()

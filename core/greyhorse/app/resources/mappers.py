@@ -3,17 +3,18 @@ from collections.abc import Awaitable
 from functools import partial
 from typing import Self, TypeVar, override
 
-from greyhorse.app.abc.operators import Operator
-from greyhorse.app.abc.providers import (
+from greyhorse.result import Err, Ok, Result
+from greyhorse.utils.invoke import invoke_async, invoke_sync
+from greyhorse.utils.types import TypeWrapper
+
+from ..abc.operators import Operator
+from ..abc.providers import (
     FactoryProvider,
     ForwardProvider,
     MutProvider,
     Provider,
     SharedProvider,
 )
-from greyhorse.result import Err, Ok, Result
-from greyhorse.utils.invoke import invoke_async, invoke_sync
-from greyhorse.utils.types import TypeWrapper
 
 
 class ResourceMapper[T](TypeWrapper[T], ABC):

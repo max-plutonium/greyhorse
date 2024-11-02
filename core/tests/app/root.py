@@ -6,7 +6,7 @@ from greyhorse.app.entities.services import SyncService, provider
 from greyhorse.maybe import Maybe, Nothing
 from greyhorse.result import Result
 
-from .common.functional import FunctionalOperator
+from .testmodule.common.functional import FunctionalOperator
 
 
 class FunctionalOperatorService(SyncService):

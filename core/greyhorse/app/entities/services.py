@@ -13,6 +13,12 @@ def provider(provider_type: type[Provider]) -> Callable[[classmethod], classmeth
     def decorator(func: classmethod) -> classmethod:
         hints = get_type_hints(func, include_extras=True)
         ret_type = hints.pop('return', None)
+
+        while hint := next(iter(hints), None):
+            hint_type = hints[hint]
+            if not issubclass(hint_type, Provider):
+                del hints[hint]
+
         func.__provider__ = ProviderMember(
             provider_type.__wrapped_type__,
             provider_type,

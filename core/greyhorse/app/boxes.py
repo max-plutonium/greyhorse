@@ -3,8 +3,11 @@ from collections.abc import AsyncGenerator, Callable, Generator
 from copy import deepcopy
 from typing import Any, override
 
-from greyhorse.app.abc.operators import Operator
-from greyhorse.app.abc.providers import (
+from greyhorse.maybe import Maybe, Nothing
+from greyhorse.result import Err, Ok, Result
+
+from .abc.operators import Operator
+from .abc.providers import (
     BorrowError,
     BorrowMutError,
     FactoryError,
@@ -14,15 +17,7 @@ from greyhorse.app.abc.providers import (
     MutProvider,
     SharedProvider,
 )
-from greyhorse.app.contexts import (
-    AsyncContext,
-    AsyncMutContext,
-    ContextBuilder,
-    SyncContext,
-    SyncMutContext,
-)
-from greyhorse.maybe import Maybe, Nothing
-from greyhorse.result import Err, Ok, Result
+from .contexts import AsyncContext, AsyncMutContext, ContextBuilder, SyncContext, SyncMutContext
 
 
 class _BasicRefBox:

@@ -7,7 +7,6 @@ from typing import Any
 from greyhorse.error import Error, ErrorCase
 from greyhorse.result import Result
 
-from .collectors import MutNamedCollector, NamedCollector
 from .visitor import Visitor
 
 
@@ -55,10 +54,14 @@ class Controller(ABC):
 
     @abstractmethod
     def setup(
-        self, collector: NamedCollector[type, Any]
+        self,
+        *args,  # noqa: ANN002
+        **kwargs,  # noqa: ANN003
     ) -> Result[bool, ControllerError] | Awaitable[Result[bool, ControllerError]]: ...
 
     @abstractmethod
     def teardown(
-        self, collector: MutNamedCollector[type, Any]
+        self,
+        *args,  # noqa: ANN002
+        **kwargs,  # noqa: ANN003
     ) -> Result[bool, ControllerError] | Awaitable[Result[bool, ControllerError]]: ...

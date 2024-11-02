@@ -2,14 +2,10 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable
 from typing import override
 
-from greyhorse.app.abc.collectors import (
-    Collector,
-    MutCollector,
-    MutNamedCollector,
-    NamedCollector,
-)
-from greyhorse.app.abc.selectors import ListSelector, NamedListSelector
 from greyhorse.maybe import Just, Maybe, Nothing
+
+from .abc.collectors import Collector, MutCollector, MutNamedCollector, NamedCollector
+from .abc.selectors import ListSelector, NamedListSelector
 
 
 class DictRegistry[K, T](Collector[K, T], ListSelector[K, T]):

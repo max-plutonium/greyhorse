@@ -1,3 +1,6 @@
+import inspect
+from asyncio import iscoroutinefunction
+from functools import partial
 from types import EllipsisType, NoneType, UnionType, new_class
 from typing import Any, TypeVar, TypeVarTuple, Union, get_args, get_origin
 
@@ -102,8 +105,30 @@ def is_optional[T](value: type[T]) -> bool:
     return False
 
 
+def is_maybe[T](value: type[T]) -> bool:
+    from greyhorse.maybe import Maybe
+
+    return get_origin(value) is Maybe or isinstance(value, Maybe)
+
+
+def is_awaitable(f: object) -> bool:
+    while isinstance(f, partial):
+        f = f.func
+    return iscoroutinefunction(f) or inspect.isawaitable(f)
+
+
 def unwrap_optional[T](value: type[T]) -> type[T]:
     if get_origin(value) is Union or isinstance(value, UnionType):
+        type_args = get_args(value)
+        if len(type_args) >= 1:
+            return type_args[0]
+    return value
+
+
+def unwrap_maybe[T](value: type[T]) -> type[T]:
+    from greyhorse.maybe import Maybe
+
+    if get_origin(value) is Maybe or isinstance(value, Maybe):
         type_args = get_args(value)
         if len(type_args) >= 1:
             return type_args[0]

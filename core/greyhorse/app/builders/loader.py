@@ -1,16 +1,18 @@
 import sys
+import types
 from collections.abc import Callable
 from typing import cast
 
 import pydantic
 
-from greyhorse.app.schemas.components import ModuleComponentConf, ModuleConf
 from greyhorse.error import Error, ErrorCase
 from greyhorse.logging import logger
 from greyhorse.result import Ok, Result
 from greyhorse.utils.imports import import_path
 from greyhorse.utils.injectors import ParamsInjector
 from greyhorse.utils.invoke import invoke_sync
+
+from ..schemas.components import ModuleComponentConf, ModuleConf
 
 
 class ModuleLoadError(Error):
@@ -41,8 +43,15 @@ class ModuleUnloadError(Error):
 
 
 class ModuleLoader:
+    __slots__ = ('_injector', '_module')
+
     def __init__(self) -> None:
         self._injector = ParamsInjector()
+        self._module: types.ModuleType | None = None
+
+    @property
+    def module(self) -> types.ModuleType:
+        return self._module
 
     def load_pass(self, conf: ModuleComponentConf) -> Result[ModuleConf, ModuleLoadError]:
         if conf._conf is not None:  # noqa: SLF001
@@ -118,12 +127,13 @@ class ModuleLoader:
             logger.error(error.message)
             return error.to_result()
 
+        self._module = sys.modules[sys.modules[module_path].__package__]
+
         logger.info(
             'ModuleLoader: Module "{path}" loaded successfully'.format(path=module_path)
         )
         return Ok(res)
 
-    # noinspection PyProtectedMember
     def _unload_module(self, conf: ModuleComponentConf) -> Result[None, ModuleUnloadError]:
         module_path = self._get_module_package(conf)
         logger.info('ModuleLoader: Try to unload module "{path}"'.format(path=module_path))

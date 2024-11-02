@@ -1,19 +1,13 @@
 import asyncio
-import inspect
 import threading
 from asyncio import Future as AsyncFuture
-from asyncio import iscoroutine, iscoroutinefunction
+from asyncio import iscoroutine
 from collections.abc import Callable
 from dataclasses import dataclass
-from functools import partial
 from queue import Empty, Queue
 from typing import Any
 
-
-def is_awaitable(f: object) -> bool:
-    while isinstance(f, partial):
-        f = f.func
-    return iscoroutinefunction(f) or inspect.isawaitable(f)
+from greyhorse.utils.types import is_awaitable
 
 
 @dataclass(slots=True, frozen=True)

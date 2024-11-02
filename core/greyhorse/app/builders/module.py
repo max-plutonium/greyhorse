@@ -1,12 +1,13 @@
-from greyhorse.app.abc.component import Component
-from greyhorse.app.abc.module import Module
-from greyhorse.app.builders.loader import ModuleLoader
-from greyhorse.app.entities.components import SyncComponent, SyncModuleComponent
-from greyhorse.app.entities.module import SyncModule
-from greyhorse.app.schemas.components import ComponentConf, ModuleComponentConf, ModuleConf
 from greyhorse.error import Error, ErrorCase
 from greyhorse.logging import logger
 from greyhorse.result import Err, Ok, Result
+
+from ..abc.component import Component
+from ..abc.module import Module
+from ..builders.loader import ModuleLoader
+from ..entities.components import SyncComponent, SyncModuleComponent
+from ..entities.module import SyncModule
+from ..schemas.components import ComponentConf, ModuleComponentConf, ModuleConf
 
 
 class ModuleBuildError(Error):
@@ -49,6 +50,8 @@ class ComponentBuildError(Error):
 
 
 class ModuleBuilder:
+    __slots__ = ('_conf', '_path')
+
     def __init__(self, conf: ModuleConf, path: str) -> None:
         self._conf = conf
         self._path = path

@@ -1,10 +1,11 @@
 from typing import Any
 
-from ...logging import logger
-from ...utils.imports import import_path
-from ...utils.injectors import ParamsInjector
-from ...utils.invoke import invoke_sync
-from ...utils.project import get_project_path
+from greyhorse.logging import logger
+from greyhorse.utils.imports import import_path
+from greyhorse.utils.injectors import ParamsInjector
+from greyhorse.utils.invoke import invoke_sync
+from greyhorse.utils.project import get_project_path
+
 from ..entities.application import Application
 
 

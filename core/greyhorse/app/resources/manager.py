@@ -5,10 +5,11 @@ from types import AsyncGeneratorType, GeneratorType
 
 import networkx as nx
 
-from ...error import Error, ErrorCase
-from ...result import Err, Ok, Result
-from ...utils.injectors import ParamsInjector
-from ...utils.invoke import invoke_sync
+from greyhorse.error import Error, ErrorCase
+from greyhorse.result import Err, Ok, Result
+from greyhorse.utils.injectors import ParamsInjector
+from greyhorse.utils.invoke import invoke_sync
+
 from ..abc.controllers import Controller, OperatorMember
 from ..abc.operators import Operator
 from ..abc.providers import (

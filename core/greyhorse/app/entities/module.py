@@ -1,16 +1,17 @@
 from typing import Any, override
 
-from greyhorse.app.abc.module import Module, ModuleError
-from greyhorse.app.abc.operators import Operator
-from greyhorse.app.abc.providers import Provider
-from greyhorse.app.abc.visitor import Visitor
-from greyhorse.app.entities.components import Component
-from greyhorse.app.private.res_manager import ResourceManager
-from greyhorse.app.registries import MutDictRegistry, MutNamedDictRegistry
-from greyhorse.app.schemas.components import ModuleConf
 from greyhorse.logging import logger
 from greyhorse.maybe import Just, Maybe, Nothing
 from greyhorse.result import Ok, Result
+
+from ..abc.module import Module, ModuleError
+from ..abc.operators import Operator
+from ..abc.providers import Provider
+from ..abc.visitor import Visitor
+from ..entities.components import Component
+from ..registries import MutDictRegistry
+from ..resources.manager import ResourceManager
+from ..schemas.components import ModuleConf
 
 
 class SyncModule(Module):
@@ -21,7 +22,7 @@ class SyncModule(Module):
 
         self._operators: list[Operator] = []
 
-        self._resources = MutNamedDictRegistry[type, Any]()
+        self._context: dict[type, Any] = {}
         self._providers = MutDictRegistry[type[Provider], Provider]()
         self._components: dict[str, Component] = {c.name: c for c in components}
 
@@ -57,15 +58,17 @@ class SyncModule(Module):
         return False
 
     @override
-    def add_resource[T](self, res_type: type[T], resource: T, name: str | None = None) -> bool:
+    def add_resource[T](self, res_type: type[T], resource: T) -> bool:
         if res_type in self._conf.resource_claims:
-            return self._resources.add(res_type, resource, name=name)
+            self._context[res_type] = resource
+            return True
         return False
 
     @override
-    def remove_resource[T](self, res_type: type[T], name: str | None = None) -> bool:
+    def remove_resource[T](self, res_type: type[T]) -> bool:
         if res_type in self._conf.resource_claims:
-            return self._resources.remove(res_type, name=name)
+            del self._context[res_type]
+            return True
         return False
 
     @override
@@ -107,7 +110,7 @@ class SyncModule(Module):
             comp_conf = self._conf.components[component.name]
 
             for res_type in comp_conf.resource_claims:
-                if res := self._resources.get(res_type).unwrap_or_none():
+                if res := self._context.get(res_type):
                     component.add_resource(res_type, res)
 
             for res_type in comp_conf.operators:
@@ -176,7 +179,8 @@ class SyncModule(Module):
                         return res  # type: ignore
 
             for res_type in reversed(comp_conf.resource_claims):
-                component.remove_resource(res_type)
+                if res_type in self._context:
+                    component.remove_resource(res_type)
 
         logger.info('{path}: Module teardown successful'.format(path=self._path))
         return Ok()

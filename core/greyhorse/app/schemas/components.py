@@ -2,17 +2,18 @@ from typing import Any
 
 from pydantic import BaseModel, Field, PrivateAttr
 
-from greyhorse.app.abc.controllers import ControllerFactories
-from greyhorse.app.abc.providers import (
+from greyhorse.utils.invoke import caller_path
+
+from ..abc.controllers import ControllerFactories
+from ..abc.providers import (
     FactoryProvider,
     ForwardProvider,
     MutProvider,
     Provider,
     SharedProvider,
 )
-from greyhorse.app.abc.services import ServiceFactories
-from greyhorse.app.schemas.elements import CtrlConf, SvcConf
-from greyhorse.utils.invoke import caller_path
+from ..abc.services import ServiceFactories
+from ..schemas.elements import CtrlConf, SvcConf
 
 
 class ComponentConf(BaseModel):

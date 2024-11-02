@@ -2,23 +2,28 @@ from collections import defaultdict
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, override
 
-from greyhorse.app.abc.controllers import Controller, ControllerError, ControllerFactoryFn
-from greyhorse.app.abc.providers import Provider
-from greyhorse.app.abc.services import Service, ServiceError, ServiceFactoryFn
-from greyhorse.app.registries import MutDictRegistry, MutNamedDictRegistry
-from greyhorse.app.schemas.components import ComponentConf, ModuleComponentConf
-from greyhorse.app.schemas.elements import CtrlConf, SvcConf
 from greyhorse.logging import logger
+from greyhorse.maybe import Just, Maybe, Nothing
 from greyhorse.result import Err, Ok, Result
 from greyhorse.utils.injectors import ParamsInjector
+from greyhorse.utils.invoke import invoke_sync
 
-from ...maybe import Just, Maybe, Nothing
-from ...utils.invoke import invoke_sync
 from ..abc.component import Component, ComponentError
+from ..abc.controllers import Controller, ControllerError, ControllerFactoryFn
 from ..abc.operators import Operator
-from ..abc.selectors import NamedListSelector, NamedSelector
+from ..abc.providers import Provider
+from ..abc.services import Service, ServiceError, ServiceFactoryFn
 from ..abc.visitor import Visitor
-from ..private.res_manager import ResourceManager
+from ..registries import MutDictRegistry
+from ..resources import (
+    Container,
+    ResourceManager,
+    inject_targets,
+    make_container,
+    uninject_targets,
+)
+from ..schemas.components import ComponentConf, ModuleComponentConf
+from ..schemas.elements import CtrlConf, SvcConf
 
 if TYPE_CHECKING:
     from .module import Module
@@ -33,7 +38,8 @@ class SyncComponent(Component):
         self._controllers: list[Controller] = []
         self._services: list[Service] = []
 
-        self._resources = MutNamedDictRegistry[type, Any]()
+        self._context: dict[type, Any] = {}
+        self._container: Container | None = None
         self._providers = MutDictRegistry[type[Provider], Provider]()
         self._operators: dict[type, list[Operator]] = defaultdict(list)
 
@@ -60,24 +66,18 @@ class SyncComponent(Component):
             return self._operators[res_type].copy()
         return []
 
-    # XXX: component providers
-    # def add_provider[T](self, prov_type: type[Provider[T]], provider: Provider[T]) -> bool:
-    #     return self._providers.add(prov_type, provider)
-
-    # XXX: component providers
-    # def remove_provider[T](self, prov_type: type[Provider[T]]) -> bool:
-    #     return self._providers.remove(prov_type)
-
     @override
-    def add_resource[T](self, res_type: type[T], resource: T, name: str | None = None) -> bool:
+    def add_resource[T](self, res_type: type[T], resource: T) -> bool:
         if res_type in self._conf.resource_claims:
-            return self._resources.add(res_type, resource, name=name)
+            self._context[res_type] = resource
+            return True
         return False
 
     @override
-    def remove_resource[T](self, res_type: type[T], name: str | None = None) -> bool:
+    def remove_resource[T](self, res_type: type[T]) -> bool:
         if res_type in self._conf.resource_claims:
-            return self._resources.remove(res_type, name=name)
+            del self._context[res_type]
+            return True
         return False
 
     def add_controller(self, controller: Controller) -> bool:
@@ -108,12 +108,21 @@ class SyncComponent(Component):
     def create(self) -> Result[None, ComponentError]:
         logger.info('{path}: Component "{name}" create'.format(path=self._path, name=self.name))
 
+        self._container = make_container(context=self._context)
+
+        inject_targets(
+            self._container,
+            [svc.type_.__module__ for svc in self._conf.services]
+            + [ctrl.type_.__module__ for ctrl in self._conf.controllers],
+        )
+
         injector = ParamsInjector()
 
         if not (res := self._create_services(injector)):
             return res  # type: ignore
 
         for svc in res.unwrap():
+            injector.add_type_provider(type(svc), svc)
             self.add_service(svc)
 
         if not (res := self._create_controllers(injector)):
@@ -149,11 +158,18 @@ class SyncComponent(Component):
     def setup(self) -> Result[None, ComponentError]:
         logger.info('{path}: Component "{name}" setup'.format(path=self._path, name=self.name))
 
+        self._container.context.__enter__()
+
         injector = ParamsInjector()
+        injector.add_type_provider(Container, self._container)
 
         for ctrl, _ctrl_conf in zip(self._controllers, self._conf.controllers, strict=False):
+            injected_args = injector(ctrl.setup)
+
             if not (
-                res := invoke_sync(ctrl.setup, self._resources).map_err(
+                res := invoke_sync(
+                    ctrl.setup, *injected_args.args, **injected_args.kwargs
+                ).map_err(
                     lambda e: ComponentError.Ctrl(
                         path=self._path, name=self.name, details=e.message
                     )
@@ -161,13 +177,9 @@ class SyncComponent(Component):
             ):
                 return res
 
-        injector.add_type_provider(NamedSelector[type, Any], self._resources)
-        injector.add_type_provider(NamedListSelector[type, Any], self._resources)
+        injector.remove_type_provider(Container)
 
-        for svc, svc_conf in zip(self._services, self._conf.services, strict=False):
-            for res_type in svc_conf.resources:
-                injector.add_type_provider(Maybe[res_type], self._resources.get(res_type))
-
+        for svc, _svc_conf in zip(self._services, self._conf.services, strict=False):
             injected_args = injector(svc.setup)
 
             if not (
@@ -181,12 +193,6 @@ class SyncComponent(Component):
             ):
                 return res
 
-            for res_type in svc_conf.resources:
-                injector.remove_type_provider(Maybe[res_type])
-
-        injector.remove_type_provider(NamedSelector[type, Any])
-        injector.remove_type_provider(NamedListSelector[type, Any])
-
         logger.info(
             '{path}: Component "{name}" setup successful'.format(
                 path=self._path, name=self.name
@@ -197,21 +203,15 @@ class SyncComponent(Component):
 
     @override
     def teardown(self) -> Result[None, ComponentError]:
-        injector = ParamsInjector()
-
         logger.info(
             '{path}: Component "{name}" teardown'.format(path=self._path, name=self.name)
         )
 
-        injector.add_type_provider(NamedSelector[type, Any], self._resources)
-        injector.add_type_provider(NamedListSelector[type, Any], self._resources)
+        injector = ParamsInjector()
 
-        for svc, svc_conf in zip(
+        for svc, _svc_conf in zip(
             reversed(self._services), reversed(self._conf.services), strict=False
         ):
-            for res_type in svc_conf.resources:
-                injector.add_type_provider(Maybe[res_type], self._resources.get(res_type))
-
             injected_args = injector(svc.teardown)
 
             if not (
@@ -225,23 +225,27 @@ class SyncComponent(Component):
             ):
                 return res
 
-            for res_type in svc_conf.resources:
-                injector.remove_type_provider(Maybe[res_type])
-
-        injector.remove_type_provider(NamedSelector[type, Any])
-        injector.remove_type_provider(NamedListSelector[type, Any])
+        injector.add_type_provider(Container, self._container)
 
         for ctrl, _ctrl_conf in zip(
             reversed(self._controllers), reversed(self._conf.controllers), strict=False
         ):
+            injected_args = injector(ctrl.teardown)
+
             if not (
-                res := invoke_sync(ctrl.teardown, self._resources).map_err(
+                res := invoke_sync(
+                    ctrl.teardown, *injected_args.args, **injected_args.kwargs
+                ).map_err(
                     lambda e: ComponentError.Ctrl(
                         path=self._path, name=self.name, details=e.message
                     )
                 )
             ):
                 return res
+
+        injector.remove_type_provider(Container)
+
+        self._container.context.__exit__()
 
         logger.info(
             '{path}: Component "{name}" teardown successful'.format(
@@ -277,6 +281,13 @@ class SyncComponent(Component):
 
         assert not self._controllers
         assert not self._services
+
+        uninject_targets(
+            [svc.type_.__module__ for svc in self._conf.services]
+            + [ctrl.type_.__module__ for ctrl in self._conf.controllers]
+        )
+
+        self._container = None
 
         logger.info(
             '{path}: Component "{name}" destroy successful'.format(
@@ -381,7 +392,6 @@ class SyncComponent(Component):
 
             match self._create_service(conf, factory, injector):
                 case Ok(svc):
-                    injector.add_type_provider(type(svc), svc)
                     result.append(svc)
 
                 case Err(e):
@@ -438,7 +448,7 @@ class SyncModuleComponent(SyncComponent):
             return res
 
         for res_type in self._module.conf.resource_claims:
-            if res := self._resources.get(res_type).unwrap_or_none():
+            if res := self._container.get(res_type).unwrap_or_none():
                 self._module.add_resource(res_type, res)
 
         for res_type in self._module.conf.operators:

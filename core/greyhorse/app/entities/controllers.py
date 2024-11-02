@@ -7,9 +7,9 @@ from pydantic import BaseModel
 from greyhorse.maybe import Maybe, Nothing
 from greyhorse.result import Ok, Result
 
-from ..abc.collectors import MutNamedCollector, NamedCollector
 from ..abc.controllers import Controller, ControllerError, OperatorMember
 from ..abc.operators import AssignOperator
+from ..resources import Container
 
 
 class ResConf(BaseModel, frozen=True):
@@ -32,27 +32,21 @@ def operator(resource_type: type) -> Callable[[classmethod], classmethod]:
 
 class SyncController(Controller):
     @override
-    def setup(self, collector: NamedCollector[type, Any]) -> Result[bool, ControllerError]:
+    def setup(self, *args, **kwargs) -> Result[bool, ControllerError]:  # noqa: ANN002,ANN003
         return Ok(True)
 
     @override
-    def teardown(
-        self, collector: MutNamedCollector[type, Any]
-    ) -> Result[bool, ControllerError]:
+    def teardown(self, *args, **kwargs) -> Result[bool, ControllerError]:  # noqa: ANN002,ANN003
         return Ok(True)
 
 
 class AsyncController(Controller):
     @override
-    async def setup(
-        self, collector: NamedCollector[type, Any]
-    ) -> Result[bool, ControllerError]:
+    async def setup(self, *args, **kwargs) -> Result[bool, ControllerError]:  # noqa: ANN002,ANN003
         return Ok(True)
 
     @override
-    async def teardown(
-        self, collector: MutNamedCollector[type, Any]
-    ) -> Result[bool, ControllerError]:
+    async def teardown(self, *args, **kwargs) -> Result[bool, ControllerError]:  # noqa: ANN002,ANN003
         return Ok(True)
 
 
@@ -73,44 +67,36 @@ class ResourceController(SyncController):
             self._values[idx] = value
 
     @override
-    def setup(self, collector: NamedCollector[type, Any]) -> Result[bool, ControllerError]:
+    def setup(self, container: Container) -> Result[bool, ControllerError]:
         for idx, res_conf in enumerate(self._res_types):
+            type_ = res_conf.type
+
             if (
                 not self._values[idx]
-                .map(
-                    lambda value, res_conf=res_conf: collector.add(
-                        res_conf.type, value, name=res_conf.name
-                    )
-                )
+                .map(lambda value, type=type_: container.registry.add_factory(type, value))
+                .map(lambda _: True)
                 .unwrap_or(False)
                 and res_conf.required
             ):
-                return ControllerError.NoSuchResource(
-                    name=f'{res_conf.type.__name__}'
-                ).to_result()
+                return ControllerError.NoSuchResource(name=f'{type_.__name__}').to_result()
 
-        return super().setup(collector)
+        return super().setup()
 
     @override
-    def teardown(
-        self, collector: MutNamedCollector[type, Any]
-    ) -> Result[bool, ControllerError]:
+    def teardown(self, container: Container) -> Result[bool, ControllerError]:
         for idx, res_conf in enumerate(self._res_types):
+            type_ = res_conf.type
+
             if (
                 not self._values[idx]
-                .map(
-                    lambda value, res_conf=res_conf: collector.remove(
-                        res_conf.type, value, name=res_conf.name
-                    )
-                )
+                .map(lambda _, type=type_: container.registry.remove_factory(type))
+                .map(lambda _: True)
                 .unwrap_or(False)
                 and res_conf.required
             ):
-                return ControllerError.NoSuchResource(
-                    name=f'{res_conf.type.__name__}'
-                ).to_result()
+                return ControllerError.NoSuchResource(name=f'{type_.__name__}').to_result()
 
-        return super().teardown(collector)
+        return super().teardown()
 
     def _compile_operator_methods(self) -> None:
         for idx, res_conf in enumerate(self._res_types):

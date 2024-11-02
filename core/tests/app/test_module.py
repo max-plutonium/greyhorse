@@ -5,8 +5,8 @@ from greyhorse.app.builders.module import ModuleBuilder
 from greyhorse.app.schemas.components import ModuleComponentConf, ModuleConf
 from greyhorse.app.schemas.elements import CtrlConf, SvcConf
 
-from .common.functional import FunctionalOperator
 from .root import FunctionalOperatorCtrl, FunctionalOperatorService
+from .testmodule.common.functional import FunctionalOperator
 
 
 def __init__() -> ModuleConf:  # noqa: N807
@@ -17,7 +17,7 @@ def __init__() -> ModuleConf:  # noqa: N807
         components={
             'dict': ModuleComponentConf(
                 enabled=True,
-                path='..module.main',
+                path='..testmodule.module',
                 providers=[FactoryProvider[FunctionalOperator]],
                 services=[SvcConf(type=FunctionalOperatorService)],
                 controllers=[CtrlConf(type=FunctionalOperatorCtrl)],

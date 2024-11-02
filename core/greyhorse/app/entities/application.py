@@ -8,19 +8,20 @@ from functools import partial
 from pathlib import Path
 from typing import NoReturn
 
-from greyhorse.app.abc.controllers import Controller
-from greyhorse.app.abc.module import Module
-from greyhorse.app.abc.providers import Provider
-from greyhorse.app.abc.services import Service, ServiceWaiter
-from greyhorse.app.abc.visitor import Visitor
-from greyhorse.app.builders.module import ModuleBuilder
-from greyhorse.app.schemas.components import ModuleConf
 from greyhorse.error import Error, ErrorCase
 from greyhorse.logging import logger
 from greyhorse.maybe import Just, Maybe, Nothing
 from greyhorse.result import Ok, Result
 from greyhorse.utils.invoke import get_asyncio_loop, invoke_sync
 from greyhorse.utils.project import get_project_path, get_version
+
+from ..abc.controllers import Controller
+from ..abc.module import Module
+from ..abc.providers import Provider
+from ..abc.services import Service, ServiceWaiter
+from ..abc.visitor import Visitor
+from ..builders.module import ModuleBuilder
+from ..schemas.components import ModuleConf
 
 
 class ApplicationError(Error):
