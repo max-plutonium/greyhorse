@@ -12,8 +12,8 @@ from contextlib import (
     ExitStack,
     suppress,
 )
-from contextvars import ContextVar
 from dataclasses import dataclass, field
+from types import TracebackType
 from typing import Any, override
 from uuid import uuid4
 
@@ -66,7 +66,7 @@ class InvalidContextStateError(RuntimeError):
 
 
 class Context:
-    __slots__ = ('_state', '_data', '_parent', '_prev')
+    __slots__ = ('_state', '_data', '_parent')
 
     def __init__(
         self,
@@ -79,22 +79,35 @@ class Context:
             factory=factory, field_factories=fields or {}, finalizers=finalizers or []
         )
         self._parent: Maybe[Context] = Nothing
-        self._prev: Maybe[Context] = Nothing
 
     @property
     def ident(self) -> str:
         return self._data.ident
 
+    @property
+    def state(self) -> ContextState:
+        return self._state
+
     def __enter__(self) -> object:
         raise NotImplementedError
 
-    def __exit__(self, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         raise NotImplementedError
 
     async def __aenter__(self) -> object:
         raise NotImplementedError
 
-    async def __aexit__(self, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         raise NotImplementedError
 
     @property
@@ -116,7 +129,7 @@ class MutContext(Context, ABC):
     def mutable_children(self) -> list[MutContext]: ...
 
 
-class _ContextStorage(threading.local):
+class _ContextStorage:
     __slots__ = ('_storage',)
 
     def __init__(self) -> None:
@@ -134,21 +147,15 @@ class _ContextStorage(threading.local):
         return Nothing
 
 
-_current_context: ContextVar[Context] = ContextVar('_ctx')
 _context_storage = _ContextStorage()
 
 
-def current_context(kind: type | None = None) -> Maybe[Context]:
-    if kind is None:
-        return Maybe(_current_context.get(None))
+def current_context_for(kind: type) -> Maybe[Context]:
     return _context_storage.get_last(kind)
 
 
 def current_scope_id(kind: type[Context] | None = None) -> str:
-    if kind is None:
-        if ctx := _current_context.get(None):
-            return ctx.ident
-    elif ctx := _context_storage.get_last(kind):
+    if kind is not None and (ctx := _context_storage.get_last(kind)):
         return ctx.unwrap().ident
 
     if loop := get_asyncio_loop():
@@ -221,8 +228,6 @@ class SyncContext[T](Context, TypeWrapper[T], AbstractContextManager):
             kwargs[name] = value
 
         instance = self._create(**kwargs)
-        self._prev = Maybe(_current_context.get(None))
-        _current_context.set(self)
         self._parent = _context_storage.get_last(type(instance))
         _context_storage.add(type(instance), self)
 
@@ -241,8 +246,7 @@ class SyncContext[T](Context, TypeWrapper[T], AbstractContextManager):
             with suppress(Exception):
                 invoke_sync(finalizer)
 
-        _current_context.set(self._prev.unwrap_or_none())
-        self._prev = self._parent = Nothing
+        self._parent = Nothing
 
     def _create(self, **kwargs: dict[str, Any]) -> T:
         return self._data.factory(**kwargs)
@@ -253,13 +257,25 @@ class SyncContext[T](Context, TypeWrapper[T], AbstractContextManager):
     def _enter(self, instance: T) -> None:
         pass
 
-    def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    def _exit(
+        self,
+        instance: T,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         pass
 
     def _nested_enter(self, instance: T) -> None:
         pass
 
-    def _nested_exit(self, instance: T, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    def _nested_exit(
+        self,
+        instance: T,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         pass
 
     @override
@@ -288,7 +304,12 @@ class SyncContext[T](Context, TypeWrapper[T], AbstractContextManager):
                     return value
 
     @override
-    def __exit__(self, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         with self._lock:
             match self._state:
                 case ContextState.Idle:
@@ -350,7 +371,13 @@ class SyncMutContext[T](SyncContext[T], MutContext):
             self._do_cancel()
 
     @override
-    def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    def _exit(
+        self,
+        instance: T,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         if self._force_rollback or exc_type is not None:
             self._do_cancel()
         elif self._auto_apply:
@@ -484,8 +511,6 @@ class AsyncContext[T](Context, TypeWrapper[T], AbstractAsyncContextManager):
             kwargs[name] = value
 
         instance = await self._create(**kwargs)
-        self._prev = Maybe(_current_context.get(None))
-        _current_context.set(self)
         self._parent = _context_storage.get_last(type(instance))
         _context_storage.add(type(instance), self)
 
@@ -507,8 +532,7 @@ class AsyncContext[T](Context, TypeWrapper[T], AbstractAsyncContextManager):
             with suppress(Exception):
                 await invoke_async(finalizer)
 
-        _current_context.set(self._prev.unwrap_or_none())
-        self._prev = self._parent = Nothing
+        self._parent = Nothing
 
     async def _create(self, **kwargs: dict[str, Any]) -> T:
         return self._data.factory(**kwargs)
@@ -519,13 +543,25 @@ class AsyncContext[T](Context, TypeWrapper[T], AbstractAsyncContextManager):
     async def _enter(self, instance: T) -> None:
         pass
 
-    async def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    async def _exit(
+        self,
+        instance: T,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         pass
 
     async def _nested_enter(self, instance: T) -> None:
         pass
 
-    async def _nested_exit(self, instance: T, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    async def _nested_exit(
+        self,
+        instance: T,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         pass
 
     @override
@@ -554,7 +590,12 @@ class AsyncContext[T](Context, TypeWrapper[T], AbstractAsyncContextManager):
                     return value
 
     @override
-    async def __aexit__(self, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         async with self._lock:
             match self._state:
                 case ContextState.Idle:
@@ -621,7 +662,13 @@ class AsyncMutContext[T](AsyncContext[T], MutContext):
             await self._do_cancel()
 
     @override
-    async def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    async def _exit(
+        self,
+        instance: T,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         if self._force_rollback or exc_type is not None:
             await self._do_cancel()
         elif self._auto_apply:
@@ -714,7 +761,13 @@ class SyncContextWithCallbacks[T](SyncContext[T]):
         self._callbacks.on_enter.map(lambda f: invoke_sync(f, instance))
 
     @override
-    def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    def _exit(
+        self,
+        instance: T,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         self._callbacks.on_exit.map(
             lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback)
         )
@@ -724,7 +777,13 @@ class SyncContextWithCallbacks[T](SyncContext[T]):
         self._callbacks.on_nested_enter.map(lambda f: invoke_sync(f, instance))
 
     @override
-    def _nested_exit(self, instance: T, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    def _nested_exit(
+        self,
+        instance: T,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         self._callbacks.on_nested_exit.map(
             lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback)
         )
@@ -761,7 +820,13 @@ class SyncMutContextWithCallbacks[T](SyncMutContext[T]):
         self._callbacks.on_enter.map(lambda f: invoke_sync(f, instance))
 
     @override
-    def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    def _exit(
+        self,
+        instance: T,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         self._callbacks.on_exit.map(
             lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback)
         )
@@ -771,7 +836,13 @@ class SyncMutContextWithCallbacks[T](SyncMutContext[T]):
         self._callbacks.on_nested_enter.map(lambda f: invoke_sync(f, instance))
 
     @override
-    def _nested_exit(self, instance: T, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    def _nested_exit(
+        self,
+        instance: T,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         self._callbacks.on_nested_exit.map(
             lambda f: invoke_sync(f, instance, exc_type, exc_value, traceback)
         )
@@ -816,7 +887,13 @@ class AsyncContextWithCallbacks[T](AsyncContext[T]):
         await self._callbacks.on_enter.map_async(lambda f: invoke_async(f, instance))
 
     @override
-    async def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    async def _exit(
+        self,
+        instance: T,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         await self._callbacks.on_exit.map_async(
             lambda f: invoke_async(f, instance, exc_type, exc_value, traceback)
         )
@@ -826,7 +903,13 @@ class AsyncContextWithCallbacks[T](AsyncContext[T]):
         await self._callbacks.on_nested_enter.map_async(lambda f: invoke_async(f, instance))
 
     @override
-    async def _nested_exit(self, instance: T, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    async def _nested_exit(
+        self,
+        instance: T,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         await self._callbacks.on_nested_exit.map_async(
             lambda f: invoke_async(f, instance, exc_type, exc_value, traceback)
         )
@@ -863,7 +946,13 @@ class AsyncMutContextWithCallbacks[T](AsyncMutContext[T]):
         await self._callbacks.on_enter.map_async(lambda f: invoke_async(f, instance))
 
     @override
-    async def _exit(self, instance: T, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    async def _exit(
+        self,
+        instance: T,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         await self._callbacks.on_exit.map_async(
             lambda f: invoke_async(f, instance, exc_type, exc_value, traceback)
         )
@@ -873,7 +962,13 @@ class AsyncMutContextWithCallbacks[T](AsyncMutContext[T]):
         await self._callbacks.on_nested_enter.map_async(lambda f: invoke_async(f, instance))
 
     @override
-    async def _nested_exit(self, instance: T, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    async def _nested_exit(
+        self,
+        instance: T,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         await self._callbacks.on_nested_exit.map_async(
             lambda f: invoke_async(f, instance, exc_type, exc_value, traceback)
         )

@@ -23,7 +23,7 @@ class ResourceMapper[T](TypeWrapper[T], ABC):
         self._provider = provider
         self._operator = operator
 
-    def __class_getitem__(cls, provider_type: type[Provider]) -> type[Self]:
+    def __class_getitem__(cls, provider_type: type[Provider] | TypeVar) -> type[Self]:
         if isinstance(provider_type, TypeVar):
             # noinspection PyUnresolvedReferences
             return super(TypeWrapper, cls).__class_getitem__(provider_type)

@@ -38,7 +38,11 @@ class TypeWrapper[T]:
             type_name = f'{capitalize(types.__name__)}'
 
         if include_base_name:
-            type_name = type_name + cls.__name__
+            if cls.__name__.startswith('_'):
+                type_name = f'_{type_name}{cls.__name__[1:]}'
+            else:
+                type_name = f'{type_name}{cls.__name__}'
+
         return type_name
 
     def __init_subclass__(cls, **kwargs: dict[str, Any]) -> None:
