@@ -1,11 +1,10 @@
-from typing import Any
-
 import pytest
 from greyhorse.app.contexts import AsyncContext, SyncContext
-from greyhorse.app.registries import MutNamedDictRegistry
+from greyhorse.app.resources import Lifetime, make_container
 from greyhorse_sqla.config import EngineConf, SqlEngineType
 from greyhorse_sqla.contexts import SqlaAsyncConnCtx, SqlaSyncConnCtx
 from greyhorse_sqla.controllers import AsyncSqlaController, SyncSqlaController
+from greyhorse_sqla.services import AsyncSqlaService, SyncSqlaService
 from sqlalchemy import text
 
 from .conf import MYSQL_URI, POSTGRES_URI, SQLITE_URI
@@ -31,13 +30,19 @@ def test_sync_ctrl(param) -> None:  # noqa: ANN001
     )
 
     configs = {'test': config}
-    ctrl = SyncSqlaController(configs)
 
-    registry = MutNamedDictRegistry[type, Any]()
-    assert ctrl.setup(registry).unwrap()
-    assert len(registry) > 0
+    container = make_container(lifetime=Lifetime.APP())
+    svc = SyncSqlaService(configs)
+    ctrl = SyncSqlaController('test')
 
-    conn_ctx = registry.get(SqlaSyncConnCtx)
+    engine_reader = svc.create_engine_reader()
+    ctrl.create_engine_operator().accept(engine_reader.borrow().unwrap())
+
+    assert svc.setup().unwrap()
+    assert ctrl.setup(container).unwrap()
+    assert len(container.registry) > 0
+
+    conn_ctx = container.get(SqlaSyncConnCtx)
     assert conn_ctx.is_just()
     conn_ctx = conn_ctx.unwrap()
     assert isinstance(conn_ctx, SyncContext)
@@ -46,9 +51,10 @@ def test_sync_ctrl(param) -> None:  # noqa: ANN001
         res = conn.execute(text('select 10 * 10;'))
         assert res.fetchone()[0] == 100
 
-    assert ctrl.teardown(registry).unwrap()
+    assert ctrl.teardown(container).unwrap()
+    assert svc.teardown().unwrap()
 
-    assert len(registry) == 0
+    assert len(container.registry) == 0
 
 
 @pytest.mark.parametrize(
@@ -72,13 +78,19 @@ async def test_async_ctrl(param) -> None:  # noqa: ANN001
     )
 
     configs = {'test': config}
-    ctrl = AsyncSqlaController(configs)
 
-    registry = MutNamedDictRegistry[type, Any]()
-    assert (await ctrl.setup(registry)).unwrap()
-    assert len(registry) > 0
+    container = make_container(lifetime=Lifetime.APP())
+    svc = AsyncSqlaService(configs)
+    ctrl = AsyncSqlaController('test')
 
-    conn_ctx = registry.get(SqlaAsyncConnCtx)
+    engine_reader = svc.create_engine_reader()
+    ctrl.create_engine_operator().accept(engine_reader.borrow().unwrap())
+
+    assert (await svc.setup()).unwrap()
+    assert (await ctrl.setup(container)).unwrap()
+    assert len(container.registry) > 0
+
+    conn_ctx = container.get(SqlaAsyncConnCtx)
     assert conn_ctx.is_just()
     conn_ctx = conn_ctx.unwrap()
     assert isinstance(conn_ctx, AsyncContext)
@@ -87,6 +99,7 @@ async def test_async_ctrl(param) -> None:  # noqa: ANN001
         res = await conn.execute(text('select 10 * 10;'))
         assert res.fetchone()[0] == 100
 
-    assert (await ctrl.teardown(registry)).unwrap()
+    assert (await ctrl.teardown(container)).unwrap()
+    assert (await svc.teardown()).unwrap()
 
-    assert len(registry) == 0
+    assert len(container.registry) == 0

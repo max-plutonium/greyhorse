@@ -1,10 +1,10 @@
 from functools import partial
-from typing import Any, override
+from typing import override
 
-from greyhorse.app.abc.collectors import MutNamedCollector, NamedCollector
 from greyhorse.app.abc.controllers import ControllerError
 from greyhorse.app.abc.operators import AssignOperator, Operator
 from greyhorse.app.entities.controllers import AsyncController, SyncController, operator
+from greyhorse.app.resources import Container
 from greyhorse.data.storage import EngineReader
 from greyhorse.maybe import Maybe, Nothing
 from greyhorse.result import Ok, Result
@@ -28,7 +28,7 @@ class SyncSqlaController(SyncController):
         return AssignOperator[EngineReader[SyncSqlaEngine]](lambda: self._reader, self._setter)
 
     @override
-    def setup(self, collector: NamedCollector[type, Any]) -> Result[bool, ControllerError]:
+    def setup(self, container: Container) -> Result[bool, ControllerError]:
         if not self._reader:
             return ControllerError.NoSuchResource(
                 name='EngineReader[SyncSqlaEngine]'
@@ -45,21 +45,19 @@ class SyncSqlaController(SyncController):
 
         res = (
             engine.get_context(SqlaSyncConnCtx)
-            .map(partial(collector.add, SqlaSyncConnCtx, name=self._engine_name))
+            .map(partial(container.registry.add_factory, SqlaSyncConnCtx))
             .unwrap_or(False)
         )
         res &= (
             engine.get_context(SqlaSyncSessionCtx)
-            .map(partial(collector.add, SqlaSyncSessionCtx, name=self._engine_name))
+            .map(partial(container.registry.add_factory, SqlaSyncSessionCtx))
             .unwrap_or(False)
         )
 
         return Ok(res)
 
     @override
-    def teardown(
-        self, collector: MutNamedCollector[type, Any]
-    ) -> Result[bool, ControllerError]:
+    def teardown(self, container: Container) -> Result[bool, ControllerError]:
         if not self._reader:
             return ControllerError.NoSuchResource(
                 name='EngineReader[SyncSqlaEngine]'
@@ -74,8 +72,8 @@ class SyncSqlaController(SyncController):
 
         engine.stop()
 
-        res = collector.remove(SqlaSyncConnCtx, name=self._engine_name)
-        res &= collector.remove(SqlaSyncSessionCtx, name=self._engine_name)
+        res = container.registry.remove_factory(SqlaSyncConnCtx)
+        res &= container.registry.remove_factory(SqlaSyncSessionCtx)
         return Ok(res)
 
 
@@ -93,9 +91,7 @@ class AsyncSqlaController(AsyncController):
         return AssignOperator[EngineReader[AsyncSqlaEngine]](lambda: self._reader, self._setter)
 
     @override
-    async def setup(
-        self, collector: NamedCollector[type, Any]
-    ) -> Result[bool, ControllerError]:
+    async def setup(self, container: Container) -> Result[bool, ControllerError]:
         if not self._reader:
             return ControllerError.NoSuchResource(
                 name='EngineReader[AsyncSqlaEngine]'
@@ -112,21 +108,19 @@ class AsyncSqlaController(AsyncController):
 
         res = (
             engine.get_context(SqlaAsyncConnCtx)
-            .map(partial(collector.add, SqlaAsyncConnCtx, name=self._engine_name))
+            .map(partial(container.registry.add_factory, SqlaAsyncConnCtx))
             .unwrap_or(False)
         )
         res &= (
             engine.get_context(SqlaAsyncSessionCtx)
-            .map(partial(collector.add, SqlaAsyncSessionCtx, name=self._engine_name))
+            .map(partial(container.registry.add_factory, SqlaAsyncSessionCtx))
             .unwrap_or(False)
         )
 
         return Ok(res)
 
     @override
-    async def teardown(
-        self, collector: MutNamedCollector[type, Any]
-    ) -> Result[bool, ControllerError]:
+    async def teardown(self, container: Container) -> Result[bool, ControllerError]:
         if not self._reader:
             return ControllerError.NoSuchResource(
                 name='EngineReader[AsyncSqlaEngine]'
@@ -141,6 +135,6 @@ class AsyncSqlaController(AsyncController):
 
         await engine.stop()
 
-        res = collector.remove(SqlaAsyncConnCtx, name=self._engine_name)
-        res &= collector.remove(SqlaAsyncSessionCtx, name=self._engine_name)
+        res = container.registry.remove_factory(SqlaAsyncConnCtx)
+        res &= container.registry.remove_factory(SqlaAsyncSessionCtx)
         return Ok(res)

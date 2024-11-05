@@ -1,6 +1,7 @@
 import asyncio
 import threading
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from types import TracebackType
 from typing import Any, override
 
 from greyhorse.app.contexts import AsyncMutContext, Context, ContextBuilder, current_scope_id
@@ -31,7 +32,13 @@ class _AsyncConnCtx(AsyncMutContext[AsyncConnection]):
         await self._root_tx.__aenter__()
 
     @override
-    async def _exit(self, instance: AsyncConnection, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    async def _exit(
+        self,
+        instance: AsyncConnection,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         assert self._root_tx is not None
         assert not self._tx_stack
         await super()._exit(instance, exc_type, exc_value, traceback)
@@ -49,9 +56,9 @@ class _AsyncConnCtx(AsyncMutContext[AsyncConnection]):
     async def _nested_exit(
         self,
         instance: AsyncConnection,
-        exc_type,  # noqa: ANN001
-        exc_value,  # noqa: ANN001
-        traceback,  # noqa: ANN001
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
     ) -> None:
         nested = self._tx_stack.pop()
         await nested.__aexit__(exc_type, exc_value, traceback)

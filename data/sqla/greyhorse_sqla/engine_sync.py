@@ -1,5 +1,6 @@
 import threading
 from contextlib import AbstractContextManager, contextmanager
+from types import TracebackType
 from typing import Any, override
 
 from greyhorse.app.contexts import Context, ContextBuilder, SyncMutContext, current_scope_id
@@ -33,7 +34,13 @@ class _SyncConnCtx(SyncMutContext[SyncConnection]):
         self._root_tx.__enter__()
 
     @override
-    def _exit(self, instance: SyncConnection, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    def _exit(
+        self,
+        instance: SyncConnection,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         assert self._root_tx is not None
         assert not self._tx_stack
         super()._exit(instance, exc_type, exc_value, traceback)
@@ -48,7 +55,13 @@ class _SyncConnCtx(SyncMutContext[SyncConnection]):
         nested.__enter__()
 
     @override
-    def _nested_exit(self, instance: SyncConnection, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+    def _nested_exit(
+        self,
+        instance: SyncConnection,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
         nested = self._tx_stack.pop()
         nested.__exit__(exc_type, exc_value, traceback)
         nested.close()
