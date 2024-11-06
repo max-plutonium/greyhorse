@@ -1,10 +1,9 @@
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 import pytest
-from greyhorse.app.abc.selectors import Selector
-from greyhorse.app.registries import MutNamedDictRegistry
+from greyhorse.app.resources import Container, make_container
 from greyhorse_renders.abc import AsyncRenderFactory, SyncRenderFactory
 from greyhorse_renders.conf.loader import (
     AsyncDictLoader,
@@ -74,22 +73,22 @@ ROUTES_DICT = {
 
 
 @pytest.fixture
-def registry() -> Selector[type, Any]:
+def container() -> Container:
     ctrl = RendersController()
+    container = make_container()
 
-    registry = MutNamedDictRegistry[type, Any]()
-    assert ctrl.setup(registry).unwrap()
-    assert len(registry) > 0
+    assert ctrl.setup(container).unwrap()
+    assert len(container.registry) > 0
 
-    yield registry
+    yield container
 
-    assert ctrl.teardown(registry).unwrap()
-    assert len(registry) == 0
+    assert ctrl.teardown(container).unwrap()
+    assert len(container.registry) == 0
 
 
 @pytest.mark.parametrize('param', ('', 'jinja'), ids=('Simple', 'Jinja'))
-def test_sync_dict(param: str, registry: Selector[type, SyncRenderFactory]) -> None:
-    render_factory = registry.get(SyncRenderFactory).unwrap()
+def test_sync_dict(param: str, container: Container) -> None:
+    render_factory = container.get(SyncRenderFactory).unwrap()
 
     conf_loader = SyncDictLoader(
         root_dir=Path('tests/data'), render_factory=render_factory, default_render_key=param
@@ -111,8 +110,8 @@ def test_sync_dict(param: str, registry: Selector[type, SyncRenderFactory]) -> N
 
 @pytest.mark.parametrize('param', ('', 'jinja'), ids=('Simple', 'Jinja'))
 @pytest.mark.asyncio
-async def test_async_dict(param: str, registry: Selector[type, AsyncRenderFactory]) -> None:
-    render_factory = registry.get(AsyncRenderFactory).unwrap()
+async def test_async_dict(param: str, container: Container) -> None:
+    render_factory = container.get(AsyncRenderFactory).unwrap()
 
     conf_loader = AsyncDictLoader(
         root_dir=Path('tests/data'), render_factory=render_factory, default_render_key=param
@@ -133,8 +132,8 @@ async def test_async_dict(param: str, registry: Selector[type, AsyncRenderFactor
 
 
 @pytest.mark.parametrize('param', ('', 'jinja'), ids=('Simple', 'Jinja'))
-def test_sync_pydantic(param: str, registry: Selector[type, SyncRenderFactory]) -> None:
-    render_factory = registry.get(SyncRenderFactory).unwrap()
+def test_sync_pydantic(param: str, container: Container) -> None:
+    render_factory = container.get(SyncRenderFactory).unwrap()
 
     conf_loader = SyncPydanticLoader(
         doc_schema=Document,
@@ -159,8 +158,8 @@ def test_sync_pydantic(param: str, registry: Selector[type, SyncRenderFactory]) 
 
 @pytest.mark.parametrize('param', ('', 'jinja'), ids=('Simple', 'Jinja'))
 @pytest.mark.asyncio
-async def test_async_pydantic(param: str, registry: Selector[type, AsyncRenderFactory]) -> None:
-    render_factory = registry.get(AsyncRenderFactory).unwrap()
+async def test_async_pydantic(param: str, container: Container) -> None:
+    render_factory = container.get(AsyncRenderFactory).unwrap()
 
     conf_loader = AsyncPydanticLoader(
         doc_schema=Document,

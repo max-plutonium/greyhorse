@@ -1,30 +1,28 @@
 from pathlib import Path
-from typing import Any
 
 import pytest
-from greyhorse.app.abc.selectors import Selector
-from greyhorse.app.registries import MutNamedDictRegistry
+from greyhorse.app.resources import Container, make_container
 from greyhorse_renders.abc import AsyncRender, AsyncRenderFactory, SyncRender, SyncRenderFactory
 from greyhorse_renders.controller import RendersController
 
 
 @pytest.fixture
-def registry() -> Selector[type, Any]:
+def container() -> Container:
     ctrl = RendersController()
+    container = make_container()
 
-    registry = MutNamedDictRegistry[type, Any]()
-    assert ctrl.setup(registry).unwrap()
-    assert len(registry) > 0
+    assert ctrl.setup(container).unwrap()
+    assert len(container.registry) > 0
 
-    yield registry
+    yield container
 
-    assert ctrl.teardown(registry).unwrap()
-    assert len(registry) == 0
+    assert ctrl.teardown(container).unwrap()
+    assert len(container.registry) == 0
 
 
 @pytest.mark.parametrize('param', ('', 'jinja'), ids=('Simple', 'Jinja'))
-def test_sync_render(param: str, registry: Selector[type, SyncRenderFactory]) -> None:
-    sync_render_factory = registry.get(SyncRenderFactory).unwrap()
+def test_sync_render(param: str, container: Container) -> None:
+    sync_render_factory = container.get(SyncRenderFactory).unwrap()
     render = sync_render_factory(param, [Path('tests/data')])
     assert isinstance(render, SyncRender)
 
@@ -43,8 +41,8 @@ def test_sync_render(param: str, registry: Selector[type, SyncRenderFactory]) ->
 
 @pytest.mark.parametrize('param', ('', 'jinja'), ids=('Simple', 'Jinja'))
 @pytest.mark.asyncio
-async def test_async_render(param: str, registry: Selector[type, AsyncRenderFactory]) -> None:
-    async_render_factory = registry.get(AsyncRenderFactory).unwrap()
+async def test_async_render(param: str, container: Container) -> None:
+    async_render_factory = container.get(AsyncRenderFactory).unwrap()
     render = async_render_factory(param, [Path('tests/data')])
     assert isinstance(render, AsyncRender)
 

@@ -1,9 +1,9 @@
 from pathlib import Path
-from typing import Any, cast, override
+from typing import cast, override
 
-from greyhorse.app.abc.collectors import MutNamedCollector, NamedCollector
 from greyhorse.app.abc.controllers import ControllerError
 from greyhorse.app.entities.controllers import SyncController
+from greyhorse.app.resources import Container
 from greyhorse.logging import logger
 from greyhorse.result import Ok, Result
 from greyhorse.utils.imports import import_path
@@ -43,7 +43,7 @@ class RendersController(SyncController):
         super().__init__()
 
     @override
-    def setup(self, collector: NamedCollector[type, Any]) -> Result[bool, ControllerError]:
+    def setup(self, container: Container) -> Result[bool, ControllerError]:
         sync_renders: dict[str, type[SyncRender]] = {}
         async_renders: dict[str, type[AsyncRender]] = {}
 
@@ -64,14 +64,16 @@ class RendersController(SyncController):
                 else:
                     sync_renders[key] = cast(type[SyncRender], class_obj)
 
-        res = collector.add(SyncRenderFactory, SyncRenderFactoryImpl(sync_renders))
-        res &= collector.add(AsyncRenderFactory, AsyncRenderFactoryImpl(async_renders))
+        res = container.registry.add_factory(
+            SyncRenderFactory, SyncRenderFactoryImpl(sync_renders)
+        )
+        res &= container.registry.add_factory(
+            AsyncRenderFactory, AsyncRenderFactoryImpl(async_renders)
+        )
         return Ok(res)
 
     @override
-    def teardown(
-        self, collector: MutNamedCollector[type, Any]
-    ) -> Result[bool, ControllerError]:
-        res = collector.remove(SyncRenderFactory)
-        res &= collector.remove(AsyncRenderFactory)
+    def teardown(self, container: Container) -> Result[bool, ControllerError]:
+        res = container.registry.remove_factory(SyncRenderFactory)
+        res &= container.registry.remove_factory(AsyncRenderFactory)
         return Ok(res)
