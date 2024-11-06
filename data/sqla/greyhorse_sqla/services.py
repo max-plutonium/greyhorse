@@ -2,9 +2,10 @@ from collections.abc import Mapping
 from typing import override
 
 from greyhorse.app.abc.providers import SharedProvider
+from greyhorse.app.abc.resources import Lifetime
 from greyhorse.app.abc.services import ServiceError, ServiceState
 from greyhorse.app.boxes import SharedRefBox
-from greyhorse.app.entities.services import AsyncService, SyncService, provider
+from greyhorse.app.entities.services import AsyncService, SyncService, provide
 from greyhorse.data.storage import EngineReader
 from greyhorse.result import Result
 
@@ -40,7 +41,7 @@ class SyncSqlaService(SyncService):
 
         return super().teardown()
 
-    @provider(SharedProvider[EngineReader[SyncSqlaEngine]])
+    @provide(lifetime=Lifetime.COMPONENT())
     def create_engine_reader(self) -> SharedProvider[EngineReader[SyncSqlaEngine]]:
         return self._box
 
@@ -73,6 +74,6 @@ class AsyncSqlaService(AsyncService):
 
         return await super().teardown()
 
-    @provider(SharedProvider[EngineReader[AsyncSqlaEngine]])
+    @provide(lifetime=Lifetime.COMPONENT())
     def create_engine_reader(self) -> SharedProvider[EngineReader[AsyncSqlaEngine]]:
         return self._box

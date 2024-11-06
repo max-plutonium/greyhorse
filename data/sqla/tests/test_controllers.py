@@ -1,6 +1,7 @@
 import pytest
+from greyhorse.app.abc.resources import Lifetime
 from greyhorse.app.contexts import AsyncContext, SyncContext
-from greyhorse.app.resources import Lifetime, make_container
+from greyhorse.app.resources import make_container
 from greyhorse_sqla.config import EngineConf, SqlEngineType
 from greyhorse_sqla.contexts import SqlaAsyncConnCtx, SqlaSyncConnCtx
 from greyhorse_sqla.controllers import AsyncSqlaController, SyncSqlaController
@@ -31,7 +32,7 @@ def test_sync_ctrl(param) -> None:  # noqa: ANN001
 
     configs = {'test': config}
 
-    container = make_container(lifetime=Lifetime.APP())
+    container = make_container(lifetime=Lifetime.COMPONENT())
     svc = SyncSqlaService(configs)
     ctrl = SyncSqlaController('test')
 
@@ -79,7 +80,7 @@ async def test_async_ctrl(param) -> None:  # noqa: ANN001
 
     configs = {'test': config}
 
-    container = make_container(lifetime=Lifetime.APP())
+    container = make_container(lifetime=Lifetime.COMPONENT())
     svc = AsyncSqlaService(configs)
     ctrl = AsyncSqlaController('test')
 
