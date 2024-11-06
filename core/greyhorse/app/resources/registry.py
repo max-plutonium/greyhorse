@@ -1,35 +1,12 @@
 import inspect
-from collections.abc import Iterable
 from dataclasses import dataclass, field
-from functools import cache
-from typing import TYPE_CHECKING, Any, Self
+from functools import partial
+from typing import Any
 
-from greyhorse.enum import Enum, Struct
 from greyhorse.maybe import Just, Maybe, Nothing
 
-from .factories import TypeFactory, TypeFactoryFn
-
-
-class Lifetime(Enum):
-    ROOT = Struct(name='ROOT', order=0, autocreate=True)
-    APP = Struct(name='APP', order=1, autocreate=False)
-    RUNTIME = Struct(name='RUNTIME', order=2, autocreate=True)
-    SESSION = Struct(name='SESSION', order=3, autocreate=True)
-    REQUEST = Struct(name='REQUEST', order=4, autocreate=False)
-    ACTION = Struct(name='ACTION', order=5, autocreate=True)
-    STEP = Struct(name='STEP', order=6, autocreate=False)
-
-    if TYPE_CHECKING:
-        name: str
-        order: int
-        autocreate: str
-
-    @classmethod
-    @cache
-    def all(cls) -> Iterable[Self]:
-        lifetimes = [lifetime_class() for _, lifetime_class in Lifetime.items]
-        lifetimes.sort(key=lambda lifetime: lifetime.order)
-        return lifetimes
+from ..abc.resources import Lifetime, TypeFactoryFn
+from .factories import TypeFactory
 
 
 @dataclass(slots=True)
@@ -72,11 +49,15 @@ class FactoryRegistry:
     @staticmethod
     def _into_factory[T](key: type[T], fn: TypeFactoryFn[T]) -> TypeFactory[T]:
         if callable(fn):
-            if inspect.isgeneratorfunction(inspect.unwrap(fn)):
+            orig_fn = fn
+            while isinstance(orig_fn, partial):
+                orig_fn = orig_fn.func
+
+            if inspect.isgeneratorfunction(inspect.unwrap(orig_fn)):
                 return TypeFactory[key].from_syncgen(fn)
-            if inspect.isasyncgenfunction(inspect.unwrap(fn)):
+            if inspect.isasyncgenfunction(inspect.unwrap(orig_fn)):
                 return TypeFactory[key].from_asyncgen(fn)
-            if inspect.isfunction(fn):
+            if inspect.isfunction(orig_fn) or inspect.ismethod(orig_fn):
                 return TypeFactory[key].from_fn(fn)
         if inspect.isclass(fn):
             return TypeFactory[key].from_class(fn)

@@ -1,5 +1,5 @@
 from collections import OrderedDict, defaultdict
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from functools import partial
 from types import AsyncGeneratorType, GeneratorType
 
@@ -7,7 +7,6 @@ import networkx as nx
 
 from greyhorse.error import Error, ErrorCase
 from greyhorse.result import Err, Ok, Result
-from greyhorse.utils.injectors import ParamsInjector
 from greyhorse.utils.invoke import invoke_sync
 
 from ..abc.controllers import Controller, OperatorMember
@@ -20,7 +19,7 @@ from ..abc.providers import (
     SharedProvider,
 )
 from ..abc.selectors import Selector
-from ..abc.services import ProviderMember, Service
+from ..abc.services import ResourceMember, Service
 from ..boxes import (
     AsyncFactoryGenBox,
     AsyncForwardGenBox,
@@ -31,7 +30,8 @@ from ..boxes import (
     SyncMutGenBox,
     SyncSharedGenBox,
 )
-from ..registries import MutDictRegistry
+from . import Container
+from .injection import _invoke_target
 from .mappers import SyncResourceMapper
 
 
@@ -48,11 +48,10 @@ class ResourceManager:
         self._services: list[Service] = []
         self._controllers: list[Controller] = []
         self._deps = set()
+
         self._resource_graph = nx.DiGraph()
-        self._provided_resources = OrderedDict[Operator, SyncResourceMapper]()
-        self._cached_providers = MutDictRegistry[type[Provider], Provider]()
-        self._res_providers: dict[type, list[type[Provider]]] = defaultdict(list)
         self._operator_map: dict[type, dict[Controller, OperatorMember]] = defaultdict(dict)
+        self._provided_resources = OrderedDict[Operator, SyncResourceMapper]()
         self._public_operators: list[Operator] = []
 
     def get_operators(self) -> Iterable[Operator]:
@@ -62,13 +61,13 @@ class ResourceManager:
         if self._services.count(service):
             return False
         self._services.append(service)
-        service.inspect(partial(self._add_service_provider, service))
+        service.inspect(partial(self._add_service_resource, service))
         return True
 
     def remove_service(self, service: Service) -> bool:
         if not self._services.count(service):
             return False
-        service.inspect(partial(self._remove_service_provider, service))
+        service.inspect(partial(self._remove_service_resource, service))
         self._services.remove(service)
         return True
 
@@ -105,7 +104,7 @@ class ResourceManager:
                         continue
 
         for op in operators:
-            if not self.setup_resource(op, providers):
+            if not self.setup_operator(op, providers=providers):
                 self._public_operators.append(op)
 
         return Ok()
@@ -123,95 +122,75 @@ class ResourceManager:
 
             del self._provided_resources[operator]
 
-        self._cached_providers.clear()
-
         self._public_operators = []
         self._deps.clear()
         self._resource_graph.clear()
         assert len(self._provided_resources) == 0
         return Ok()
 
-    def find_provider(
+    @staticmethod
+    def _invoke_member(
+        container: Container, member: ResourceMember, fn: Callable[[], object], _: object
+    ) -> object:
+        factory = partial(_invoke_target, fn, member.params, container) if member.params else fn
+
+        if issubclass(member.resource_type, Provider):
+            prov = None
+
+            match invoke_sync(factory):
+                case Ok(prov) | (Provider() as prov):
+                    pass
+
+                case GeneratorType() as gen:
+                    if issubclass(member.resource_type, SharedProvider):
+                        prov = SyncSharedGenBox[member.resource_type.__wrapped_type__](factory)
+                    elif issubclass(member.resource_type, MutProvider):
+                        prov = SyncMutGenBox[member.resource_type.__wrapped_type__](factory)
+                    elif issubclass(member.resource_type, FactoryProvider):
+                        prov = SyncFactoryGenBox[member.resource_type.__wrapped_type__](factory)
+                    elif issubclass(member.resource_type, ForwardProvider):
+                        prov = SyncForwardGenBox[member.resource_type.__wrapped_type__](gen)
+
+                case AsyncGeneratorType() as gen:
+                    if issubclass(member.resource_type, SharedProvider):
+                        prov = AsyncSharedGenBox[member.resource_type.__wrapped_type__](factory)
+                    elif issubclass(member.resource_type, MutProvider):
+                        prov = AsyncMutGenBox[member.resource_type.__wrapped_type__](factory)
+                    elif issubclass(member.resource_type, FactoryProvider):
+                        prov = AsyncFactoryGenBox[member.resource_type.__wrapped_type__](
+                            factory
+                        )
+                    elif issubclass(member.resource_type, ForwardProvider):
+                        prov = AsyncForwardGenBox[member.resource_type.__wrapped_type__](gen)
+
+                case _:
+                    raise AssertionError(
+                        'Unexpected return value returned from provider method'
+                    )
+
+            return prov
+
+        return factory()
+
+    def install_container(self, container: Container) -> bool:
+        result = True
+
+        for resource_type, node_data in self._resource_graph.nodes(data=True):
+            if 'member' not in node_data:
+                continue
+
+            member: ResourceMember = node_data['member']
+            fn = partial(self._invoke_member, container, member, node_data['factory'])
+            registry = container.child_registry(member.lifetime).unwrap_or(container.registry)
+            result &= registry.add_factory(resource_type, fn, cache=member.cache)
+
+        return result
+
+    def setup_operator[T](
         self,
-        prov_type: type[Provider],
+        operator: Operator[T],
+        container: Container | None = None,
         providers: Selector[type[Provider], Provider] | None = None,
-    ) -> Result[Provider, ResourceError]:
-        if (prov := self._cached_providers.get(prov_type).unwrap_or_none()) or (
-            prov := providers.get(prov_type).unwrap_or_none() if providers is not None else None
-        ):
-            return Ok(prov)
-
-        if not self._resource_graph.has_node(prov_type):
-            return ResourceError.NoSuchResource(resource=prov_type.__name__).to_result()
-
-        node = self._resource_graph.nodes[prov_type]
-        injector = ParamsInjector()
-
-        for dep_type in self._resource_graph.successors(prov_type):
-            if prov := self.find_provider(dep_type, providers):
-                injector.add_type_provider(dep_type, prov.unwrap())
-            else:
-                return ResourceError.NoSuchDependency(resource=dep_type.__name__).to_result()
-
-        factory = node['factory']
-        injected_args = injector(factory)
-
-        match invoke_sync(factory, *injected_args.args, **injected_args.kwargs):
-            case Ok(prov) | (Provider() as prov):
-                if not issubclass(prov_type, ForwardProvider):
-                    self._cached_providers.add(prov_type, prov)
-
-            case Err(e):
-                return ResourceError.Provision(details=e.message).to_result()
-
-            case None:
-                return ResourceError.NoSuchResource(resource=prov_type.__name__).to_result()
-
-            case GeneratorType() as gen:
-                if issubclass(prov_type, SharedProvider):
-                    prov = SyncSharedGenBox[prov_type.__wrapped_type__](
-                        partial(factory, *injected_args.args, **injected_args.kwargs)
-                    )
-                    self._cached_providers.add(prov_type, prov)
-                elif issubclass(prov_type, MutProvider):
-                    prov = SyncMutGenBox[prov_type.__wrapped_type__](
-                        partial(factory, *injected_args.args, **injected_args.kwargs)
-                    )
-                    self._cached_providers.add(prov_type, prov)
-                elif issubclass(prov_type, FactoryProvider):
-                    prov = SyncFactoryGenBox[prov_type.__wrapped_type__](
-                        partial(factory, *injected_args.args, **injected_args.kwargs)
-                    )
-                    self._cached_providers.add(prov_type, prov)
-                elif issubclass(prov_type, ForwardProvider):
-                    prov = SyncForwardGenBox[prov_type.__wrapped_type__](gen)
-
-            case AsyncGeneratorType() as gen:
-                if issubclass(prov_type, SharedProvider):
-                    prov = AsyncSharedGenBox[prov_type.__wrapped_type__](
-                        partial(factory, *injected_args.args, **injected_args.kwargs)
-                    )
-                    self._cached_providers.add(prov_type, prov)
-                elif issubclass(prov_type, MutProvider):
-                    prov = AsyncMutGenBox[prov_type.__wrapped_type__](
-                        partial(factory, *injected_args.args, **injected_args.kwargs)
-                    )
-                    self._cached_providers.add(prov_type, prov)
-                elif issubclass(prov_type, FactoryProvider):
-                    prov = AsyncFactoryGenBox[prov_type.__wrapped_type__](
-                        partial(factory, *injected_args.args, **injected_args.kwargs)
-                    )
-                    self._cached_providers.add(prov_type, prov)
-                elif issubclass(prov_type, ForwardProvider):
-                    prov = AsyncForwardGenBox[prov_type.__wrapped_type__](gen)
-
-            case _:
-                raise AssertionError('Unexpected return value returned from provider method')
-
-        return Ok(prov)
-
-    def setup_resource[T](
-        self, operator: Operator[T], providers: Selector[type[Provider], Provider] | None = None
     ) -> Result[bool, ResourceError]:
         res_type = operator.wrapped_type
         prov_type = None
@@ -224,21 +203,16 @@ class ResourceManager:
         else:
             found = False
 
-            if res_type in self._res_providers:
-                candidates = self._res_providers[res_type]
-            else:
-                candidates = (
-                    SharedProvider[res_type],
-                    ForwardProvider[res_type],
-                    FactoryProvider[res_type],
-                    MutProvider[res_type],
-                )
+            candidates = (
+                SharedProvider[res_type],
+                ForwardProvider[res_type],
+                FactoryProvider[res_type],
+                MutProvider[res_type],
+            )
 
             for prov_type in candidates:
-                if (
-                    self._resource_graph.has_node(prov_type)
-                    or self._cached_providers.has(prov_type)
-                    or (providers.has(prov_type) if providers is not None else False)
+                if self._resource_graph.has_node(prov_type) or (
+                    providers.has(prov_type) if providers is not None else False
                 ):
                     found = True
                     break
@@ -246,26 +220,20 @@ class ResourceManager:
             if not found:
                 return ResourceError.NoSuchResource(resource=res_type.__name__).to_result()
 
-        if (prov := self._cached_providers.get(prov_type).unwrap_or_none()) or (
-            prov := providers.get(prov_type).unwrap_or_none()
-            if providers is not None
-            else False
-        ):
-            mapper = SyncResourceMapper[prov_type](prov, operator)
+        prov = container.get(prov_type).unwrap_or_none() if container is not None else None
+        if prov is None:
+            prov = providers.get(prov_type).unwrap_or_none() if providers is not None else None
+        if prov is None:
+            return ResourceError.NoSuchResource(resource=res_type.__name__).to_result()
 
-        else:
-            if not (res := self.find_provider(prov_type, providers)):
-                return res  # type: ignore
-
-            prov = res.unwrap()
-            mapper = SyncResourceMapper[prov_type](prov, operator)
+        mapper = SyncResourceMapper[prov_type](prov, operator)
 
         if res := mapper.setup():
             self._provided_resources[operator] = mapper
 
         return res.map(lambda _: True).map_err(lambda e: ResourceError.Provision(details=e))
 
-    def teardown_resource[T](self, operator: Operator[T]) -> Result[bool, ResourceError]:
+    def teardown_operator[T](self, operator: Operator[T]) -> Result[bool, ResourceError]:
         if not (mapper := self._provided_resources.get(operator)):
             return Ok(False)
 
@@ -274,30 +242,27 @@ class ResourceManager:
 
         return res.map(lambda _: True).map_err(lambda e: ResourceError.Provision(details=e))
 
-    def _add_service_provider(self, service: Service, provider_member: ProviderMember) -> None:
-        if self._resource_graph.has_node(provider_member.provider_type):
+    def _add_service_resource(self, service: Service, member: ResourceMember) -> None:
+        if self._resource_graph.has_node(member.resource_type):
             return
 
-        self._res_providers[provider_member.resource_type].append(provider_member.provider_type)
-
         self._resource_graph.add_node(
-            provider_member.provider_type, factory=partial(provider_member.method, self=service)
+            member.resource_type, factory=partial(member.method, self=service), member=member
         )
 
-        for param_type in provider_member.params.values():
+        for param_type in member.params.values():
             if not self._resource_graph.has_node(param_type):
                 self._deps.add(param_type)
 
-            self._resource_graph.add_edge(provider_member.provider_type, param_type)
+            self._resource_graph.add_edge(member.resource_type, param_type)
 
-    def _remove_service_provider(self, _: Service, provider_member: ProviderMember) -> None:
-        if not self._resource_graph.has_node(provider_member.provider_type):
+    def _remove_service_resource(self, _: Service, member: ResourceMember) -> None:
+        if not self._resource_graph.has_node(member.resource_type):
             return
 
-        self._res_providers[provider_member.resource_type].remove(provider_member.provider_type)
-        self._resource_graph.remove_node(provider_member.provider_type)
+        self._resource_graph.remove_node(member.resource_type)
 
-        for param_type in provider_member.params.values():
+        for param_type in member.params.values():
             if not self._resource_graph.has_node(param_type):
                 self._deps.remove(param_type)
 

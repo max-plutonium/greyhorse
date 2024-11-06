@@ -2,11 +2,12 @@ from typing import override
 
 from greyhorse.app.abc.controllers import ControllerError
 from greyhorse.app.abc.operators import AssignOperator, Operator
-from greyhorse.app.abc.providers import FactoryError, ForwardProvider
+from greyhorse.app.abc.providers import ForwardProvider
+from greyhorse.app.abc.resources import Lifetime
 from greyhorse.app.abc.services import ServiceError, ServiceState
 from greyhorse.app.boxes import ForwardBox
 from greyhorse.app.entities.controllers import SyncController, operator
-from greyhorse.app.entities.services import SyncService, provider
+from greyhorse.app.entities.services import SyncService, provide
 from greyhorse.app.resources import Container, inject
 from greyhorse.maybe import Maybe, Nothing
 from greyhorse.result import Ok, Result
@@ -71,7 +72,7 @@ class DictOperatorService1(SyncService):
     def stop(self) -> None:
         self._switch_to_active(False)
 
-    @provider(ForwardProvider[DictResContext])
+    @provide(lifetime=Lifetime.COMPONENT())
     def create_prov(self) -> ForwardProvider[DictResContext]:
         return self._res1
 
@@ -105,12 +106,12 @@ class DictOperatorService2(SyncService):
     def stop(self) -> None:
         self._switch_to_active(False)
 
-    @provider(FunctionalOpProvider)
+    @provide(lifetime=Lifetime.COMPONENT())
     def create_prov(
         self, dependency: ForwardProvider[DictResContext]
-    ) -> Result[FunctionalOpProvider, FactoryError] | None:
+    ) -> FunctionalOpProvider | None:
         if not dependency:
-            return FactoryError.InsufficientDeps(name='DictResContext').to_result()
+            return None
         if not self._res2:
             return None
 

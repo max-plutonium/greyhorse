@@ -5,9 +5,13 @@ from asyncio import iscoroutine
 from collections.abc import Callable
 from dataclasses import dataclass
 from queue import Empty, Queue
-from typing import Any
+from types import TracebackType
+from typing import TYPE_CHECKING, Any
 
 from greyhorse.utils.types import is_awaitable
+
+if TYPE_CHECKING:
+    from greyhorse.app.resources import Container
 
 
 @dataclass(slots=True, frozen=True)
@@ -19,14 +23,28 @@ class _Task:
 
 
 class Runtime:
-    __slots__ = ('_loop', '_thread', '_counter', '_tasks', '_sync_ctx')
+    __slots__ = ('_loop', '_thread', '_counter', '_tasks', '_sync_ctx', '_container')
 
-    def __init__(self) -> None:
-        self._loop = asyncio.new_event_loop()
-        self._thread = threading.Thread(name='Greyhorse runtime', target=self._loop.run_forever)
-        self._counter = 0
-        self._tasks = Queue()
-        self._sync_ctx = False
+    _instance: 'Runtime' = None
+
+    def __new__(cls) -> 'Runtime':
+        if not isinstance(cls._instance, cls):
+            from greyhorse.app.abc.resources import Lifetime
+            from greyhorse.app.resources import make_container
+
+            container = make_container(lifetime=Lifetime.RUNTIME())
+            cls._instance = object.__new__(cls)
+            cls._instance._loop = asyncio.new_event_loop()  # noqa: SLF001
+            cls._instance._thread = threading.Thread(  # noqa: SLF001
+                name='Greyhorse runtime',
+                target=cls._instance._loop.run_forever,  # noqa: SLF001
+            )
+            cls._instance._counter = 0  # noqa: SLF001
+            cls._instance._tasks = Queue()  # noqa: SLF001
+            cls._instance._sync_ctx = False  # noqa: SLF001
+            cls._instance._container = container  # noqa: SLF001
+
+        return cls._instance
 
     @property
     def loop(self) -> asyncio.AbstractEventLoop:
@@ -35,6 +53,10 @@ class Runtime:
     @property
     def active(self) -> bool:
         return self._thread.is_alive()
+
+    @property
+    def container(self) -> 'Container':
+        return self._container
 
     def start(self) -> None:
         if self._counter == 0:
@@ -48,6 +70,21 @@ class Runtime:
             self._loop.close()
 
         self._counter = max(self._counter - 1, 0)
+
+    def __enter__(self) -> 'Container':
+        self.start()
+        return self._container.context.__enter__()
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
+        try:
+            self._container.context.__exit__(exc_type, exc_value, traceback)
+        finally:
+            self.stop()
 
     def invoke_sync[T, **P](
         self, func: Callable[P, T], /, *args: P.args, **kwargs: P.kwargs
@@ -93,6 +130,3 @@ class Runtime:
 
             except Empty:
                 self._sync_ctx = not future.done()
-
-
-instance = Runtime()

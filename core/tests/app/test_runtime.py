@@ -38,6 +38,8 @@ def test_runtime_sync() -> None:
 
     runtime.stop()
 
+    Runtime._instance = None  # noqa: SLF001
+
 
 @pytest.mark.asyncio
 async def test_runtime_async() -> None:
@@ -54,6 +56,8 @@ async def test_runtime_async() -> None:
     assert list(range(0, counter + 1)) == res
 
     runtime.stop()
+
+    Runtime._instance = None  # noqa: SLF001
 
 
 if __name__ == '__main__':

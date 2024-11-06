@@ -6,7 +6,7 @@ from functools import wraps
 from typing import Any, TypeVar, get_type_hints
 
 from greyhorse.maybe import Just, Maybe, Nothing
-from greyhorse.utils.invoke import caller_path, invoke_sync
+from greyhorse.utils.invoke import caller_path
 from greyhorse.utils.types import is_maybe, is_optional, unwrap_maybe, unwrap_optional
 
 from ..abc.module import Module
@@ -129,7 +129,7 @@ def _invoke_target[T, **P](
             injected_args[k] = None
 
     kwargs.update(injected_args)
-    return invoke_sync(func, *args, **kwargs)
+    return func(*args, **kwargs)
 
 
 def inject[T, **P](target: Callable[P, T] | type[T]) -> Callable[P, T]:

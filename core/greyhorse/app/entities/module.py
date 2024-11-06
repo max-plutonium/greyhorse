@@ -1,7 +1,7 @@
 from typing import Any, override
 
 from greyhorse.logging import logger
-from greyhorse.maybe import Just, Maybe, Nothing
+from greyhorse.maybe import Maybe, Nothing
 from greyhorse.result import Ok, Result
 
 from ..abc.module import Module, ModuleError
@@ -21,8 +21,7 @@ class SyncModule(Module):
         self._rm = ResourceManager()
 
         self._operators: list[Operator] = []
-
-        self._context: dict[type, Any] = {}
+        self._resources = MutDictRegistry[type, Any]()
         self._providers = MutDictRegistry[type[Provider], Provider]()
         self._components: dict[str, Component] = {c.name: c for c in components}
 
@@ -40,9 +39,7 @@ class SyncModule(Module):
     @override
     def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
         if prov_type in self._conf.providers:
-            return (
-                self._rm.find_provider(prov_type, self._providers).map(Just).unwrap_or(Nothing)
-            )
+            return self._providers.get(prov_type)
         return Nothing
 
     @override
@@ -60,15 +57,13 @@ class SyncModule(Module):
     @override
     def add_resource[T](self, res_type: type[T], resource: T) -> bool:
         if res_type in self._conf.resource_claims:
-            self._context[res_type] = resource
-            return True
+            return self._resources.add(res_type, resource)
         return False
 
     @override
     def remove_resource[T](self, res_type: type[T]) -> bool:
         if res_type in self._conf.resource_claims:
-            del self._context[res_type]
-            return True
+            return self._resources.remove(res_type)
         return False
 
     @override
@@ -110,13 +105,13 @@ class SyncModule(Module):
             comp_conf = self._conf.components[component.name]
 
             for res_type in comp_conf.resource_claims:
-                if res := self._context.get(res_type):
+                if res := self._resources.get(res_type).unwrap_or_none():
                     component.add_resource(res_type, res)
 
             for res_type in comp_conf.operators:
                 for op in component.get_operators(res_type):  # type: ignore
                     if not (
-                        res := self._rm.setup_resource(op, self._providers).map_err(
+                        res := self._rm.setup_operator(op, providers=self._providers).map_err(
                             lambda e: ModuleError.Resource(path=self._path, details=e.message)
                         )
                     ):
@@ -135,7 +130,7 @@ class SyncModule(Module):
 
         for op in self._operators:
             if not (
-                res := self._rm.setup_resource(op, self._providers).map_err(
+                res := self._rm.setup_operator(op, providers=self._providers).map_err(
                     lambda e: ModuleError.Resource(path=self._path, details=e.message)
                 )
             ):
@@ -150,7 +145,7 @@ class SyncModule(Module):
 
         for op in reversed(self._operators):
             if not (
-                res := self._rm.teardown_resource(op).map_err(
+                res := self._rm.teardown_operator(op).map_err(
                     lambda e: ModuleError.Resource(path=self._path, details=e.message)
                 )
             ):
@@ -172,14 +167,14 @@ class SyncModule(Module):
             for res_type in reversed(comp_conf.operators):
                 for op in component.get_operators(res_type):  # type: ignore
                     if not (
-                        res := self._rm.teardown_resource(op).map_err(
+                        res := self._rm.teardown_operator(op).map_err(
                             lambda e: ModuleError.Resource(path=self._path, details=e.message)
                         )
                     ):
                         return res  # type: ignore
 
             for res_type in reversed(comp_conf.resource_claims):
-                if res_type in self._context:
+                if self._resources.has(res_type):
                     component.remove_resource(res_type)
 
         logger.info('{path}: Module teardown successful'.format(path=self._path))

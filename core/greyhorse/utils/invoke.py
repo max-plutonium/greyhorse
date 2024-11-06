@@ -2,7 +2,7 @@ import inspect
 from asyncio import AbstractEventLoop, get_running_loop
 from collections.abc import Callable
 
-from ..app.runtime import instance as _runtime
+from ..app.runtime import Runtime
 
 
 def is_like_sync_context_manager(instance: object) -> bool:
@@ -25,11 +25,11 @@ def get_asyncio_loop() -> AbstractEventLoop | None:
 
 
 def invoke_sync[T, **P](func: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T:
-    return _runtime.invoke_sync(func, *args, **kwargs)
+    return Runtime().invoke_sync(func, *args, **kwargs)
 
 
 async def invoke_async[T, **P](func: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T:
-    return await _runtime.invoke_async(func, *args, **kwargs)
+    return await Runtime().invoke_async(func, *args, **kwargs)
 
 
 def caller_path(depth: int) -> list[str]:

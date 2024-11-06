@@ -1,12 +1,12 @@
 from copy import deepcopy
 from functools import partial
 
-from greyhorse.app.abc.providers import BorrowMutError, MutProvider, SharedProvider
+from greyhorse.app.abc.providers import MutProvider, SharedProvider
+from greyhorse.app.abc.resources import Lifetime
 from greyhorse.app.boxes import OwnerCtxRefBox
 from greyhorse.app.contexts import MutCtxCallbacks, SyncContext, SyncMutContextWithCallbacks
-from greyhorse.app.entities.services import SyncService, provider
+from greyhorse.app.entities.services import SyncService, provide
 from greyhorse.maybe import Just
-from greyhorse.result import Ok, Result
 
 from ..common.resources import DictResContext, DictResource, MutDictResContext
 
@@ -33,10 +33,10 @@ class DictProviderService(SyncService):
         self._value.clear()
         self._value.update(value)
 
-    @provider(SharedProvider[DictResContext])
+    @provide(lifetime=Lifetime.COMPONENT())
     def create_dict(self) -> SharedProvider[DictResContext]:
         return self._box
 
-    @provider(MutProvider[MutDictResContext])
-    async def create_mut_dict(self) -> Result[MutProvider[MutDictResContext], BorrowMutError]:
-        return Ok(self._box)
+    @provide(lifetime=Lifetime.COMPONENT())
+    async def create_mut_dict(self) -> MutProvider[MutDictResContext]:
+        return self._box

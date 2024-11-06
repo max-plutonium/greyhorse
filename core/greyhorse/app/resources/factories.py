@@ -6,14 +6,6 @@ from typing import Any, Self, override
 from greyhorse.maybe import Just, Maybe, Nothing
 from greyhorse.utils.types import TypeWrapper
 
-type TypeFactoryFn[T] = (
-    Callable[[T], T]
-    | type[T]
-    | T
-    | Callable[[], Generator[T, T, None]]
-    | Callable[[], AsyncGenerator[T, T]]
-)
-
 
 class TypeFactory[T](TypeWrapper[T], ABC):
     scoped: bool = False
@@ -58,7 +50,7 @@ class _FnTypeFactory[T](TypeFactory[T]):
 
     @override
     def create(self, key: type[T]) -> Maybe[T]:
-        return Just(self._fn(key))
+        return Maybe(self._fn(key))
 
 
 class _ClassTypeFactory[T](TypeFactory[T]):
@@ -68,7 +60,7 @@ class _ClassTypeFactory[T](TypeFactory[T]):
         self._cls = cls
 
     @override
-    def create(self, key: type[T]) -> Maybe[T]:
+    def create(self, _: type[T]) -> Maybe[T]:
         return Just(self._cls())
 
 
@@ -81,7 +73,7 @@ class _InstanceTypeFactory[T](TypeFactory[T]):
         self._instance = instance
 
     @override
-    def create(self, key: type[T]) -> Maybe[T]:
+    def create(self, _: type[T]) -> Maybe[T]:
         return Just(self._instance)
 
 
@@ -95,7 +87,7 @@ class _SyncGenTypeFactory[T](TypeFactory[T]):
         self._gens: dict[int, Generator[T, T, None]] = {}
 
     @override
-    def create(self, key: type[T]) -> Maybe[T]:
+    def create(self, _: type[T]) -> Maybe[T]:
         gen = self._gen_fn()
 
         try:
@@ -130,7 +122,7 @@ class _AsyncGenTypeFactory[T](TypeFactory[T]):
         self._gens: dict[int, AsyncGenerator[T, T]] = {}
 
     @override
-    async def create(self, key: type[T]) -> Maybe[T]:
+    async def create(self, _: type[T]) -> Maybe[T]:
         gen = self._gen_fn()
 
         try:

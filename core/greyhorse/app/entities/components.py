@@ -3,7 +3,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, override
 
 from greyhorse.logging import logger
-from greyhorse.maybe import Just, Maybe, Nothing
+from greyhorse.maybe import Maybe, Nothing
 from greyhorse.result import Err, Ok, Result
 from greyhorse.utils.injectors import ParamsInjector
 from greyhorse.utils.invoke import invoke_sync
@@ -12,6 +12,7 @@ from ..abc.component import Component, ComponentError
 from ..abc.controllers import Controller, ControllerError, ControllerFactoryFn
 from ..abc.operators import Operator
 from ..abc.providers import Provider
+from ..abc.resources import Lifetime
 from ..abc.services import Service, ServiceError, ServiceFactoryFn
 from ..abc.visitor import Visitor
 from ..registries import MutDictRegistry
@@ -38,7 +39,7 @@ class SyncComponent(Component):
         self._controllers: list[Controller] = []
         self._services: list[Service] = []
 
-        self._context: dict[type, Any] = {}
+        self._resources = MutDictRegistry[type, Any]()
         self._container: Container | None = None
         self._providers = MutDictRegistry[type[Provider], Provider]()
         self._operators: dict[type, list[Operator]] = defaultdict(list)
@@ -55,9 +56,7 @@ class SyncComponent(Component):
     @override
     def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
         if prov_type in self._conf.providers:
-            return (
-                self._rm.find_provider(prov_type, self._providers).map(Just).unwrap_or(Nothing)
-            )
+            return self._container.get(prov_type)
         return Nothing
 
     @override
@@ -69,15 +68,13 @@ class SyncComponent(Component):
     @override
     def add_resource[T](self, res_type: type[T], resource: T) -> bool:
         if res_type in self._conf.resource_claims:
-            self._context[res_type] = resource
-            return True
+            return self._resources.add(res_type, resource)
         return False
 
     @override
     def remove_resource[T](self, res_type: type[T]) -> bool:
         if res_type in self._conf.resource_claims:
-            del self._context[res_type]
-            return True
+            return self._resources.remove(res_type)
         return False
 
     def add_controller(self, controller: Controller) -> bool:
@@ -108,7 +105,7 @@ class SyncComponent(Component):
     def create(self) -> Result[None, ComponentError]:
         logger.info('{path}: Component "{name}" create'.format(path=self._path, name=self.name))
 
-        self._container = make_container(context=self._context)
+        self._container = make_container(lifetime=Lifetime.COMPONENT())
 
         inject_targets(
             self._container,
@@ -134,6 +131,8 @@ class SyncComponent(Component):
         for ctrl in res.unwrap():
             self.add_controller(ctrl)
 
+        self._rm.install_container(self._container)
+
         if not (
             res := self._rm.setup(self._providers).map_err(
                 lambda e: ComponentError.Resource(
@@ -157,6 +156,9 @@ class SyncComponent(Component):
     @override
     def setup(self) -> Result[None, ComponentError]:
         logger.info('{path}: Component "{name}" setup'.format(path=self._path, name=self.name))
+
+        for k, v in self._resources.items():
+            self._container.add_resource(k, v)
 
         self._container.context.__enter__()
 
@@ -246,6 +248,9 @@ class SyncComponent(Component):
         injector.remove_type_provider(Container)
 
         self._container.context.__exit__()
+
+        for k, _v in self._resources.items():  # noqa: PERF102
+            self._container.remove_resource(k)
 
         logger.info(
             '{path}: Component "{name}" teardown successful'.format(

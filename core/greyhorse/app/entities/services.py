@@ -1,30 +1,37 @@
 import asyncio
 import threading
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from typing import get_type_hints, override
 
 from greyhorse.result import Ok, Result
+from greyhorse.utils.types import unwrap_maybe, unwrap_optional
 
 from ..abc.providers import Provider
-from ..abc.services import ProviderMember, Service, ServiceError, ServiceState, ServiceWaiter
+from ..abc.resources import Lifetime
+from ..abc.services import Service, ServiceError, ServiceState, ServiceWaiter
 
 
-def provider(provider_type: type[Provider]) -> Callable[[classmethod], classmethod]:
+@dataclass(slots=True, frozen=True)
+class ResourceMember:
+    resource_type: type
+    lifetime: Lifetime
+    cache: bool
+    method: classmethod
+    params: dict[str, type] = field(default_factory=dict)
+
+
+def provide(lifetime: Lifetime, cache: bool = True) -> Callable[[classmethod], classmethod]:
     def decorator(func: classmethod) -> classmethod:
         hints = get_type_hints(func, include_extras=True)
-        ret_type = hints.pop('return', None)
+        resource_type = hints.pop('return')
 
-        while hint := next(iter(hints), None):
-            hint_type = hints[hint]
-            if not issubclass(hint_type, Provider):
-                del hints[hint]
-
-        func.__provider__ = ProviderMember(
-            provider_type.__wrapped_type__,
-            provider_type,
+        func.__res_provider__ = ResourceMember(
+            unwrap_maybe(unwrap_optional(resource_type)),
+            lifetime=lifetime,
+            cache=cache,
             method=func,
             params=hints,
-            ret_type=ret_type,
         )
         return func
 

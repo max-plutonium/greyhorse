@@ -76,10 +76,8 @@ class Application:
     def get_provider[P: Provider](self, prov_type: type[P]) -> Maybe[P]:
         return self._root.and_then(lambda root: root.get_provider(prov_type))
 
-    def add_resource[T](self, res_type: type[T], resource: T, name: str | None = None) -> bool:
-        return self._root.map_or(
-            False, lambda root: root.add_resource(res_type, resource, name)
-        )
+    def add_resource[T](self, res_type: type[T], resource: T) -> bool:
+        return self._root.map_or(False, lambda root: root.add_resource(res_type, resource))
 
     def remove_resource[T](self, res_type: type[T], name: str | None = None) -> bool:
         return self._root.map_or(False, lambda root: root.remove_resource(res_type, name=name))

@@ -114,6 +114,7 @@ def is_maybe[T](value: type[T]) -> bool:
 def is_awaitable(f: object) -> bool:
     while isinstance(f, partial):
         f = f.func
+    f = inspect.unwrap(f)
     return iscoroutinefunction(f) or inspect.isawaitable(f)
 
 
