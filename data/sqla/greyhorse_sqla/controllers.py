@@ -29,12 +29,12 @@ class SyncSqlaController(SyncController):
 
     @override
     def setup(self, container: Container) -> Result[bool, ControllerError]:
-        if not self._reader:
+        if self._reader:
+            reader = self._reader.unwrap()
+        elif not (reader := container.get(EngineReader[SyncSqlaEngine]).unwrap_or_none()):
             return ControllerError.NoSuchResource(
                 name='EngineReader[SyncSqlaEngine]'
             ).to_result()
-
-        reader = self._reader.unwrap()
 
         if not (engine := reader.get_engine(self._engine_name).unwrap_or_none()):
             return ControllerError.NoSuchResource(
@@ -58,12 +58,12 @@ class SyncSqlaController(SyncController):
 
     @override
     def teardown(self, container: Container) -> Result[bool, ControllerError]:
-        if not self._reader:
+        if self._reader:
+            reader = self._reader.unwrap()
+        elif not (reader := container.get(EngineReader[SyncSqlaEngine]).unwrap_or_none()):
             return ControllerError.NoSuchResource(
                 name='EngineReader[SyncSqlaEngine]'
             ).to_result()
-
-        reader = self._reader.unwrap()
 
         if not (engine := reader.get_engine(self._engine_name).unwrap_or_none()):
             return ControllerError.NoSuchResource(
@@ -92,12 +92,12 @@ class AsyncSqlaController(AsyncController):
 
     @override
     async def setup(self, container: Container) -> Result[bool, ControllerError]:
-        if not self._reader:
+        if self._reader:
+            reader = self._reader.unwrap()
+        elif not (reader := container.get(EngineReader[AsyncSqlaEngine]).unwrap_or_none()):
             return ControllerError.NoSuchResource(
                 name='EngineReader[AsyncSqlaEngine]'
             ).to_result()
-
-        reader = self._reader.unwrap()
 
         if not (engine := reader.get_engine(self._engine_name).unwrap_or_none()):
             return ControllerError.NoSuchResource(
@@ -121,12 +121,12 @@ class AsyncSqlaController(AsyncController):
 
     @override
     async def teardown(self, container: Container) -> Result[bool, ControllerError]:
-        if not self._reader:
+        if self._reader:
+            reader = self._reader.unwrap()
+        elif not (reader := container.get(EngineReader[AsyncSqlaEngine]).unwrap_or_none()):
             return ControllerError.NoSuchResource(
                 name='EngineReader[AsyncSqlaEngine]'
             ).to_result()
-
-        reader = self._reader.unwrap()
 
         if not (engine := reader.get_engine(self._engine_name).unwrap_or_none()):
             return ControllerError.NoSuchResource(
