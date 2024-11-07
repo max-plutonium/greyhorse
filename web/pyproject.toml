@@ -38,6 +38,9 @@ hypercorn = [
 fastapi = [
     "fastapi[standard]>=0.115.0",
 ]
+betterproto = [
+    "betterproto>=2.0.0b7",
+]
 
 [project.urls]
 Homepage = "https://gitlab.com/max-plutonium/greyhorse"
