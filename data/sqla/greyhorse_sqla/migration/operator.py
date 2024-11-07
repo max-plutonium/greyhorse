@@ -112,7 +112,7 @@ class MigrationOperator:
             lines += [
                 orig_line,
                 '\ntry:\n'
-                '    import alembic_postgresql_enum\n'
+                '    import alembic_postgresql_enum  # noqa: F401\n'
                 'except ImportError:\n'
                 '    pass\n',
             ]
