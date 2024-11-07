@@ -3,37 +3,28 @@ import signal
 from asyncio import CancelledError, Task
 from typing import Any, override
 
-from greyhorse.app.abc.selectors import NamedListSelector
 from greyhorse.app.abc.services import ServiceError, ServiceState
 from greyhorse.app.entities.services import AsyncService
+from greyhorse.app.resources import inject
 from greyhorse.result import Result
 from greyhorse.utils.invoke import get_asyncio_loop
 from uvicorn import Config, Server
 
+from greyhorse_web.common import ASGIApp
+
 
 class UvicornService(AsyncService):
-    def __init__(
-        self, host: str, port: int, resource_type: type, config: dict[str, Any] | None = None
-    ) -> None:
+    def __init__(self, host: str, port: int, config: dict[str, Any] | None = None) -> None:
         super().__init__()
         self._host = host
         self._port = port
         self._conf = config or {}
-        self._resource_type = resource_type
         self._server: Server | None = None
         self._task: Task | None = None
 
     @override
-    async def setup(
-        self, list_selector: NamedListSelector[type, Any]
-    ) -> Result[ServiceState, ServiceError]:
-        app = None
-
-        for _, _name, app in list_selector.items(  # noqa: B007
-            lambda t, _: issubclass(t, self._resource_type)
-        ):
-            break
-
+    @inject
+    async def setup(self, app: ASGIApp | None) -> Result[ServiceState, ServiceError]:
         if app is None:
             return ServiceError.NoSuchResource(name='Application for Uvicorn').to_result()
 

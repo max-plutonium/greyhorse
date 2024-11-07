@@ -3,12 +3,11 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from functools import partial
 
 import pydantic
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.requests import Request
 from greyhorse.app.entities.application import Application
-from greyhorse.app.runtime import instance
+from greyhorse.app.runtime import Runtime
 from greyhorse.utils.json import dumps_raw, loads
 from starlette.authentication import (
     AuthCredentials,
@@ -43,11 +42,10 @@ class AuthBackend(AuthenticationBackend):
 
 @asynccontextmanager
 async def fastapi_lifespan(_: FastAPI, app: Application) -> AbstractAsyncContextManager:
-    asyncio.set_event_loop(instance.loop)
+    runtime = Runtime()
+    asyncio.set_event_loop(runtime.loop)
 
-    instance.start()
-
-    try:
+    with runtime:
         app.setup().unwrap()
         app.start()
 
@@ -56,9 +54,6 @@ async def fastapi_lifespan(_: FastAPI, app: Application) -> AbstractAsyncContext
         app.stop()
         app.teardown().unwrap()
         app.unload().unwrap()
-
-    finally:
-        instance.stop()
 
 
 def create_fastapi(
