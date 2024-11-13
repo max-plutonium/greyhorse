@@ -166,6 +166,10 @@ class AsyncMutRepository[E, ID](AsyncRepository[E, ID], ABC):
 
 
 class SyncFilterable[E, ID](ABC):
+    @property
+    @abstractmethod
+    def query_class(self) -> type[Query]: ...
+
     @abstractmethod
     def list(
         self, query: Query | None = None, skip: int = 0, limit: int = 0
@@ -184,6 +188,10 @@ class SyncFilterable[E, ID](ABC):
 
 
 class AsyncFilterable[E, ID](ABC):
+    @property
+    @abstractmethod
+    def query_class(self) -> type[Query]: ...
+
     @abstractmethod
     async def list(
         self, query: Query | None = None, skip: int = 0, limit: int = 0
