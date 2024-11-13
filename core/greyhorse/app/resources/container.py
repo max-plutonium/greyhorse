@@ -129,7 +129,7 @@ class Container:
         if self._parent:
             self._parent.context.__enter__()
 
-        for k, v in self._resources.items():
+        for k, v in self._resources.list():
             self._cache.add(k, v)
 
     def _exit(

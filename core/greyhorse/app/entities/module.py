@@ -105,8 +105,8 @@ class SyncModule(Module):
             comp_conf = self._conf.components[component.name]
 
             for res_type in comp_conf.resource_claims:
-                if res := self._resources.get(res_type).unwrap_or_none():
-                    component.add_resource(res_type, res)
+                if res := self._resources.get(res_type):
+                    component.add_resource(res_type, res.unwrap())
 
             for res_type in comp_conf.operators:
                 for op in component.get_operators(res_type):  # type: ignore
@@ -125,8 +125,8 @@ class SyncModule(Module):
                 return res
 
             for prov_type in comp_conf.providers:
-                if prov := component.get_provider(prov_type).unwrap_or_none():
-                    self._providers.add(prov_type, prov)
+                if prov := component.get_provider(prov_type):
+                    self._providers.add(prov_type, prov.unwrap())
 
         for op in self._operators:
             if not (

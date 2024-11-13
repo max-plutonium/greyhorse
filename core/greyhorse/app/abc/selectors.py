@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
+from typing import Any
 
 from greyhorse.maybe import Maybe
 from greyhorse.utils.types import TypeWrapper
@@ -12,22 +13,20 @@ class Selector[K, T](TypeWrapper[K, T], ABC):
     @abstractmethod
     def get(self, key: K) -> Maybe[T]: ...
 
+    @abstractmethod
+    def get_with_metadata(self, key: K) -> Maybe[tuple[T, dict[str, Any]]]: ...
+
 
 class ListSelector[K, T](Selector[K, T], ABC):
     @abstractmethod
-    def items(self, filter_fn: Callable[[K], bool] | None = None) -> Iterable[tuple[K, T]]: ...
-
-
-class NamedSelector[K, T](TypeWrapper[K, T], ABC):
-    @abstractmethod
-    def has(self, key: K, name: str | None = None) -> bool: ...
+    def list(self, key: K | None = None) -> Iterable[tuple[K, T]]: ...
 
     @abstractmethod
-    def get(self, key: K, name: str | None = None) -> Maybe[T]: ...
+    def list_with_metadata(
+        self, key: K | None = None
+    ) -> Iterable[tuple[K, T, dict[str, Any]]]: ...
 
-
-class NamedListSelector[K, T](NamedSelector[K, T], ABC):
     @abstractmethod
-    def items(
-        self, filter_fn: Callable[[K, str], bool] | None = None
-    ) -> Iterable[tuple[K, str, T]]: ...
+    def filter(
+        self, filter_fn: Callable[[K, dict[str, Any]], bool] | None = None
+    ) -> Iterable[tuple[K, T, dict[str, Any]]]: ...

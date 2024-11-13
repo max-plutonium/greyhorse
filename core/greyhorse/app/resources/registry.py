@@ -85,7 +85,7 @@ class FactoryRegistry:
     def add_factory[T](
         self, key: type[T], fn: TypeFactoryFn[T] | None = None, cache: bool = True
     ) -> bool:
-        factory = self._into_factory(key, fn or key)
+        factory = self._into_factory(key, fn if fn is not None else key)
         factory.cache |= cache
         path = key.__module__
         current = self._root

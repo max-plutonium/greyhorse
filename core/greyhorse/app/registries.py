@@ -1,27 +1,31 @@
 from collections import defaultdict
 from collections.abc import Callable, Iterable
-from typing import override
+from typing import Any, override
 
 from greyhorse.maybe import Just, Maybe, Nothing
 
-from .abc.collectors import Collector, MutCollector, MutNamedCollector, NamedCollector
-from .abc.selectors import ListSelector, NamedListSelector
+from .abc.collectors import Collector, MutCollector
+from .abc.selectors import ListSelector
 
 
 class DictRegistry[K, T](Collector[K, T], ListSelector[K, T]):
-    __slots__ = ('_storage',)
+    __slots__ = ('_storage', '_allow_many')
 
-    def __init__(self) -> None:
-        self._storage: dict[K, T] = {}
+    def __init__(self, allow_many: bool = False) -> None:
+        self._storage: dict[K, dict[int, tuple[T, dict[str, Any]]]] = {}
+        self._allow_many = allow_many
 
     def __len__(self) -> int:
         return len(self._storage)
 
     @override
-    def add(self, key: K, instance: T) -> bool:
+    def add(self, key: K, instance: T, **metadata: dict[str, Any]) -> bool:
         if key in self._storage:
-            return instance is self._storage[key]
-        self._storage[key] = instance
+            if not self._allow_many:
+                return id(instance) in self._storage[key]
+            self._storage[key][id(instance)] = (instance, metadata)
+        else:
+            self._storage[key] = {id(instance): (instance, metadata)}
         return True
 
     @override
@@ -33,13 +37,50 @@ class DictRegistry[K, T](Collector[K, T], ListSelector[K, T]):
         if key not in self._storage:
             return Nothing
 
-        return Just(self._storage[key])
+        item = next(iter(self._storage[key].values()))
+        return Just(item[0])
 
     @override
-    def items(self, filter_fn: Callable[[K], bool] | None = None) -> Iterable[tuple[K, T]]:
+    def get_with_metadata(self, key: K) -> Maybe[tuple[T, dict[str, Any]]]:
+        if key not in self._storage:
+            return Nothing
+
+        item = next(iter(self._storage[key].values()))
+        return Just(item)
+
+    @override
+    def list(self, key: K | None = None) -> Iterable[tuple[K, T]]:
+        if key is None:
+            for k, v in self._storage.items():
+                for item in v.values():
+                    yield k, item[0]
+        else:
+            if key not in self._storage:
+                return
+
+            for item in self._storage[key].values():
+                yield item[0]
+
+    @override
+    def list_with_metadata(self, key: K | None = None) -> Iterable[tuple[K, T, dict[str, Any]]]:
+        if key is None:
+            for k, v in self._storage.items():
+                for item in v.values():
+                    yield k, *item
+        else:
+            if key not in self._storage:
+                return
+
+            yield from self._storage[key].values()
+
+    @override
+    def filter(
+        self, filter_fn: Callable[[K, dict[str, Any]], bool] | None = None
+    ) -> Iterable[tuple[K, T, dict[str, Any]]]:
         for k, v in self._storage.items():
-            if not filter_fn or filter_fn(k):
-                yield k, v
+            for item in v.values():
+                if not filter_fn or filter_fn(k, item[1]):
+                    yield k, *item
 
     def clear(self) -> None:
         while key := next(iter(self._storage), None):
@@ -52,20 +93,19 @@ class MutDictRegistry[K, T](MutCollector[K, T], DictRegistry[K, T]):
         if key not in self._storage:
             return False
 
-        value = self._storage[key]
-
         if instance is None:
             del self._storage[key]
+            result = True
 
         else:
-            if instance != value:
-                return False
-            del self._storage[key]
+            result = self._storage[key].pop(id(instance), None) is not None
+            if len(self._storage[key]) == 0:
+                del self._storage[key]
 
-        return True
+        return result
 
 
-class ScopedDictRegistry[K, T](DictRegistry[K, T]):
+class ScopedDictRegistry[K, T](Collector[K, T], ListSelector[K, T]):
     def __init__(
         self, factory: Callable[[], DictRegistry[K, T]], scope_func: Callable[[], str]
     ) -> None:
@@ -77,15 +117,14 @@ class ScopedDictRegistry[K, T](DictRegistry[K, T]):
         key = self._scope_func()
         return self._storage[key]
 
-    @override
     def __len__(self) -> int:
         registry = self._get_registry()
         return registry.__len__()
 
     @override
-    def add(self, key: K, instance: T) -> bool:
+    def add(self, key: K, instance: T, **metadata: dict[str, Any]) -> bool:
         registry = self._get_registry()
-        return registry.add(key, instance)
+        return registry.add(key, instance, **metadata)
 
     @override
     def has(self, key: K) -> bool:
@@ -98,18 +137,34 @@ class ScopedDictRegistry[K, T](DictRegistry[K, T]):
         return registry.get(key)
 
     @override
-    def items(self, filter_fn: Callable[[K], bool] | None = None) -> Iterable[tuple[K, T]]:
+    def get_with_metadata(self, key: K) -> Maybe[tuple[T, dict[str, Any]]]:
         registry = self._get_registry()
-        yield from registry.items(filter_fn)
+        return registry.get_with_metadata(key)
 
     @override
+    def list(self, key: K | None = None) -> Iterable[tuple[K, T]]:
+        registry = self._get_registry()
+        return registry.list(key)
+
+    @override
+    def list_with_metadata(self, key: K | None = None) -> Iterable[tuple[K, T, dict[str, Any]]]:
+        registry = self._get_registry()
+        return registry.list_with_metadata(key)
+
+    @override
+    def filter(
+        self, filter_fn: Callable[[K, dict[str, Any]], bool] | None = None
+    ) -> Iterable[tuple[K, T, dict[str, Any]]]:
+        registry = self._get_registry()
+        yield from registry.filter(filter_fn)
+
     def clear(self) -> None:
         registry = self._get_registry()
         registry.clear()
         del self._storage[self._scope_func()]
 
 
-class ScopedMutDictRegistry[K, T](MutDictRegistry[K, T]):
+class ScopedMutDictRegistry[K, T](MutCollector[K, T], ListSelector[K, T]):
     def __init__(
         self, factory: Callable[[], MutDictRegistry[K, T]], scope_func: Callable[[], str]
     ) -> None:
@@ -121,15 +176,14 @@ class ScopedMutDictRegistry[K, T](MutDictRegistry[K, T]):
         key = self._scope_func()
         return self._storage[key]
 
-    @override
     def __len__(self) -> int:
         registry = self._get_registry()
         return registry.__len__()
 
     @override
-    def add(self, key: K, instance: T) -> bool:
+    def add(self, key: K, instance: T, **metadata: dict[str, Any]) -> bool:
         registry = self._get_registry()
-        return registry.add(key, instance)
+        return registry.add(key, instance, **metadata)
 
     @override
     def has(self, key: K) -> bool:
@@ -142,96 +196,33 @@ class ScopedMutDictRegistry[K, T](MutDictRegistry[K, T]):
         return registry.get(key)
 
     @override
-    def items(self, filter_fn: Callable[[K], bool] | None = None) -> Iterable[tuple[K, T]]:
+    def get_with_metadata(self, key: K) -> Maybe[tuple[T, dict[str, Any]]]:
         registry = self._get_registry()
-        yield from registry.items(filter_fn)
+        return registry.get_with_metadata(key)
+
+    @override
+    def list(self, key: K | None = None) -> Iterable[tuple[K, T]]:
+        registry = self._get_registry()
+        return registry.list(key)
+
+    @override
+    def list_with_metadata(self, key: K | None = None) -> Iterable[tuple[K, T, dict[str, Any]]]:
+        registry = self._get_registry()
+        return registry.list_with_metadata(key)
+
+    @override
+    def filter(
+        self, filter_fn: Callable[[K, dict[str, Any]], bool] | None = None
+    ) -> Iterable[tuple[K, T, dict[str, Any]]]:
+        registry = self._get_registry()
+        yield from registry.filter(filter_fn)
 
     @override
     def remove(self, key: K, instance: T | None = None) -> bool:
         registry = self._get_registry()
         return registry.remove(key, instance)
 
-    @override
     def clear(self) -> None:
         registry = self._get_registry()
         registry.clear()
         del self._storage[self._scope_func()]
-
-
-class NamedDictRegistry[K, T](NamedCollector[K, T], NamedListSelector[K, T]):
-    __slots__ = ('_storage',)
-
-    def __init__(self) -> None:
-        self._storage: dict[K, dict[str | None, T]] = defaultdict(dict)
-
-    def __len__(self) -> int:
-        return len(self._storage)
-
-    @override
-    def add(self, key: K, instance: T, name: str | None = None) -> bool:
-        if key in self._storage and name in self._storage[key]:
-            return instance is self._storage[key][name]
-        self._storage[key][name] = instance
-        return True
-
-    @override
-    def has(self, key: K, name: str | None = None) -> bool:
-        if key not in self._storage:
-            return False
-        if name is None:
-            return True
-        return name in self._storage[key]
-
-    @override
-    def get(self, key: K, name: str | None = None) -> Maybe[T]:
-        if key not in self._storage:
-            return Nothing
-
-        if name is None:
-            first_name = next(iter(self._storage[key]))
-            return Just(self._storage[key][first_name])
-        return Just(self._storage[key][name])
-
-    @override
-    def items(
-        self, filter_fn: Callable[[K, str], bool] | None = None
-    ) -> Iterable[tuple[K, str, T]]:
-        for k, values in self._storage.items():
-            for name, v in values.items():
-                if not filter_fn or filter_fn(k, name):
-                    yield k, name, v
-
-    def clear(self) -> None:
-        while key := next(iter(self._storage), None):
-            del self._storage[key]
-
-
-class MutNamedDictRegistry[K, T](MutNamedCollector[K, T], NamedDictRegistry[K, T]):
-    @override
-    def remove(self, key: K, instance: T | None = None, name: str | None = None) -> bool:
-        if key not in self._storage:
-            return False
-
-        if name is None:
-            values = self._storage[key]
-
-            if instance is None:
-                del self._storage[key]
-            else:
-                while len(values):
-                    name = next(iter(values))
-                    if instance == values[name]:
-                        del values[name]
-                if len(values) == 0:
-                    del self._storage[key]
-
-            return True
-
-        if name not in self._storage[key]:
-            return False
-
-        del self._storage[key][name]
-
-        if len(self._storage[key]) == 0:
-            del self._storage[key]
-        return True

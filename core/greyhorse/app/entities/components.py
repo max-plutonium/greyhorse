@@ -157,7 +157,7 @@ class SyncComponent(Component):
     def setup(self) -> Result[None, ComponentError]:
         logger.info('{path}: Component "{name}" setup'.format(path=self._path, name=self.name))
 
-        for k, v in self._resources.items():
+        for k, v in self._resources.list():
             self._container.add_resource(k, v)
 
         self._container.context.__enter__()
@@ -249,7 +249,7 @@ class SyncComponent(Component):
 
         self._container.context.__exit__()
 
-        for k, _v in self._resources.items():  # noqa: PERF102
+        for k, _v in self._resources.list():
             self._container.remove_resource(k)
 
         logger.info(
@@ -433,8 +433,8 @@ class SyncModuleComponent(SyncComponent):
             return res
 
         for prov_type in self._module.conf.provider_claims:
-            if prov := self._rm.find_provider(prov_type, self._providers).unwrap_or_none():
-                self._module.add_provider(prov_type, prov)
+            if prov := self._container.get(prov_type):
+                self._module.add_provider(prov_type, prov.unwrap())
 
         if not (
             res := self._module.create().map_err(
@@ -453,8 +453,8 @@ class SyncModuleComponent(SyncComponent):
             return res
 
         for res_type in self._module.conf.resource_claims:
-            if res := self._container.get(res_type).unwrap_or_none():
-                self._module.add_resource(res_type, res)
+            if res := self._container.get(res_type):
+                self._module.add_resource(res_type, res.unwrap())
 
         for res_type in self._module.conf.operators:
             for op in self._operators[res_type]:
@@ -470,8 +470,8 @@ class SyncModuleComponent(SyncComponent):
             return res
 
         for prov_type in self._module.conf.providers:
-            if prov := self._module.get_provider(prov_type).unwrap_or_none():
-                self._providers.add(prov_type, prov)
+            if prov := self._module.get_provider(prov_type):
+                self._providers.add(prov_type, prov.unwrap())
 
         return Ok()
 
