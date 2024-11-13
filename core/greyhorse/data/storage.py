@@ -2,10 +2,11 @@ from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Mapping
 from typing import override
 
+from greyhorse.app.abc.collectors import MutCollector
+from greyhorse.app.abc.selectors import ListSelector, Selector
 from greyhorse.app.contexts import Context
 from greyhorse.app.registries import MutDictRegistry
 from greyhorse.maybe import Maybe
-from greyhorse.utils.types import TypeWrapper
 
 
 class Engine(ABC):
@@ -30,12 +31,19 @@ class Engine(ABC):
     def stop(self) -> Awaitable[None] | None: ...
 
 
-class EngineReader[T: Engine](TypeWrapper[T], ABC):
-    @abstractmethod
-    def get_engine(self, name: str) -> Maybe[T]: ...
+class EngineCollector[E: Engine](MutCollector[str, E], ABC):
+    pass
 
 
-class EngineFactory[T: Engine](EngineReader[T], ABC):
+class EngineSelector[E: Engine](Selector[str, E], ABC):
+    pass
+
+
+class EngineListSelector[E: Engine](ListSelector[str, E], ABC):
+    pass
+
+
+class EngineFactory[T: Engine](ABC):
     @abstractmethod
     def create_engine[T](self, name: str, config: T) -> Engine: ...
 
@@ -44,6 +52,9 @@ class EngineFactory[T: Engine](EngineReader[T], ABC):
 
     @abstractmethod
     def get_engine_names(self) -> list[str]: ...
+
+    @abstractmethod
+    def get_engine(self, name: str) -> Maybe[T]: ...
 
     @abstractmethod
     def get_engines(self, names: list[str] | None = None) -> Mapping[str, Engine]: ...
@@ -59,7 +70,7 @@ class SimpleEngineFactory[T: Engine](EngineFactory[T], ABC):
 
     @override
     def get_engine_names(self) -> list[str]:
-        return [k for k, _ in self._engines.items()]
+        return [k for k, _ in self._engines.list()]
 
     @override
     def get_engine(self, name: str) -> Maybe[T]:
