@@ -161,28 +161,34 @@ root: Container = None  # type: ignore
 
 
 def make_container(
-    resources: dict[type, Any] | None = None, lifetime: Lifetime | None = None
+    resources: dict[type, Any] | None = None, lifetime: Lifetime | None = None,
+    parent: Container | None = None,
 ) -> Container:
     from ..runtime import Runtime
 
     global root  # noqa: PLW0602
 
     runtime = Runtime._instance  # noqa: SLF001
+
     start_order = 0
-    if root is not None:
-        start_order = 1
-    if runtime is not None:
-        start_order = 2
+
+    if parent is not None:
+        start_order = parent.lifetime.order + 1
+    else:
+        if runtime is not None:
+            start_order = 2
+        elif root is not None:
+            start_order = 1
 
     registries = [FactoryRegistry(s) for s in Lifetime.all() if s.order >= start_order]
-    container = None
 
-    if root is not None:
-        container = root
-    if runtime is not None:
-        container = Container(runtime.container.registry, parent=container, resources=resources)
+    if parent is None:
+        if root is not None:
+            parent = root
+        if runtime is not None:
+            parent = Container(runtime.container.registry, parent=parent, resources=resources)
 
-    container = Container(*registries, parent=container, resources=resources)
+    container = Container(*registries, parent=parent, resources=resources)
 
     if lifetime is None:
         while container.registry.lifetime.autocreate:
