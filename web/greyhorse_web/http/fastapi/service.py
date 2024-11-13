@@ -1,16 +1,17 @@
 from functools import partial
 from typing import override
 
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from greyhorse.app.abc.providers import SharedProvider
 from greyhorse.app.abc.resources import Lifetime
 from greyhorse.app.abc.services import ServiceError, ServiceState
-from greyhorse.app.boxes import SharedRefBox
 from greyhorse.app.entities.services import AsyncService, provide
+from greyhorse.app.registries import MutDictRegistry
 from greyhorse.result import Result
 
 from greyhorse_web.common import ASGIApp
 
+from . import FastAPIRouterCollector
 from .factory import create_fastapi
 
 
@@ -26,7 +27,7 @@ class FastAPIService(AsyncService):
         super().__init__()
         self._factory = partial(create_fastapi, title, debug, root_path, version, cors)
         self._app: FastAPI | None = None
-        self._app_box = SharedRefBox[FastAPI](lambda: self._app, lambda v: v)
+        self._handlers = MutDictRegistry[str, APIRouter](allow_many=True)
 
     @override
     async def setup(self) -> Result[ServiceState, ServiceError]:
@@ -38,9 +39,17 @@ class FastAPIService(AsyncService):
         self._app = None
         return await super().teardown()
 
+    async def start(self) -> None:
+        for path, handler, kwargs in self._handlers.list_with_metadata():
+            self._app.include_router(handler, prefix=path, **kwargs)
+        await self._switch_to_active(True)
+
+    async def stop(self) -> None:
+        await self._switch_to_active(False)
+
     @provide(lifetime=Lifetime.COMPONENT())
-    def create_fastapi(self) -> SharedProvider[FastAPI]:
-        return self._app_box
+    def create_collector_provider(self) -> SharedProvider[FastAPIRouterCollector]:
+        yield self._handlers
 
     @provide(lifetime=Lifetime.COMPONENT())
     def create_asgi(self) -> ASGIApp:
