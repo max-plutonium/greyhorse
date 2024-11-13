@@ -41,6 +41,9 @@ fastapi = [
 betterproto = [
     "betterproto>=2.0.0b7",
 ]
+strawberry = [
+    "strawberry-graphql>=0.248.1",
+]
 
 [project.urls]
 Homepage = "https://gitlab.com/max-plutonium/greyhorse"
