@@ -23,6 +23,7 @@ from sqlalchemy.exc import NoInspectionAvailable
 from sqlalchemy.orm.base import instance_state
 
 from greyhorse_sqla.contexts import SyncSession
+from greyhorse_sqla.query import SqlaQuery
 
 
 class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, ID]):
@@ -44,6 +45,11 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
 
     def construct(self, data: Mapping[str, Any]) -> Result[E, EntityError]:
         return Ok(self._entity_class(**data))
+
+    @override
+    @property
+    def query_class(self) -> type[Query]:
+        return SqlaQuery
 
     #
     # Retrieve operations

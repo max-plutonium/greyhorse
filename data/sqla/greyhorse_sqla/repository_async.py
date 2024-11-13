@@ -23,6 +23,7 @@ from sqlalchemy.exc import NoInspectionAvailable
 from sqlalchemy.orm.base import instance_state
 
 from greyhorse_sqla.contexts import AsyncSession
+from greyhorse_sqla.query import SqlaQuery
 
 
 class AsyncSqlaRepository[E, ID](AsyncMutRepository[E, ID], AsyncMutFilterable[E, ID]):
@@ -44,6 +45,11 @@ class AsyncSqlaRepository[E, ID](AsyncMutRepository[E, ID], AsyncMutFilterable[E
 
     async def construct(self, data: Mapping[str, Any]) -> Result[E, EntityError]:
         return Ok(self._entity_class(**data))
+
+    @override
+    @property
+    def query_class(self) -> type[Query]:
+        return SqlaQuery
 
     #
     # Retrieve operations

@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Any, Self, override
+from typing import Any, override
 
 from greyhorse.data.query import Query
 from sqlalchemy import (
@@ -17,13 +17,11 @@ from sqlalchemy import (
 class SqlaQuery(Query):
     def __init__(
         self,
-        filter_exprs: Iterable[SQLColumnExpression | TextClause],
+        filter_exprs: Iterable[SQLColumnExpression | TextClause] | None = None,
         sorting_exprs: list[UnaryExpression] | None = None,
         **filter_params: dict[str, Any],
     ) -> None:
-        self._filter_exprs = filter_exprs
-        self._filter_params = filter_params
-        self._sorting_exprs = sorting_exprs or []
+        super().__init__(filter_exprs, sorting_exprs, **filter_params)
 
     @override
     def apply_filter[F](
@@ -40,14 +38,6 @@ class SqlaQuery(Query):
         for item in self._sorting_exprs:
             sorting = sorting.order_by(item)
         return sorting
-
-    @override
-    def __eq__(self, other: Self) -> bool:
-        return (self._filter_exprs, self._filter_params, self._sorting_exprs) == (
-            other._filter_exprs,
-            other._filter_params,
-            other._sorting_exprs,
-        )
 
 
 def clause2string(clause: ClauseElement, params: dict[str, Any] | None = None) -> str:
