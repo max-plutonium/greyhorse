@@ -161,7 +161,8 @@ root: Container = None  # type: ignore
 
 
 def make_container(
-    resources: dict[type, Any] | None = None, lifetime: Lifetime | None = None,
+    resources: dict[type, Any] | None = None,
+    lifetime: Lifetime | None = None,
     parent: Container | None = None,
 ) -> Container:
     from ..runtime import Runtime
@@ -174,11 +175,10 @@ def make_container(
 
     if parent is not None:
         start_order = parent.lifetime.order + 1
-    else:
-        if runtime is not None:
-            start_order = 2
-        elif root is not None:
-            start_order = 1
+    elif runtime is not None:
+        start_order = 2
+    elif root is not None:
+        start_order = 1
 
     registries = [FactoryRegistry(s) for s in Lifetime.all() if s.order >= start_order]
 
