@@ -19,7 +19,7 @@ class Selector[K, T](TypeWrapper[K, T], ABC):
 
 class ListSelector[K, T](Selector[K, T], ABC):
     @abstractmethod
-    def list(self, key: K | None = None) -> Iterable[tuple[K, T]]: ...
+    def list(self, key: K | None = None) -> Iterable[tuple[K, T] | T]: ...
 
     @abstractmethod
     def list_with_metadata(

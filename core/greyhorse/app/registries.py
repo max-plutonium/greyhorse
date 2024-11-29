@@ -49,7 +49,7 @@ class DictRegistry[K, T](Collector[K, T], ListSelector[K, T]):
         return Just(item)
 
     @override
-    def list(self, key: K | None = None) -> Iterable[tuple[K, T]]:
+    def list(self, key: K | None = None) -> Iterable[tuple[K, T] | T]:
         if key is None:
             for k, v in self._storage.items():
                 for item in v.values():
@@ -142,7 +142,7 @@ class ScopedDictRegistry[K, T](Collector[K, T], ListSelector[K, T]):
         return registry.get_with_metadata(key)
 
     @override
-    def list(self, key: K | None = None) -> Iterable[tuple[K, T]]:
+    def list(self, key: K | None = None) -> Iterable[tuple[K, T] | T]:
         registry = self._get_registry()
         return registry.list(key)
 
@@ -201,7 +201,7 @@ class ScopedMutDictRegistry[K, T](MutCollector[K, T], ListSelector[K, T]):
         return registry.get_with_metadata(key)
 
     @override
-    def list(self, key: K | None = None) -> Iterable[tuple[K, T]]:
+    def list(self, key: K | None = None) -> Iterable[tuple[K, T] | T]:
         registry = self._get_registry()
         return registry.list(key)
 

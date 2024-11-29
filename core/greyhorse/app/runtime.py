@@ -67,7 +67,8 @@ class Runtime:
         if self._counter == 1:
             self._loop.call_soon_threadsafe(self._loop.stop)
             self._thread.join()
-            self._loop.close()
+            if not self._loop.is_closed():
+                self._loop.close()
 
         self._counter = max(self._counter - 1, 0)
 

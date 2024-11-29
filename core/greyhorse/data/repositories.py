@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Awaitable, Iterable, Mapping
+from collections.abc import AsyncIterable, Awaitable, Iterable, Mapping
 from typing import Any, Protocol
 
 from greyhorse.data.query import Query
@@ -195,7 +195,7 @@ class AsyncFilterable[E, ID](ABC):
     @abstractmethod
     async def list(
         self, query: Query | None = None, skip: int = 0, limit: int = 0
-    ) -> Iterable[E]: ...
+    ) -> AsyncIterable[E]: ...
 
     @abstractmethod
     async def sublist(
