@@ -10,7 +10,7 @@ MigratorFactory = Callable[..., MigrationOperator]
 
 
 class MigrationService(SyncService):
-    __slots__ = ('_name', '_factory', '_metadata_package', '_metadata_name')
+    __slots__ = ('_factory', '_metadata_name', '_metadata_package', '_name')
 
     def __init__(
         self,

@@ -1,9 +1,21 @@
 from typing import Literal
 
 from alembic.autogenerate.api import AutogenContext
-from sqlalchemy import ARRAY, VARBINARY, BindParameter, Enum, False_, True_
+from sqlalchemy import (
+    ARRAY,
+    BLOB,
+    VARBINARY,
+    BindParameter,
+    Enum,
+    False_,
+    Interval,
+    LargeBinary,
+    True_,
+    TypeDecorator,
+)
 from sqlalchemy.dialects.postgresql import INET, JSONB
 from sqlalchemy.sql.functions import Function
+from sqlalchemy_utils import LtreeType
 
 
 def render_item(
@@ -37,9 +49,30 @@ def render_item(
                     f'su.ScalarListType({obj.item_type.python_type.__name__}), '
                     f"'sqlite')"
                 )
+            if isinstance(obj, LargeBinary | BLOB | VARBINARY):
+                autogen_context.imports.add('import sqlalchemy.dialects.postgresql as pg')
+                return f"{sa_prefix}{obj!r}.with_variant(pg.BYTEA, 'postgresql')"
+            if isinstance(obj, Enum) and not hasattr(obj, 'create_type'):
+                return f'{sa_prefix}{obj!r}'.replace(', metadata=MetaData()', '')
+            if isinstance(obj, Interval):
+                return f'{sa_prefix}{obj!r}'
+
+            if obj.__class__.__module__.startswith('sqlalchemy_utils'):
+                if isinstance(obj, LtreeType):
+                    autogen_context.imports.add('import sqlalchemy_utils as su')
+                    return 'su.LtreeType()'
+                if isinstance(obj.impl, VARBINARY):
+                    autogen_context.imports.add('import sqlalchemy.dialects.postgresql as pg')
+                    return f"{sa_prefix}{obj.impl!r}.with_variant(pg.BYTEA, 'postgresql')"
+                return f'{sa_prefix}{obj.impl!r}'
+
+            if isinstance(obj, TypeDecorator):
+                obj = obj.load_dialect_impl(autogen_context.dialect)
+
             if obj.__class__.__module__.startswith('sqlalchemy.dialects.sqlite'):
                 autogen_context.imports.add('import sqlalchemy.dialects.sqlite as sq')
                 return f'sq.{obj.compile(autogen_context.dialect)}'
+
             if obj.__class__.__module__.startswith('sqlalchemy.dialects.postgresql'):
                 autogen_context.imports.add('import sqlalchemy.dialects.postgresql as pg')
                 if isinstance(obj, JSONB):
@@ -51,16 +84,12 @@ def render_item(
                 if isinstance(obj, INET):
                     return f"pg.{obj!r}.with_variant({sa_prefix}String, 'sqlite', 'mysql')"
                 return f'pg.{obj!r}'
+
             if obj.__class__.__module__.startswith('sqlalchemy.dialects.mysql'):
                 autogen_context.imports.add('import sqlalchemy.dialects.mysql as my')
                 return f'my.{obj.compile(autogen_context.dialect)}'
-            if obj.__class__.__module__.startswith('sqlalchemy_utils'):
-                if isinstance(obj.impl, VARBINARY):
-                    autogen_context.imports.add('import sqlalchemy.dialects.postgresql as pg')
-                    return f"{sa_prefix}{obj.impl!r}.with_variant(pg.BYTEA, 'postgresql')"
-                return f'{sa_prefix}{obj.impl!r}'
-            if isinstance(obj, Enum):
-                return f'{sa_prefix}{obj!r}'.replace(', metadata=MetaData()', '')
+
+            return f'{sa_prefix}{obj!r}'
 
     # default rendering for other objects
     return False
