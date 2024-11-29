@@ -1,4 +1,4 @@
-from collections.abc import Iterable, Mapping
+from collections.abc import AsyncIterable, Iterable, Mapping
 from typing import Any, cast, override
 
 from greyhorse.app.contexts import AsyncMutContext
@@ -95,24 +95,23 @@ class AsyncSqlaRepository[E, ID](AsyncMutRepository[E, ID], AsyncMutFilterable[E
     @override
     async def list(
         self, query: Query | None = None, skip: int = 0, limit: int = 0
-    ) -> Iterable[E]:
+    ) -> AsyncIterable[E]:
         query = self.query_list(query, skip, limit)
 
         async with self._mut_ctx as session:
-            res = await session.scalars(query)
-            return res.all()
+            for item in await session.scalars(query):
+                yield item
 
     @override
     async def sublist(
         self,
-        field: str,
+        field: object,
         query: Query | None = None,
         skip: int = 0,
         limit: int = 0,
         **kwargs: dict[str, Any],
     ) -> Iterable[E]:
-        field_attr = getattr(self._entity_class, field)
-        sqla_query = field_attr.select().offset(skip if skip >= 0 else 0)
+        sqla_query = field.select().offset(skip if skip >= 0 else 0)
         if limit > 0:
             sqla_query = sqla_query.limit(limit)
 
@@ -126,8 +125,8 @@ class AsyncSqlaRepository[E, ID](AsyncMutRepository[E, ID], AsyncMutFilterable[E
             sqla_query = sqla_query.execution_options(**execution_options)
 
         async with self._mut_ctx as session:
-            res = await session.scalars(sqla_query)
-            return res.all()
+            for item in await session.scalars(sqla_query):
+                yield item
 
     @override
     async def count(self, query: Query | None = None) -> int:

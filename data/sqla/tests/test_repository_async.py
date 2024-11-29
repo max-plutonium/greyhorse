@@ -243,52 +243,52 @@ async def test_list(session_ctx: SqlaAsyncSessionCtx) -> None:
     obj2 = (await repo.create(dict(data='2'))).unwrap()
     obj3 = (await repo.create(dict(data='3'))).unwrap()
 
-    objects = list(await repo.list())
+    objects = [obj async for obj in repo.list()]
     assert len(objects) == 3
     assert objects[0] == obj1
     assert objects[1] == obj2
     assert objects[2] == obj3
 
-    objects = list(await repo.list(skip=1))
+    objects = [obj async for obj in repo.list(skip=1)]
     assert len(objects) == 2
     assert objects[0] == obj2
     assert objects[1] == obj3
 
-    objects = list(await repo.list(skip=2))
+    objects = [obj async for obj in repo.list(skip=2)]
     assert len(objects) == 1
     assert objects[0] == obj3
 
-    objects = list(await repo.list(skip=3))
+    objects = [obj async for obj in repo.list(skip=3)]
     assert len(objects) == 0
 
-    objects = list(await repo.list(limit=1))
+    objects = [obj async for obj in repo.list(limit=1)]
     assert len(objects) == 1
     assert objects[0] == obj1
 
-    objects = list(await repo.list(limit=2))
+    objects = [obj async for obj in repo.list(limit=2)]
     assert len(objects) == 2
     assert objects[0] == obj1
     assert objects[1] == obj2
 
-    objects = list(await repo.list(limit=3))
+    objects = [obj async for obj in repo.list(limit=3)]
     assert len(objects) == 3
     assert objects[0] == obj1
     assert objects[1] == obj2
     assert objects[2] == obj3
 
-    objects = list(await repo.list(skip=1, limit=3))
+    objects = [obj async for obj in repo.list(skip=1, limit=3)]
     assert len(objects) == 2
     assert objects[0] == obj2
     assert objects[1] == obj3
 
-    objects = list(await repo.list(skip=2, limit=1))
+    objects = [obj async for obj in repo.list(skip=2, limit=1)]
     assert len(objects) == 1
     assert objects[0] == obj3
 
-    objects = list(await repo.list(skip=3, limit=3))
+    objects = [obj async for obj in repo.list(skip=3, limit=3)]
     assert len(objects) == 0
 
-    objects = list(await repo.list(skip=2, limit=0))
+    objects = [obj async for obj in repo.list(skip=2, limit=0)]
     assert len(objects) == 1
     assert objects[0] == obj3
 
@@ -300,38 +300,44 @@ async def test_list_filters(session_ctx: SqlaAsyncSessionCtx) -> None:
     obj2 = (await repo.create(dict(data='2'))).unwrap()
     obj3 = (await repo.create(dict(data='3'))).unwrap()
 
-    objects = list(await repo.list())
+    objects = [obj async for obj in repo.list()]
     assert len(objects) == 3
     assert objects[0] == obj1
     assert objects[1] == obj2
     assert objects[2] == obj3
 
-    objects = list(await repo.list(Q([])))
+    objects = [obj async for obj in repo.list()]
     assert len(objects) == 3
     assert objects[0] == obj1
     assert objects[1] == obj2
     assert objects[2] == obj3
 
-    objects = list(await repo.list(Q([TestModel.data == '-1'])))
+    objects = [obj async for obj in repo.list(Q([TestModel.data == '-1']))]
     assert len(objects) == 0
 
-    objects = list(await repo.list(Q([TestModel.data == '1'])))
+    objects = [obj async for obj in repo.list(Q([TestModel.data == '1']))]
     assert len(objects) == 1
     assert objects[0] == obj1
 
-    objects = list(await repo.list(Q([TestModel.data == '1', TestModel.data == '2'])))
+    objects = [
+        obj async for obj in repo.list(Q([TestModel.data == '1', TestModel.data == '2']))
+    ]
     assert len(objects) == 0
 
-    objects = list(await repo.list(Q([(TestModel.data == '1') | (TestModel.data == '2')])))
+    objects = [
+        obj async for obj in repo.list(Q([(TestModel.data == '1') | (TestModel.data == '2')]))
+    ]
     assert len(objects) == 2
     assert objects[0] == obj1
     assert objects[1] == obj2
 
-    objects = list(await repo.list(Q([(TestModel.data == '1') & (TestModel.id == obj1.id)])))
+    objects = [
+        obj async for obj in repo.list(Q([(TestModel.data == '1') & (TestModel.id == obj1.id)]))
+    ]
     assert len(objects) == 1
     assert objects[0] == obj1
 
-    objects = list(await repo.list(Q([text('data > :data')], data='1')))
+    objects = [obj async for obj in repo.list(Q([text('data > :data')], data='1'))]
     assert len(objects) == 2
     assert objects[0] == obj2
     assert objects[1] == obj3

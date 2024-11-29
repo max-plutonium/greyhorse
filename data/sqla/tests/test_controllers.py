@@ -36,8 +36,8 @@ def test_sync_ctrl(param) -> None:  # noqa: ANN001
     svc = SyncSqlaService(configs)
     ctrl = SyncSqlaController('test')
 
-    engine_reader = svc.create_engine_reader()
-    ctrl.create_engine_operator().accept(engine_reader.borrow().unwrap())
+    engine_selector = svc.create_engine_selector()
+    ctrl.create_engine_operator().accept(engine_selector.borrow().unwrap())
 
     assert svc.setup().unwrap()
     assert ctrl.setup(container).unwrap()
@@ -84,8 +84,8 @@ async def test_async_ctrl(param) -> None:  # noqa: ANN001
     svc = AsyncSqlaService(configs)
     ctrl = AsyncSqlaController('test')
 
-    engine_reader = svc.create_engine_reader()
-    ctrl.create_engine_operator().accept(engine_reader.borrow().unwrap())
+    engine_selector = svc.create_engine_selector()
+    ctrl.create_engine_operator().accept(engine_selector.borrow().unwrap())
 
     assert (await svc.setup()).unwrap()
     assert (await ctrl.setup(container)).unwrap()

@@ -97,20 +97,18 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
         query = self.query_list(query, skip, limit)
 
         with self._mut_ctx as session:
-            res = session.scalars(query)
-            return res.all()
+            yield from session.scalars(query)
 
     @override
     def sublist(
         self,
-        field: str,
+        field: object,
         query: Query | None = None,
         skip: int = 0,
         limit: int = 0,
         **kwargs: dict[str, Any],
     ) -> Iterable[E]:
-        field_attr = getattr(self._entity_class, field)
-        sqla_query = field_attr.select().offset(skip if skip >= 0 else 0)
+        sqla_query = field.select().offset(skip if skip >= 0 else 0)
         if limit > 0:
             sqla_query = sqla_query.limit(limit)
 
@@ -124,8 +122,7 @@ class SyncSqlaRepository[E, ID](SyncMutRepository[E, ID], SyncMutFilterable[E, I
             sqla_query = sqla_query.execution_options(**execution_options)
 
         with self._mut_ctx as session:
-            res = session.scalars(sqla_query)
-            return res.all()
+            yield from session.scalars(sqla_query)
 
     @override
     def count(self, query: Query | None = None) -> int:
