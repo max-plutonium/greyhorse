@@ -24,25 +24,25 @@ classifiers = [
 ]
 
 dependencies = [
-    "greyhorse~=0.4.23",
+    "greyhorse~=0.4.25",
     "python-multipart>=0.0.12",
 ]
 
 [project.optional-dependencies]
 uvicorn = [
-    "uvicorn[standard]>=0.31.1",
+    "uvicorn[standard]~=0.31.1",
 ]
 hypercorn = [
-    "hypercorn[uvloop]>=0.17.3",
+    "hypercorn[uvloop]~=0.17.3",
 ]
 fastapi = [
-    "fastapi[standard]>=0.115.0",
+    "fastapi[standard]~=0.115.0",
 ]
 betterproto = [
-    "betterproto>=2.0.0b7",
+    "betterproto~=2.0.0b7",
 ]
 strawberry = [
-    "strawberry-graphql>=0.248.1",
+    "strawberry-graphql~=0.248.1",
 ]
 
 [project.urls]

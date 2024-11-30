@@ -24,8 +24,8 @@ classifiers = [
 ]
 
 dependencies = [
-    "asyncssh>=2.17.0",
-    "greyhorse>=0.4.16",
+    "asyncssh~=2.18.0",
+    "greyhorse~=0.4.25",
 ]
 
 [project.urls]

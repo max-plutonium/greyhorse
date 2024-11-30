@@ -23,12 +23,12 @@ classifiers = [
 ]
 
 dependencies = [
-    "networkx>=3.3",
-    "orjson>=3.10.7",
-    "pydantic[email]>=2.9.2",
-    "pytz>=2024.2",
-    "timeparse-plus>=1.2.0",
-    "tomlkit>=0.13.2",
+    "networkx~=3.4.2",
+    "orjson~=3.10.11",
+    "pydantic[email]~=2.9.2",
+    "pytz~=2024.2",
+    "timeparse-plus~=1.2.0",
+    "tomlkit~=0.13.2",
 ]
 
 [project.urls]
