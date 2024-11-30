@@ -70,44 +70,27 @@ class NeedFieldData:
 
 
 class RelayCursorInfo(BaseModel, frozen=True):
-    first: int | None = Field(gt=0, le=MAX_LIMIT_VALUE, default=None)
-    last: int | None = Field(gt=0, le=MAX_LIMIT_VALUE, default=None)
+    count: int | None = Field(gt=0, le=MAX_LIMIT_VALUE, default=DEFAULT_LIMIT_VALUE)
     after: bytes | None = None
     before: bytes | None = None
 
     @model_validator(mode='before')
     @classmethod
     def check(cls, values: dict[str, Any]) -> dict[str, Any]:
-        if 'first' in values and 'last' in values:
-            raise ValueError('You can specify only "first" or "last"')
         if 'after' in values and 'before' in values:
             raise ValueError('You can specify only "after" or "before"')
-        if 'last' in values and 'after' in values:
-            raise ValueError('You can specify "after" with only "first"')
-        if 'first' in values and 'before' in values:
-            raise ValueError('You can specify "before" with only "last"')
-        if 'first' not in values and 'last' not in values:
-            if 'first' not in values and 'after' in values:
-                values['first'] = DEFAULT_LIMIT_VALUE
-            elif 'last' not in values and 'before' in values:
-                values['last'] = DEFAULT_LIMIT_VALUE
-            else:
-                values['first'] = DEFAULT_LIMIT_VALUE
         return values
 
     @classmethod
     def get(
         cls,
-        first: int | None = None,
-        last: int | None = None,
+        count: int | None = None,
         after: Encoded | None = None,
         before: Encoded | None = None,
     ) -> 'RelayCursorInfo':
-        data = dict()
-        if first is not None:
-            data['first'] = first
-        if last is not None:
-            data['last'] = last
+        data = {}
+        if count is not None:
+            data['count'] = count
         if after is not None:
             data['after'] = after
         if before is not None:
@@ -192,12 +175,13 @@ class AsyncPaginator[E, ID]:
         self,
         info: Info[Context],
         query: Query,
-        first: int | None = None,
-        last: int | None = None,
+        count: int | None = None,
         after: Encoded | None = None,
         before: Encoded | None = None,
+        field: object | None = None,
+        **query_options: dict[str, Any],
     ) -> Connection:
-        cur_info = RelayCursorInfo.get(first, last, after, before)
+        cur_info = RelayCursorInfo.get(count, after, before)
         after_id = cur_info.decoded_after(as_=self._str_to_id)
         before_id = cur_info.decoded_before(as_=self._str_to_id)
 
@@ -211,8 +195,15 @@ class AsyncPaginator[E, ID]:
         else:
             list_query = query.clone()
 
-        count = cur_info.first or cur_info.last or DEFAULT_LIMIT_VALUE
-        objects = list(await self._repo.list(list_query, limit=count))
+        if field is None:
+            objects = [obj async for obj in self._repo.list(list_query, limit=cur_info.count)]
+        else:
+            objects = [
+                obj
+                async for obj in self._repo.sublist(
+                    field, list_query, limit=cur_info.count, **query_options
+                )
+            ]
 
         has_prev = has_next = False
         count_prev = 0
@@ -250,9 +241,9 @@ class AsyncPaginator[E, ID]:
                 has_prev=has_prev,
                 count=len(edges),
                 total=total,
-                page=math.ceil(count_prev / count) + 1,
-                page_size=count,
-                total_pages=math.ceil(total / count),
+                page=math.ceil(count_prev / cur_info.count) + 1,
+                page_size=cur_info.count,
+                total_pages=math.ceil(total / cur_info.count),
                 start_cursor=edges[0].cursor if edges else None,
                 end_cursor=edges[-1].cursor if edges else None,
             ),
