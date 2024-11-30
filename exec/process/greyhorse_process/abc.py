@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import AsyncGenerator, Callable, Generator
 from contextlib import (
     AbstractAsyncContextManager,
     AbstractContextManager,
@@ -89,11 +89,11 @@ class AsyncSession(ABC):
 
 class SyncConnection(ABC):
     @abstractmethod
-    @asynccontextmanager
-    def session(self) -> Callable[[], AbstractContextManager[SyncSession]]: ...
+    def session(self) -> Generator[AbstractContextManager[SyncSession], None, None]: ...
 
 
 class AsyncConnection(ABC):
     @abstractmethod
-    @asynccontextmanager
-    async def session(self) -> Callable[[], AbstractAsyncContextManager[AsyncSession]]: ...
+    async def session(
+        self,
+    ) -> AsyncGenerator[AbstractAsyncContextManager[AsyncSession], None]: ...

@@ -24,17 +24,23 @@ class AsyncLocalSession(AsyncSession):
         as_bytes: bool = False,
         input: str | bytes | None = None,
     ) -> Callable[..., AbstractAsyncContextManager[AsyncProcessAdapter]]:
-        entrypoint = (
-            asyncio.create_subprocess_shell if shell else asyncio.create_subprocess_exec
-        )
+        command = shlex.split(command, comments=True)
+
+        if shell:
+            entrypoint = asyncio.create_subprocess_shell
+        else:
+            entrypoint = asyncio.create_subprocess_exec
 
         if sudo:
             if self._sudo_password is None:
                 logger.warning('Sudo used without the password')
-            command = f'sudo -S {shlex.quote(command)}'
+            command = ['sudo', '-S', *command]
+
+        if shell:
+            command = [' '.join(command)]
 
         process = await entrypoint(
-            command,
+            *command,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,

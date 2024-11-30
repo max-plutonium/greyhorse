@@ -39,15 +39,16 @@ class AsyncSshSession(AsyncSession):
     ) -> Callable[..., AbstractAsyncContextManager[AsyncProcessAdapter]]:
         use_terminal = False
         input = input.encode('utf-8') if isinstance(input, str) else input
+        command = shlex.split(command, comments=True)
 
         if sudo:
             if self._sudo_password is None:
                 logger.warning('Sudo used without the password')
             use_terminal = True
-            command = f'sudo -S {shlex.quote(command)}'
+            command = ['sudo', '-S', *command]
 
         async with self._connection.create_process(
-            command, encoding=None, input=input, term_type='term' if use_terminal else None
+            *command, encoding=None, input=input, term_type='term' if use_terminal else None
         ) as process:
             proc = AsyncProcessAdapter(process, encoding=None if as_bytes else 'utf-8')
             if sudo and self._sudo_password:
