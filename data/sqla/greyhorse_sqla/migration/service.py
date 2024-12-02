@@ -1,8 +1,11 @@
+import os
+import sys
 from collections.abc import Callable
 from functools import partial
 from pathlib import Path
 
 from greyhorse.app.entities.services import SyncService
+from greyhorse.utils.imports import get_relative_path
 
 from .operator import MigrationOperator
 
@@ -17,6 +20,7 @@ class MigrationService(SyncService):
         name: str,
         alembic_path: Path,
         metadata_package: str,
+        init_path: list[str],
         metadata_name: str = 'metadata',
         dsn: str | None = None,
         factory: MigratorFactory | None = None,
@@ -25,7 +29,14 @@ class MigrationService(SyncService):
         if dsn is None and factory is None:
             raise ValueError('MigrationService: dsn or factory must be not None')
         self._name = name
-        self._metadata_package = metadata_package
+
+        alembic_path = Path(alembic_path)
+
+        if not alembic_path.is_absolute():
+            init_file_path = Path(sys.modules.get('.'.join(init_path)).__file__)
+            alembic_path = Path(os.path.normpath(init_file_path.parent / alembic_path))
+
+        self._metadata_package = get_relative_path(init_path, metadata_package)
         self._metadata_name = metadata_name
 
         args = {'alembic_path': alembic_path}

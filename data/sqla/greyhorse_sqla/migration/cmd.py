@@ -37,7 +37,7 @@ def new(
     ctx: typer.Context,
     name: str,
     only: Annotated[
-        list[str] | None, typer.Argument(help='Perform operation on this service path')
+        list[str] | None, typer.Option(help='Perform operation on this service path')
     ] = None,
 ) -> None:
     """
@@ -54,7 +54,7 @@ def up(
     ctx: typer.Context,
     offline: Annotated[bool, typer.Option(is_flag=True, help='Only sql output')] = False,
     only: Annotated[
-        list[str] | None, typer.Argument(help='Perform operation on this service path')
+        list[str] | None, typer.Option(help='Perform operation on this service path')
     ] = None,
 ) -> None:
     """
@@ -71,7 +71,7 @@ def down(
     ctx: typer.Context,
     offline: Annotated[bool, typer.Option(is_flag=True, help='Only sql output')] = False,
     only: Annotated[
-        list[str] | None, typer.Argument(help='Perform operation on this service path')
+        list[str] | None, typer.Option(help='Perform operation on this service path')
     ] = None,
 ) -> None:
     """
