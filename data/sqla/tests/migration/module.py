@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from greyhorse.app.schemas.components import ComponentConf, ModuleConf
 from greyhorse.app.schemas.elements import SvcConf
 from greyhorse_sqla.migration.service import MigrationService
@@ -17,8 +15,8 @@ def __init__(dsn: str) -> ModuleConf:  # noqa: N807
                         name='migration',
                         args={
                             'dsn': dsn,
-                            'alembic_path': Path('tests/migration/alembic'),
-                            'metadata_package': 'tests.migration.tables',
+                            'alembic_path': './alembic',
+                            'metadata_package': '..tables',
                             'metadata_name': 'metadata',
                         },
                     )
