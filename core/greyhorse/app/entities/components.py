@@ -41,7 +41,6 @@ class SyncComponent(Component):
 
         self._resources = MutDictRegistry[type, Any]()
         self._container: Container | None = None
-        self._providers = MutDictRegistry[type[Provider], Provider]()
         self._operators: dict[type, list[Operator]] = defaultdict(list)
 
     @override
@@ -134,7 +133,7 @@ class SyncComponent(Component):
         self._rm.install_container(self._container)
 
         if not (
-            res := self._rm.setup(self._providers).map_err(
+            res := self._rm.setup().map_err(
                 lambda e: ComponentError.Resource(
                     path=self._path, name=self.name, details=e.message
                 )
@@ -479,14 +478,14 @@ class SyncModuleComponent(SyncComponent):
 
         for prov_type in self._module.conf.providers:
             if prov := self._module.get_provider(prov_type):
-                self._providers.add(prov_type, prov.unwrap())
+                self._container.registry.add_factory(prov_type, prov.unwrap())
 
         return Ok()
 
     @override
     def teardown(self) -> Result[None, ComponentError]:
         for prov_type in reversed(self._module.conf.providers):
-            self._providers.remove(prov_type)
+            self._container.registry.remove_factory(prov_type)
 
         if not (
             res := self._module.teardown().map_err(

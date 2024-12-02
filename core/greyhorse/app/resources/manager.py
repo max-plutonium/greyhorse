@@ -85,9 +85,7 @@ class ResourceManager:
         self._controllers.remove(controller)
         return True
 
-    def setup(
-        self, providers: Selector[type[Provider], Provider] | None = None
-    ) -> Result[None, ResourceError]:
+    def setup(self) -> Result[None, ResourceError]:
         operators = []
 
         for ctrl_dict in self._operator_map.values():
@@ -104,7 +102,7 @@ class ResourceManager:
                         continue
 
         for op in operators:
-            if not self.setup_operator(op, providers=providers):
+            if not self.setup_operator(op):
                 self._public_operators.append(op)
 
         return Ok()
