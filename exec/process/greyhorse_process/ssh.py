@@ -47,6 +47,9 @@ class AsyncSshSession(AsyncSession):
             use_terminal = True
             command = ['sudo', '-S', *command]
 
+        if shell:
+            command = [' '.join(command)]
+
         async with self._connection.create_process(
             *command, encoding=None, input=input, term_type='term' if use_terminal else None
         ) as process:
