@@ -8,7 +8,7 @@ import pydantic
 from greyhorse.error import Error, ErrorCase
 from greyhorse.logging import logger
 from greyhorse.result import Ok, Result
-from greyhorse.utils.imports import import_path
+from greyhorse.utils.imports import get_relative_path, import_path
 from greyhorse.utils.injectors import ParamsInjector
 from greyhorse.utils.invoke import invoke_sync
 
@@ -76,28 +76,8 @@ class ModuleLoader:
 
         return self._unload_module(conf)
 
-    @staticmethod
-    def _get_module_package(conf: ModuleComponentConf) -> str:
-        if not conf.path.startswith('.'):
-            return conf.path
-
-        path = conf.path
-        dots_count = 0
-
-        for c in path[1:]:
-            if c == '.':
-                dots_count += 1
-            else:
-                path = path[dots_count + 1 :]
-                break
-
-        init_path = conf._init_path  # noqa: SLF001
-        dots_count = min(dots_count, len(init_path))
-        init_path = init_path[0 : len(init_path) - dots_count]
-        return '.'.join([*init_path, path])
-
     def _load_module(self, conf: ModuleComponentConf) -> Result[ModuleConf, ModuleLoadError]:
-        module_path = self._get_module_package(conf)
+        module_path = get_relative_path(conf._init_path, conf.path)  # noqa: SLF001
         logger.info('ModuleLoader: Try to load module "{path}"'.format(path=module_path))
 
         try:
@@ -135,7 +115,7 @@ class ModuleLoader:
         return Ok(res)
 
     def _unload_module(self, conf: ModuleComponentConf) -> Result[None, ModuleUnloadError]:
-        module_path = self._get_module_package(conf)
+        module_path = get_relative_path(conf._init_path, conf.path)  # noqa: SLF001
         logger.info('ModuleLoader: Try to unload module "{path}"'.format(path=module_path))
 
         try:

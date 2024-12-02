@@ -1,4 +1,5 @@
 import inspect
+import types
 from asyncio import AbstractEventLoop, get_running_loop
 from collections.abc import Callable
 
@@ -32,7 +33,7 @@ async def invoke_async[T, **P](func: Callable[P, T], *args: P.args, **kwargs: P.
     return await Runtime().invoke_async(func, *args, **kwargs)
 
 
-def caller_path(depth: int) -> list[str]:
+def caller_module(depth: int) -> types.ModuleType:
     import inspect
 
     frame = inspect.currentframe()
@@ -40,4 +41,8 @@ def caller_path(depth: int) -> list[str]:
     for _ in range(depth, 0, -1):
         frame = frame.f_back
 
-    return inspect.getmodule(frame).__name__.split('.')
+    return inspect.getmodule(frame)
+
+
+def caller_path(depth: int) -> list[str]:
+    return caller_module(depth + 1).__name__.split('.')

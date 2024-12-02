@@ -37,3 +37,21 @@ def lazy_import(
             return import_path(dotted_path)
 
     return inner
+
+
+def get_relative_path(init_path: list[str], dotted_path: str) -> str:
+    if not dotted_path.startswith('.'):
+        return dotted_path
+
+    dots_count = 0
+
+    for c in dotted_path[1:]:
+        if c == '.':
+            dots_count += 1
+        else:
+            dotted_path = dotted_path[dots_count + 1 :]
+            break
+
+    dots_count = min(dots_count, len(init_path))
+    init_path = init_path[0 : len(init_path) - dots_count]
+    return '.'.join([*init_path, dotted_path])

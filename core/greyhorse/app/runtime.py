@@ -65,7 +65,8 @@ class Runtime:
 
     def stop(self) -> None:
         if self._counter == 1:
-            self._loop.call_soon_threadsafe(self._loop.stop)
+            if not self._loop.is_closed():
+                self._loop.call_soon_threadsafe(self._loop.stop)
             self._thread.join()
             if not self._loop.is_closed():
                 self._loop.close()

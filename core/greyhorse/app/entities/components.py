@@ -313,6 +313,7 @@ class SyncComponent(Component):
 
         values = conf.args.copy()
         values['name'] = conf.name
+        values['init_path'] = conf._init_path  # noqa: SLF001
         injected_args = injector(factory, values=values)
 
         try:
@@ -344,6 +345,7 @@ class SyncComponent(Component):
 
         values = conf.args.copy()
         values['name'] = conf.name
+        values['init_path'] = conf._init_path  # noqa: SLF001
         injected_args = injector(factory, values=values)
 
         try:
@@ -372,6 +374,9 @@ class SyncComponent(Component):
         result = []
 
         for conf in self._conf.controllers:
+            if not conf.enabled:
+                continue
+
             factory = self._conf.controller_factories.get(conf.type_, conf.type_)
 
             match self._create_controller(conf, factory, injector):
@@ -393,6 +398,9 @@ class SyncComponent(Component):
         result = []
 
         for conf in self._conf.services:
+            if not conf.enabled:
+                continue
+
             factory = self._conf.service_factories.get(conf.type_, conf.type_)
 
             match self._create_service(conf, factory, injector):
