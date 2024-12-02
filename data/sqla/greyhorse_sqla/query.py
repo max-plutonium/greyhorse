@@ -24,7 +24,7 @@ class SqlaQuery(Query):
         super().__init__(filter_exprs, sorting_exprs, **filter_params)
 
     @override
-    def apply_filter[F](
+    def apply_filter(
         self, filter: Select[Any] | Exists | Update | Delete
     ) -> Select[Any] | Exists | Update | Delete:
         for item in self._filter_exprs:

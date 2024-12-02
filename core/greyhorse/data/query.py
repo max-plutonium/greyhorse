@@ -15,11 +15,11 @@ class Query(ABC):
         self._filter_params = filter_params
         self._sorting_exprs = sorting_exprs or []
 
-    def add_filter[F](self, filter: object) -> 'Query':
+    def add_filter[F](self, filter: F) -> 'Query':
         filter_exprs = [*self._filter_exprs, filter]
         return type(self)(filter_exprs, self._sorting_exprs, **self._filter_params)
 
-    def add_sorting[F](self, sorting: object) -> 'Query':
+    def add_sorting[S](self, sorting: S) -> 'Query':
         sorting_exprs = [*self._sorting_exprs, sorting]
         return type(self)(self._filter_exprs, sorting_exprs, **self._filter_params)
 

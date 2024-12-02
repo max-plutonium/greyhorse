@@ -158,21 +158,26 @@ class AsyncPaginator[E, ID]:
     def __init__(
         self,
         out_model: type[FromEntityMixin],
-        repo: AsyncFilterable[E, ID],
         after_filter: Callable[[ID], Any],
         before_filter: Callable[[ID], Any],
-        id_fn: Callable[[E], ID],
+        asc_sorting: Callable[[], Any],
+        desc_sorting: Callable[[], Any],
+        id_getter: Callable[[E], ID],
+        data_sorting: Callable[[E], Any] | None = None,
         str_to_id: Callable[[str], ID] = int,
     ) -> None:
         self._out_model = out_model
-        self._repo = repo
         self._after_filter = after_filter
         self._before_filter = before_filter
-        self._id_fn = id_fn
+        self._asc_sorting = asc_sorting
+        self._desc_sorting = desc_sorting
+        self._id_getter = id_getter
+        self._data_sorting = data_sorting
         self._str_to_id = str_to_id
 
     async def __call__(
         self,
+        repo: AsyncFilterable[E, ID],
         info: Info[Context],
         query: Query,
         count: int | None = None,
@@ -182,25 +187,29 @@ class AsyncPaginator[E, ID]:
         **query_options: dict[str, Any],
     ) -> Connection:
         cur_info = RelayCursorInfo.get(count, after, before)
-        after_id = cur_info.decoded_after(as_=self._str_to_id)
-        before_id = cur_info.decoded_before(as_=self._str_to_id)
 
         need_data = RelayCursorInfo.need_has_fields(info)
-        total = await self._repo.count(query) if need_data.need_total else 0
+        total = await repo.count(query) if need_data.need_total else 0
 
         if after:
-            list_query = query.add_filter(self._after_filter(after_id))
+            after_id = cur_info.decoded_after(as_=self._str_to_id)
+            list_query = query.add_filter(self._after_filter(after_id)).add_sorting(
+                self._asc_sorting
+            )
         elif before:
-            list_query = query.add_filter(self._before_filter(before_id))
+            before_id = cur_info.decoded_before(as_=self._str_to_id)
+            list_query = query.add_filter(self._before_filter(before_id)).add_sorting(
+                self._desc_sorting
+            )
         else:
             list_query = query.clone()
 
         if field is None:
-            objects = [obj async for obj in self._repo.list(list_query, limit=cur_info.count)]
+            objects = [obj async for obj in repo.list(list_query, limit=cur_info.count)]
         else:
             objects = [
                 obj
-                async for obj in self._repo.sublist(
+                async for obj in repo.sublist(
                     field, list_query, limit=cur_info.count, **query_options
                 )
             ]
@@ -208,28 +217,31 @@ class AsyncPaginator[E, ID]:
         has_prev = has_next = False
         count_prev = 0
 
+        objects = sorted(
+            objects, key=self._id_getter if self._data_sorting is None else self._data_sorting
+        )
+
         if objects:
             if need_data.need_has_next:
-                last_obj_id = self._id_fn(objects[-1])
-                has_next = await self._repo.exists_by(
+                last_obj_id = self._id_getter(objects[-1])
+                has_next = await repo.exists_by(
                     query.add_filter(self._after_filter(last_obj_id))
                 )
 
             if need_data.need_page:
-                first_obj_id = self._id_fn(objects[0])
-                count_prev = await self._repo.count(
+                first_obj_id = self._id_getter(objects[0])
+                count_prev = await repo.count(
                     query.add_filter(self._before_filter(first_obj_id))
                 )
                 has_prev = count_prev > 0
             elif need_data.need_has_prev:
-                first_obj_id = self._id_fn(objects[0])
-                has_prev = await self._repo.exists_by(
+                first_obj_id = self._id_getter(objects[0])
+                has_prev = await repo.exists_by(
                     query.add_filter(self._before_filter(first_obj_id))
                 )
-
         edges = [
             Edge(
-                cursor=RelayCursorInfo.encode_cursor(self._id_fn(instance)),
+                cursor=RelayCursorInfo.encode_cursor(self._id_getter(instance)),
                 node=self._out_model.from_entity(instance),
             )
             for instance in objects
@@ -241,7 +253,7 @@ class AsyncPaginator[E, ID]:
                 has_prev=has_prev,
                 count=len(edges),
                 total=total,
-                page=math.ceil(count_prev / cur_info.count) + 1,
+                page=math.ceil((count_prev + 1) / cur_info.count),
                 page_size=cur_info.count,
                 total_pages=math.ceil(total / cur_info.count),
                 start_cursor=edges[0].cursor if edges else None,
